@@ -23,30 +23,8 @@ const runtimeAnimationFiles = [
     'Sleepy.vrma',
     'Surprised.vrma',
     'Thinking.vrma',
-    'VRMA_01.vrma',
-    'VRMA_02.vrma',
-    'VRMA_10.vrma',
-    'VRMA_11.vrma',
-    'VRMA_12.vrma',
-    'VRMA_13.vrma',
-    'VRMA_14.vrma',
-    'VRMA_15.vrma',
-    'VRMA_16.vrma',
     'VRMA_17.vrma',
-    'VRMA_18.vrma',
-    'VRMA_19.vrma',
-    'VRMA_20.vrma',
-    'VRMA_21.vrma',
-    'VRMA_22.vrma',
-    'VRMA_23.vrma',
-    'VRMA_24.vrma',
-    'VRMA_25.vrma',
-    'VRMA_26.vrma',
-    'VRMA_27.vrma',
-    'VRMA_28.vrma',
-    'VRMA_29.vrma',
-    'VRMA_30.vrma',
-    'VRMA_31.vrma'
+    'VRMA_25.vrma'
 ];
 
 // 只复制前端实际会访问到的 VRM 与 VRMA 资源，避免把无关的大文件一起打进 Pages 产物。
