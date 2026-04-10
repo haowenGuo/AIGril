@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: airi-backend
+    runtime: python
+    plan: starter
+    region: singapore
+    numInstances: 1
+    autoDeployTrigger: commit
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    maxShutdownDelaySeconds: 60
+    buildFilter:
+      paths:
+        - backend/**
+        - requirements.txt
+        - render.yaml
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: CORS_ALLOW_ORIGINS
+        value: http://localhost:5173,https://haowenguo.github.io
+      - key: DATA_DIR
+        value: /opt/render/project/src/backend/data
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:////opt/render/project/src/backend/data/app.db
+      - key: CHROMA_PERSIST_DIR
+        value: /opt/render/project/src/backend/data/chroma
+      - key: LLM_API_BASE
+        value: https://ark.cn-beijing.volces.com/api/v3
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL_NAME
+        value: doubao-seed-2-0-mini-260215
+      - key: ELEVENLABS_API_BASE
+        value: https://api.elevenlabs.io
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID
+        sync: false
+      - key: ELEVENLABS_MODEL_ID
+        value: eleven_multilingual_v2
+      - key: ELEVENLABS_OUTPUT_FORMAT
+        value: mp3_44100_128
+      - key: ELEVENLABS_TIMEOUT_SECONDS
+        value: "60"
+    disk:
+      name: backend-data
+      mountPath: /opt/render/project/src/backend/data
+      sizeGB: 5

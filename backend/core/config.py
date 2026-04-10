@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     # 服务配置
     APP_NAME: str = "AIRI Virtual Assistant Backend"
     DEBUG: bool = True
+    CORS_ALLOW_ORIGINS: str = "http://localhost:5173,https://haowenguo.github.io"
 
     # 数据库配置 (默认SQLite，生产环境建议换 PostgreSQL)
     DATA_DIR: str = str(DATA_DIR)
@@ -76,6 +77,23 @@ class Settings(BaseSettings):
             str(BACKEND_DIR / ".env"),
             ".env",
         )
+
+    def get_cors_allow_origins(self) -> list[str]:
+        """
+        将逗号分隔的环境变量解析为 CORS 白名单。
+        保留 '*' 作为显式的全开放模式，方便本地快速调试。
+        """
+        raw_value = (self.CORS_ALLOW_ORIGINS or "").strip()
+        if not raw_value:
+            return []
+        if raw_value == "*":
+            return ["*"]
+
+        return [
+            origin.strip()
+            for origin in raw_value.split(",")
+            if origin.strip()
+        ]
 
 
 @lru_cache()

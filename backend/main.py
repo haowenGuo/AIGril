@@ -52,10 +52,14 @@ app = FastAPI(
 )
 
 # ---------------- 配置 CORS (解决跨域) ----------------
+cors_allow_origins = settings.get_cors_allow_origins() or ["*"]
+allow_credentials = cors_allow_origins != ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 生产环境请改为你的前端域名，如 ["http://localhost:5173"]
-    allow_credentials=True,
+    allow_origins=cors_allow_origins,
+    # 浏览器不允许 credentials 与通配符 * 同时使用，这里根据配置自动切换。
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -69,6 +73,11 @@ app.include_router(tts_router, prefix="/api", tags=["语音"])
 @app.get("/")
 async def root():
     return {"message": "AIRI Backend is running", "docs": "/docs"}
+
+
+@app.get("/healthz")
+async def healthz():
+    return {"status": "ok"}
 
 
 if __name__ == "__main__":
