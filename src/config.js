@@ -97,6 +97,8 @@ export const CONFIG = {
     TEXT_ONLY_SPEECH_MAX_MS: 6500,
     EXPRESSION_RESET_DELAY_MS: 350,
     EXPRESSION_HOLD_MS: 2800,
+    BLINK_EXPRESSION_HOLD_MS: 220,
+    DANCE_ACTION_DURATION_MS: 4800,
     // 表情预设统一收口在这里。
     // 对话系统只传表情名，不直接控制数值。
     EXPRESSION_PRESETS: {
@@ -113,7 +115,7 @@ export const CONFIG = {
         blink: 1.0,
         blinkLeft: 1.0,
         blinkRight: 1.0,
-        neutral: 1.0
+        neutral: 0.0
     },
     BACKEND_BASE_URL: runtimeSettings.backendBaseUrl,
     DEMO_MODE_ENABLED: runtimeSettings.demoModeEnabled,

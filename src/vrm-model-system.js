@@ -38,6 +38,7 @@ export class VRMModelSystem {
 
         this.activeExpressions = new Set();
         this.expressionResetTimer = null;
+        this.actionResetTimer = null;
         this.animate = this.animate.bind(this);
     }
 
@@ -45,10 +46,18 @@ export class VRMModelSystem {
         return ['blink', 'blinkLeft', 'blinkRight'].includes(expressionName);
     }
 
+    hasActiveBlinkExpression() {
+        for (const expressionName of this.activeExpressions) {
+            if (this.isBlinkExpression(expressionName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     hasBlockingEmotionExpression() {
         for (const expressionName of this.activeExpressions) {
             if (
-                expressionName !== 'neutral' &&
                 expressionName !== 'aa' &&
                 !this.isBlinkExpression(expressionName)
             ) {
@@ -274,9 +283,29 @@ export class VRMModelSystem {
         const nextAction = this.actionMap[targetActionName];
         if (this.currentAction === nextAction) return;
 
+        if (this.actionResetTimer) {
+            clearTimeout(this.actionResetTimer);
+            this.actionResetTimer = null;
+        }
+
+        const isIdleAction = CONFIG.IDLE_ACTION_LIST.includes(targetActionName);
+        const isDanceAction = actionName === 'dance';
+
+        if (isIdleAction) {
+            nextAction.setLoop(THREE.LoopRepeat, Infinity);
+            nextAction.clampWhenFinished = false;
+        } else if (isDanceAction) {
+            nextAction.setLoop(THREE.LoopRepeat, Infinity);
+            nextAction.clampWhenFinished = false;
+        } else {
+            nextAction.setLoop(THREE.LoopOnce, 1);
+            nextAction.clampWhenFinished = true;
+        }
+
         if (this.currentAction) {
             this.currentAction.enabled = true;
             nextAction.enabled = true;
+            nextAction.reset();
             nextAction.time = 0;
             this.currentAction.crossFadeTo(nextAction, CONFIG.CROSS_FADE_DURATION, true);
             nextAction.play();
@@ -286,6 +315,13 @@ export class VRMModelSystem {
         }
 
         this.currentAction = nextAction;
+        if (isDanceAction) {
+            this.actionResetTimer = setTimeout(() => {
+                this.actionResetTimer = null;
+                this.playAction('idle');
+            }, CONFIG.DANCE_ACTION_DURATION_MS);
+        }
+
         if (actionName !== 'idle') {
             console.log(`🎬 播放动作: ${targetActionName}`);
         }
@@ -322,6 +358,11 @@ export class VRMModelSystem {
     }
 
     applyExpressionPreset(expressionName) {
+        if (expressionName === 'neutral') {
+            this.resetExpression();
+            return;
+        }
+
         const presetValue = this.getExpressionPresetValue(expressionName);
         if (typeof presetValue !== 'number') {
             console.warn(`⚠️ 表情预设 "${expressionName}" 不存在`);
@@ -334,7 +375,7 @@ export class VRMModelSystem {
 
     setExpression(expressionName, value) {
         if (!this.isModelLoaded || !this.vrm) return;
-        this.resetExpression();
+        this.clearExpressionValues({ preserveLipSync: this.isSpeaking });
 
         if (value > 0) {
             this.activeExpressions.add(expressionName);
@@ -345,7 +386,7 @@ export class VRMModelSystem {
         this.vrm.expressionManager.setValue(expressionName, value);
     }
 
-    resetExpression() {
+    clearExpressionValues({ preserveLipSync = false } = {}) {
         if (!this.isModelLoaded || !this.vrm) return;
 
         if (this.expressionResetTimer) {
@@ -353,14 +394,26 @@ export class VRMModelSystem {
             this.expressionResetTimer = null;
         }
 
+        const nextActiveExpressions = new Set();
         this.activeExpressions.forEach((expressionName) => {
+            if (preserveLipSync && expressionName === 'aa') {
+                nextActiveExpressions.add('aa');
+                return;
+            }
             this.vrm.expressionManager.setValue(expressionName, 0);
         });
 
-        this.activeExpressions.clear();
-        this.vrm.expressionManager.setValue('aa', 0);
-        this.vrm.expressionManager.setValue('neutral', this.getExpressionPresetValue('neutral') ?? 0.6);
-        this.activeExpressions.add('neutral');
+        this.activeExpressions = nextActiveExpressions;
+
+        if (!preserveLipSync) {
+            this.vrm.expressionManager.setValue('aa', 0);
+        }
+
+        this.vrm.expressionManager.setValue('neutral', this.getExpressionPresetValue('neutral') ?? 0);
+    }
+
+    resetExpression() {
+        this.clearExpressionValues({ preserveLipSync: this.isSpeaking });
     }
 
     scheduleNeutralReset(expressionName) {
@@ -373,7 +426,7 @@ export class VRMModelSystem {
 
         this.expressionResetTimer = setTimeout(() => {
             this.resetExpression();
-        }, CONFIG.EXPRESSION_HOLD_MS);
+        }, this.isBlinkExpression(expressionName) ? CONFIG.BLINK_EXPRESSION_HOLD_MS : CONFIG.EXPRESSION_HOLD_MS);
     }
 
     startAudioDrivenSpeech() {
@@ -410,6 +463,7 @@ export class VRMModelSystem {
     triggerBlink() {
         if (!this.isModelLoaded || !this.autoBlinkEnabled) return;
         if (this.hasBlockingEmotionExpression()) return;
+        if (this.hasActiveBlinkExpression()) return;
 
         this.vrm.expressionManager.setValue('blink', this.getExpressionPresetValue('blink') ?? 0.8);
         this.activeExpressions.add('blink');
@@ -447,6 +501,7 @@ export class VRMModelSystem {
     updateAutoBlink(deltaTime) {
         if (!this.autoBlinkEnabled || !this.isModelLoaded) return;
         if (this.hasBlockingEmotionExpression()) return;
+        if (this.hasActiveBlinkExpression()) return;
 
         this.blinkTimer += deltaTime * 1000;
         if (this.blinkTimer >= this.nextBlinkTime) {
