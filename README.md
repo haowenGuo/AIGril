@@ -71,6 +71,7 @@ backend/   FastAPI API, memory logic, deployment config
 src/       VRM avatar, chat UI, actions, expressions, frontend runtime
 Resources/ VRM model and VRMA animation assets
 scripts/   Static build helpers
+examples/  Standalone developer examples, including the Python safety API demo
 ```
 
 ## Deployment

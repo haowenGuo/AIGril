@@ -71,6 +71,7 @@ backend/   FastAPI API、記憶ロジック、デプロイ設定
 src/       VRM アバター、チャット UI、アクション、表情、フロントエンド処理
 Resources/ VRM モデルと VRMA アセット
 scripts/   静的ビルド補助スクリプト
+examples/  開発者向けの独立サンプル。Python safety API デモを含む
 ```
 
 ## デプロイ

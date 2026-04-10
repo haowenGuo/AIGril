@@ -71,6 +71,7 @@ backend/   FastAPI 接口、记忆逻辑、部署配置
 src/       VRM 数字人、聊天界面、动作表情与前端运行时
 Resources/ VRM 模型与 VRMA 动作资源
 scripts/   静态构建辅助脚本
+examples/  独立开发示例，其中包含安全检测 API 的 Python 示例项目
 ```
 
 ## 部署方式
