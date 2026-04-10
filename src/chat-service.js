@@ -5,6 +5,9 @@ function sleep(ms) {
     return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+const CONTROL_TAG_PATTERN = /\[(action|expression):([^\]]*)\]/g;
+const LEADING_INCOMPLETE_CONTROL_TAG_PATTERN = /^(?:\[(?:action|expression):[^\]]*)+/;
+
 function pickRandom(items) {
     return items[Math.floor(Math.random() * items.length)];
 }
@@ -16,6 +19,82 @@ function getLatestUserMessage(messageHistory) {
         }
     }
     return '';
+}
+
+function normalizeDisplayLines(text) {
+    return (text || '')
+        .split(/\r?\n/)
+        .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+        .filter(Boolean)
+        .join('\n')
+        .trim();
+}
+
+function parseReplyMarkup(rawText) {
+    let action = null;
+    let expression = null;
+
+    const strippedText = (rawText || '').replace(CONTROL_TAG_PATTERN, (_, kind, value) => {
+        const normalizedValue = value.trim();
+        if (kind === 'action' && !action) {
+            action = normalizedValue;
+        }
+        if (kind === 'expression' && !expression) {
+            expression = normalizedValue;
+        }
+        return '';
+    });
+
+    // 流式输出时，开头的控制标签可能还没闭合；这里先把未完成的片段隐藏掉，
+    // 避免用户看到 “[action:wa” 这类中间态内容。
+    const visibleText = strippedText.replace(LEADING_INCOMPLETE_CONTROL_TAG_PATTERN, '');
+    const displayText = normalizeDisplayLines(visibleText);
+
+    return {
+        raw_text: rawText || '',
+        display_text: displayText,
+        speech_text: displayText.replace(/\n/g, ' '),
+        action,
+        expression
+    };
+}
+
+async function readTextStream(response, onChunk) {
+    if (!response.body) {
+        throw new Error('浏览器不支持流式响应读取');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let fullText = '';
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+            break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n');
+        buffer = parts.pop() ?? '';
+
+        for (const part of parts) {
+            if (!part) {
+                continue;
+            }
+            fullText += part;
+            onChunk?.(fullText);
+        }
+    }
+
+    buffer += decoder.decode();
+    if (buffer.trim()) {
+        fullText += buffer.trim();
+        onChunk?.(fullText);
+    }
+
+    return fullText;
 }
 
 function createDemoPayload({ text, action = null, expression = null, autoChat = false }) {
@@ -114,60 +193,37 @@ function buildDemoReply(latestUserMessage, isAutoChat) {
 
 export class BackendChatService {
     getWelcomeMessage() {
-        return 'AIRI到啦！现在可以聊天，也可以直接听到她的声音啦~';
+        return 'AIRI到啦！现在会优先用流式文字回复你，这样会更快一点~';
     }
 
-    async fetchAssistantTurn({ sessionId, messageHistory, isAutoChat = false }) {
+    async fetchAssistantTurn({ sessionId, messageHistory, isAutoChat = false, onProgress }) {
         const requestBody = JSON.stringify({
             session_id: sessionId,
             messages: messageHistory,
             is_auto_chat: isAutoChat
         });
 
-        const response = await fetch(CONFIG.BACKEND_TTS_API_URL, {
+        const response = await fetch(CONFIG.BACKEND_STREAM_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: requestBody
         });
 
-        if (response.ok) {
-            const payload = await response.json();
-            return { ...payload, fallbackMode: false, demoMode: false };
-        }
-
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.detail || errorData.message || `请求失败，状态码：${response.status}`;
-        const shouldFallbackToText =
-            response.status >= 500 ||
-            response.status === 401 ||
-            errorMessage.includes('ElevenLabs');
-
-        if (!shouldFallbackToText) {
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData.detail || errorData.message || `请求失败，状态码：${response.status}`;
             throw new Error(errorMessage);
         }
 
-        console.warn('⚠️ TTS 接口失败，自动降级为纯文本模式：', errorMessage);
-
-        const textResponse = await fetch(CONFIG.BACKEND_TEXT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: requestBody
+        const rawText = await readTextStream(response, (nextRawText) => {
+            const nextPayload = parseReplyMarkup(nextRawText);
+            onProgress?.(nextPayload);
         });
 
-        if (!textResponse.ok) {
-            const textErrorData = await textResponse.json().catch(() => ({}));
-            throw new Error(
-                textErrorData.detail ||
-                textErrorData.message ||
-                errorMessage
-            );
-        }
-
-        const textPayload = await textResponse.json();
         return {
-            ...textPayload,
+            ...parseReplyMarkup(rawText),
             fallbackMode: true,
-            fallbackReason: errorMessage,
+            streamMode: true,
             demoMode: false
         };
     }

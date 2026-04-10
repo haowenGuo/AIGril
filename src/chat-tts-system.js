@@ -87,13 +87,16 @@ export class ChatTTSSystem {
 
         console.log('✨ AIRI 尝试主动发起对话...');
         this.isBusy = true;
+        const aiMessageDiv = this.createAIMessage();
 
         try {
-            const payload = await this.fetchAssistantTurn(true);
-            const aiMessageDiv = this.createAIMessage();
+            const payload = await this.fetchAssistantTurn(true, (partialPayload) => {
+                this.renderStreamingAssistantReply(partialPayload, aiMessageDiv);
+            });
             await this.renderAssistantReply(payload, aiMessageDiv);
             this.messageHistory.push({ role: 'assistant', content: payload.display_text });
         } catch (error) {
+            aiMessageDiv.remove();
             console.error('主动对话请求失败：', error);
         } finally {
             this.isBusy = false;
@@ -119,18 +122,19 @@ export class ChatTTSSystem {
         this.messageHistory.push({ role: 'user', content });
 
         const loadingEl = this.addLoadingMessage();
+        const aiMessageDiv = this.createAIMessage();
 
         try {
-            await this.audioPlayer.unlock();
-
-            const payload = await this.fetchAssistantTurn(false);
+            const payload = await this.fetchAssistantTurn(false, (partialPayload) => {
+                loadingEl.remove();
+                this.renderStreamingAssistantReply(partialPayload, aiMessageDiv);
+            });
             loadingEl.remove();
-
-            const aiMessageDiv = this.createAIMessage();
             await this.renderAssistantReply(payload, aiMessageDiv);
             this.messageHistory.push({ role: 'assistant', content: payload.display_text });
         } catch (error) {
             loadingEl.remove();
+            aiMessageDiv.remove();
             this.vrmSystem.stopSpeaking();
             this.addSystemMessage(`请求失败：${error.message}`);
             console.error('后端请求失败：', error);
@@ -140,11 +144,13 @@ export class ChatTTSSystem {
         }
     }
 
-    async fetchAssistantTurn(isAutoChat = false) {
+    async fetchAssistantTurn(isAutoChat = false, onProgress) {
         return this.chatService.fetchAssistantTurn({
             sessionId: this.sessionId,
             messageHistory: this.messageHistory,
-            isAutoChat
+            is_auto_chat: isAutoChat,
+            isAutoChat,
+            onProgress
         });
     }
 
@@ -153,6 +159,13 @@ export class ChatTTSSystem {
         const alignment = payload.normalized_alignment || payload.alignment || null;
 
         this.executeAvatarCue(payload);
+
+        if (payload.streamMode) {
+            aiMessageDiv.textContent = displayText;
+            this.vrmSystem.stopSpeaking();
+            this.scrollToBottom();
+            return;
+        }
 
         if (payload.fallbackMode) {
             await this.playFallbackSpeech(displayText, aiMessageDiv);
@@ -193,6 +206,19 @@ export class ChatTTSSystem {
             this.showAutoplayHintOnce(error);
             console.error('音频播放失败：', error);
         }
+    }
+
+    renderStreamingAssistantReply(payload, aiMessageDiv) {
+        const displayText = payload.display_text || payload.speech_text || '';
+
+        this.executeAvatarCue(payload);
+
+        if (!this.vrmSystem.isSpeaking) {
+            this.vrmSystem.startFallbackSpeech();
+        }
+
+        aiMessageDiv.textContent = displayText;
+        this.scrollToBottom();
     }
 
     executeAvatarCue(payload) {
@@ -281,7 +307,7 @@ export class ChatTTSSystem {
     addLoadingMessage() {
         const div = document.createElement('div');
         div.className = 'message-loading';
-        div.textContent = 'AIRI正在整理回答和语音...';
+        div.textContent = 'AIRI正在思考...';
         this.messageListEl.appendChild(div);
         this.scrollToBottom();
         return div;
