@@ -1,32 +1,45 @@
-# AIRI
+<div align="center">
+  <h1>AIRI</h1>
+  <p><strong>A browser-based virtual companion with a 3D VRM avatar, streaming chat, expressive animation, and lightweight memory.</strong></p>
+  <p>
+    <a href="https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com"><img alt="Try AIRI" src="https://img.shields.io/badge/Try%20AIRI-Live%20Experience-2563eb?style=for-the-badge"></a>
+    <a href="https://haowenGuo.github.io/AIGril/"><img alt="Frontend Demo" src="https://img.shields.io/badge/GitHub%20Pages-Frontend%20Demo-0f172a?style=for-the-badge"></a>
+    <a href="https://airi-backend.onrender.com/docs"><img alt="Backend API" src="https://img.shields.io/badge/Backend-FastAPI%20Docs-059669?style=for-the-badge"></a>
+  </p>
+  <p>
+    <a href="README.md">English</a> ·
+    <a href="README.zh-CN.md">简体中文</a> ·
+    <a href="README.ja.md">日本語</a>
+  </p>
+</div>
 
-[English](README.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md)
+---
 
-AIRI is a browser-based virtual companion built around a 3D VRM avatar, streaming chat, expressive animation, and lightweight memory features.
+## Overview
 
-## Try It
+AIRI focuses on making a web-based virtual character feel alive.
+
+- A live 3D VRM avatar rendered directly in the browser
+- Streamed text replies for lower perceived latency
+- Action and expression control driven by model-generated tags
+- Lip sync, blink, idle motion, and dance motion systems
+- Session memory with periodic summary compression
+
+## Experience
 
 - Full experience: [https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com](https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com)
 - Frontend-only demo: [https://haowenGuo.github.io/AIGril/](https://haowenGuo.github.io/AIGril/)
 - Backend API docs: [https://airi-backend.onrender.com/docs](https://airi-backend.onrender.com/docs)
 
-## What AIRI Does
+## Core Features
 
-- Renders a live 3D VRM avatar in the browser
-- Streams chat replies from a FastAPI backend
-- Triggers avatar actions and expressions from model-generated control tags
-- Plays idle, dance, surprise, anger, and other motion presets
-- Runs lip sync, blink, and speaking-state animation for more natural feedback
-- Stores session memory and periodically compresses old conversations into summaries
+- Streaming chat responses from a FastAPI backend
+- VRM avatar actions such as idle, dance, surprise, wave, and anger
+- Expression presets such as happy, sad, relaxed, surprised, and playful blink
+- Speaking-state animation and lip-sync fallback while text is arriving
+- Memory storage and timed summary compression for longer conversations
 
-## Highlights
-
-- Fast text-first interaction with streamed output
-- Expressive character behavior instead of plain text-only chat
-- Public deployment with GitHub Pages for the frontend and Render for the backend
-- Clean module split between avatar system, chat system, and backend services
-
-## Stack
+## Tech Stack
 
 - Frontend: Vite, Three.js, `@pixiv/three-vrm`
 - Backend: FastAPI, SQLAlchemy, SQLite
@@ -35,16 +48,9 @@ AIRI is a browser-based virtual companion built around a 3D VRM avatar, streamin
 
 ## Run Locally
 
-### Frontend
-
 ```bash
 pnpm install
 pnpm dev
-```
-
-### Backend
-
-```bash
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
@@ -58,7 +64,7 @@ Required environment variable:
 LLM_API_KEY=your_llm_api_key
 ```
 
-## Structure
+## Repository Layout
 
 ```text
 backend/   FastAPI API, memory logic, deployment config
@@ -75,4 +81,4 @@ scripts/   Static build helpers
 
 ## Goal
 
-Make a virtual character feel responsive, expressive, and pleasant to interact with on the web while keeping the project approachable for future iteration.
+Build a virtual character experience that feels responsive, expressive, and pleasant to interact with on the web, while keeping the project easy to evolve.
