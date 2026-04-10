@@ -319,7 +319,10 @@ class AISafetyService:
                 ]
             )
             content = self._extract_response_text(response)
-            payload = self._parse_json_payload(content)
+            try:
+                payload = self._parse_json_payload(content)
+            except Exception:
+                payload = await self._repair_json_payload(content)
             return self._normalize_result(algorithm, payload)
         except Exception as exc:
             print(f"[AISafety] {algorithm} 检测失败: {exc}")
@@ -363,6 +366,39 @@ class AISafetyService:
 
         return json.loads(cleaned)
 
+    async def _repair_json_payload(self, raw_text: str) -> dict[str, Any]:
+        llm = self._create_llm(temperature=0.0, max_tokens=500)
+        response = await llm.ainvoke(
+            [
+                SystemMessage(
+                    content=(
+                        "你是 JSON 修复器。"
+                        "请把输入内容整理为严格 JSON，只输出 JSON 对象。"
+                    )
+                ),
+                HumanMessage(
+                    content=f"""
+请把下面内容修复成一个严格 JSON，字段固定为：
+- risk_level
+- risk_type
+- confidence
+- suggestion
+- summary
+- policy_hits
+- latent_intent
+- normalized_content
+
+如果原文缺字段，请按最保守的合理方式补齐。
+
+原始内容：
+{raw_text or "空"}
+"""
+                ),
+            ]
+        )
+        repaired_text = self._extract_response_text(response)
+        return self._parse_json_payload(repaired_text)
+
     def _normalize_result(
         self,
         algorithm: str,
@@ -372,23 +408,8 @@ class AISafetyService:
         if risk_level not in RISK_LEVEL_TO_SCORE:
             risk_level = "中风险"
 
-        risk_type = payload.get("risk_type") or []
-        if isinstance(risk_type, str):
-            risk_type = [risk_type]
-        risk_type = [
-            str(item).strip()
-            for item in risk_type
-            if str(item).strip()
-        ]
-
-        policy_hits = payload.get("policy_hits") or []
-        if isinstance(policy_hits, str):
-            policy_hits = [policy_hits]
-        policy_hits = [
-            str(item).strip()
-            for item in policy_hits
-            if str(item).strip()
-        ]
+        risk_type = self._normalize_string_list(payload.get("risk_type"))
+        policy_hits = self._normalize_string_list(payload.get("policy_hits"))
 
         try:
             confidence = float(payload.get("confidence", 0.75))
@@ -461,3 +482,33 @@ class AISafetyService:
             return None
         text = str(value).strip()
         return text or None
+
+    def _normalize_string_list(self, value: Any) -> list[str]:
+        if value is None:
+            return []
+
+        if isinstance(value, list):
+            raw_items = value
+        else:
+            raw_items = [value]
+
+        normalized: list[str] = []
+        for item in raw_items:
+            text = str(item).strip()
+            if not text:
+                continue
+            parts = re.split(r"[，,、;/\n]+", text)
+            normalized.extend(
+                part.strip()
+                for part in parts
+                if part.strip()
+            )
+
+        # 去重并保持稳定顺序
+        deduped: list[str] = []
+        seen: set[str] = set()
+        for item in normalized:
+            if item not in seen:
+                deduped.append(item)
+                seen.add(item)
+        return deduped
