@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -46,3 +46,44 @@ class ChatTextResponse(BaseModel):
     speech_text: str = Field(..., description="原本用于 TTS 的净化文本")
     action: Optional[str] = Field(default=None, description="动作标签，例如 wave / dance")
     expression: Optional[str] = Field(default=None, description="表情标签，例如 happy")
+
+
+class SafetyJudgeResultModel(BaseModel):
+    algorithm: str = Field(..., description="当前算法名称")
+    risk_level: str = Field(..., description="风险等级：无风险/低风险/中风险/高风险")
+    risk_type: List[str] = Field(default_factory=list, description="命中的风险类型")
+    confidence: float = Field(..., description="模型置信度，0~1")
+    suggestion: str = Field(..., description="给业务侧的处理建议")
+    summary: str = Field(..., description="简短风险摘要")
+    policy_hits: List[str] = Field(default_factory=list, description="命中的策略维度")
+    normalized_content: Optional[str] = Field(default=None, description="对抗式重写后的显性化文本")
+    latent_intent: Optional[str] = Field(default=None, description="检测到的潜在意图")
+    meta: Dict[str, Any] = Field(default_factory=dict, description="算法附加信息")
+
+
+class SafetyCheckRequest(BaseModel):
+    content: str = Field(..., description="待审核的大模型生成文本")
+    task_type: str = Field(default="content_safety_check", description="业务任务类型")
+    extra: Optional[str] = Field(default=None, description="额外上下文，可选")
+
+
+class SafetyCheckResponse(BaseModel):
+    task: str = Field(..., description="业务任务类型")
+    your_content: str = Field(..., description="待审核文本")
+    risk_check: SafetyJudgeResultModel = Field(..., description="综合风险判定")
+    algorithms: Dict[str, SafetyJudgeResultModel] = Field(
+        default_factory=dict,
+        description="各算法的独立检测结果"
+    )
+
+
+class LegacySafetyRequest(BaseModel):
+    task_type: str = Field(..., description="任务类型")
+    params: Dict[str, Any] = Field(default_factory=dict, description="兼容旧版调用参数")
+    extra: Optional[str] = Field(default=None, description="额外上下文")
+
+
+class LegacySafetyResponse(BaseModel):
+    code: int = Field(..., description="兼容旧版的响应码")
+    msg: str = Field(..., description="提示信息")
+    data: Dict[str, Any] = Field(default_factory=dict, description="检测结果")

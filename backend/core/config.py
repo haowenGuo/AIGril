@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     LLM_API_KEY: str = ""
     LLM_MODEL_NAME: str = "doubao-seed-2-0-mini-260215"
 
+    # ================= AI Safety 配置 =================
+    # 默认复用主对话模型；如需单独切换内容安全审核模型，可单独覆盖下面三个字段
+    SAFETY_API_BASE: str = ""
+    SAFETY_API_KEY: str = ""
+    SAFETY_MODEL_NAME: str = ""
+
     # Embedding 模型配置 (用于RAG向量化)
     EMBEDDING_MODEL: str = "text-embedding-3-small"
 

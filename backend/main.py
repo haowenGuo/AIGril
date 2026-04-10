@@ -8,6 +8,7 @@ from backend.core.config import get_settings
 from backend.core.database import init_db
 from backend.api.chat import router as chat_router
 from backend.api.tts import router as tts_router
+from backend.AISafety import router as ai_safety_router
 # 🔴 导入新的压缩服务（而不是从 chat.py 导入）
 from backend.services.compress_service import timer_task_runner
 
@@ -67,6 +68,7 @@ app.add_middleware(
 # ---------------- 注册路由（只保留一次） ----------------
 app.include_router(chat_router, prefix="/api", tags=["对话"])
 app.include_router(tts_router, prefix="/api", tags=["语音"])
+app.include_router(ai_safety_router, prefix="/api", tags=["安全"])
 
 
 # ---------------- 根路径测试 ----------------
