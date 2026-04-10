@@ -1,6 +1,15 @@
 from __future__ import annotations
 
-from .client import AISafetyClient, AISafetyClientError
+import sys
+from pathlib import Path
+
+if __package__ in {None, ""}:
+    CURRENT_DIR = Path(__file__).resolve().parent
+    if str(CURRENT_DIR) not in sys.path:
+        sys.path.insert(0, str(CURRENT_DIR))
+    from client import AISafetyClient, AISafetyClientError
+else:
+    from .client import AISafetyClient, AISafetyClientError
 
 
 def main() -> None:
@@ -40,6 +49,10 @@ def main() -> None:
         print("risk_level:", legacy_result.data["risk_check"]["risk_level"])
     except AISafetyClientError as exc:
         print("request_failed:", exc)
+
+    print()
+    print("Tip: In PyCharm, this file is meant to be run directly.")
+    print("It will automatically call the deployed Render API and print demo output.")
 
 
 if __name__ == "__main__":

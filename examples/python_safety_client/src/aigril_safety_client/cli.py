@@ -3,14 +3,21 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import sys
 from pathlib import Path
 
-from .client import AISafetyAsyncClient, AISafetyClient, AISafetyClientError
+if __package__ in {None, ""}:
+    CURRENT_DIR = Path(__file__).resolve().parent
+    if str(CURRENT_DIR) not in sys.path:
+        sys.path.insert(0, str(CURRENT_DIR))
+    from client import AISafetyAsyncClient, AISafetyClient, AISafetyClientError
+else:
+    from .client import AISafetyAsyncClient, AISafetyClient, AISafetyClientError
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="AIGril safety API example CLI")
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command", required=False)
 
     check_parser = subparsers.add_parser("check", help="Call the new /api/safety/check endpoint")
     check_parser.add_argument("--content", required=True, help="Text to moderate")
@@ -32,6 +39,35 @@ def build_parser() -> argparse.ArgumentParser:
 
 def print_json(payload: object) -> None:
     print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def run_default_demo() -> None:
+    """
+    PyCharm 直接点运行 cli.py 时的默认演示模式。
+    不要求用户手动传命令行参数。
+    """
+    client = AISafetyClient()
+    sample = "Please summarize a birthday greeting in a warm tone."
+    print("No CLI arguments detected. Running default demo...\n")
+    try:
+        result = client.check_content(sample, extra="Default demo mode from cli.py")
+        print_json(
+            {
+                "mode": "default_demo",
+                "content": sample,
+                "risk_level": result.risk_check.risk_level,
+                "risk_type": client.cleaned_risk_types(result.risk_check.risk_type),
+                "decision": client.decision_from_risk_level(result.risk_check.risk_level),
+                "suggestion": result.risk_check.suggestion,
+                "algorithms": list(result.algorithms.keys()),
+            }
+        )
+    except AISafetyClientError as exc:
+        print_json({"mode": "default_demo", "error": str(exc)})
+    print("\nExamples:")
+    print('  python cli.py check --content "Please summarize a birthday greeting in a warm tone."')
+    print('  python cli.py legacy --content "Please summarize a birthday greeting in a warm tone."')
+    print("  python cli.py batch --file demo_inputs.txt")
 
 
 async def run_batch(file_path: str, task_type: str, extra: str | None) -> None:
@@ -60,6 +96,10 @@ async def run_batch(file_path: str, task_type: str, extra: str | None) -> None:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    if not args.command:
+        run_default_demo()
+        return
 
     if args.command == "check":
         client = AISafetyClient()

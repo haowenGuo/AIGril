@@ -2,11 +2,19 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
+from pathlib import Path
 from typing import Iterable
 
 import httpx
 
-from .models import LegacySafetyResponse, SafetyCheckResponse
+if __package__ in {None, ""}:
+    CURRENT_DIR = Path(__file__).resolve().parent
+    if str(CURRENT_DIR) not in sys.path:
+        sys.path.insert(0, str(CURRENT_DIR))
+    from models import LegacySafetyResponse, SafetyCheckResponse
+else:
+    from .models import LegacySafetyResponse, SafetyCheckResponse
 
 
 DEFAULT_BASE_URL = os.getenv("AIGRIL_SAFETY_BASE_URL", "https://airi-backend.onrender.com")
