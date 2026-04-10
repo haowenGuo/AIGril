@@ -15,6 +15,8 @@ services:
         - requirements.txt
         - render.yaml
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
       - key: DEBUG
         value: "False"
       - key: CORS_ALLOW_ORIGINS
