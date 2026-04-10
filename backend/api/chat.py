@@ -13,9 +13,6 @@ from backend.core.config import get_settings
 settings = get_settings()
 router = APIRouter()
 
-# ---------------- 核心对话接口（保留并简化） ----------------
-DELIMITER = "\n"
-
 @router.post("/chat")
 async def chat_endpoint(
         request: ChatRequest,
@@ -66,10 +63,10 @@ async def chat_endpoint(
                 if not chunk:
                     continue
                 full_ai_reply += chunk
-                yield chunk + DELIMITER
+                yield f"data:{chunk}\n\n"
         except Exception as e:
             print(f"[LLM Stream Error] 调用失败: {e}")
-            yield f"[ERROR] 对话失败：{str(e)}{DELIMITER}"
+            yield f"event:error\ndata:[ERROR] 对话失败：{str(e)}\n\n"
 
     async def save_ai_message_task():
         if full_ai_reply and not full_ai_reply.startswith("[ERROR]"):
@@ -86,6 +83,11 @@ async def chat_endpoint(
     # 7. 返回流式响应，确保流结束后再保存 AI 回复
     return StreamingResponse(
         event_generator(),
-        media_type="text/plain",
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
         background=BackgroundTask(save_ai_message_task)
     )

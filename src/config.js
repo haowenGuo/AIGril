@@ -98,7 +98,6 @@ export const CONFIG = {
     EXPRESSION_RESET_DELAY_MS: 350,
     EXPRESSION_HOLD_MS: 2800,
     BLINK_EXPRESSION_HOLD_MS: 220,
-    DANCE_ACTION_DURATION_MS: 4800,
     // 表情预设统一收口在这里。
     // 对话系统只传表情名，不直接控制数值。
     EXPRESSION_PRESETS: {

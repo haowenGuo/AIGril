@@ -38,7 +38,6 @@ export class VRMModelSystem {
 
         this.activeExpressions = new Set();
         this.expressionResetTimer = null;
-        this.actionResetTimer = null;
         this.animate = this.animate.bind(this);
     }
 
@@ -246,13 +245,19 @@ export class VRMModelSystem {
             const finishedAction = event.action;
             const finishedName = this.getActionNameByInstance(finishedAction);
             const isIdleAction = finishedName && CONFIG.IDLE_ACTION_LIST.includes(finishedName);
+            const isCurrentAction = finishedAction === this.currentAction;
 
             if (isIdleAction) {
                 console.log(`🔄 IDLE动作(${finishedName})播放完毕，继续下一个IDLE`);
-            } else {
-                console.log(`🔄 交互动作(${finishedName})播放完毕，切回IDLE`);
+                return;
             }
 
+            if (!isCurrentAction) {
+                console.log(`⏭️ 忽略已结束的旧动作(${finishedName})，当前动作仍在播放`);
+                return;
+            }
+
+            console.log(`🔄 交互动作(${finishedName})播放完毕，切回IDLE`);
             this.playAction('idle');
         });
     }
@@ -283,18 +288,9 @@ export class VRMModelSystem {
         const nextAction = this.actionMap[targetActionName];
         if (this.currentAction === nextAction) return;
 
-        if (this.actionResetTimer) {
-            clearTimeout(this.actionResetTimer);
-            this.actionResetTimer = null;
-        }
-
         const isIdleAction = CONFIG.IDLE_ACTION_LIST.includes(targetActionName);
-        const isDanceAction = actionName === 'dance';
 
         if (isIdleAction) {
-            nextAction.setLoop(THREE.LoopRepeat, Infinity);
-            nextAction.clampWhenFinished = false;
-        } else if (isDanceAction) {
             nextAction.setLoop(THREE.LoopRepeat, Infinity);
             nextAction.clampWhenFinished = false;
         } else {
@@ -315,13 +311,6 @@ export class VRMModelSystem {
         }
 
         this.currentAction = nextAction;
-        if (isDanceAction) {
-            this.actionResetTimer = setTimeout(() => {
-                this.actionResetTimer = null;
-                this.playAction('idle');
-            }, CONFIG.DANCE_ACTION_DURATION_MS);
-        }
-
         if (actionName !== 'idle') {
             console.log(`🎬 播放动作: ${targetActionName}`);
         }
@@ -367,6 +356,18 @@ export class VRMModelSystem {
         if (typeof presetValue !== 'number') {
             console.warn(`⚠️ 表情预设 "${expressionName}" 不存在`);
             return;
+        }
+
+        if (this.isBlinkExpression(expressionName)) {
+            this.vrm.expressionManager.setValue('blink', 0);
+            this.vrm.expressionManager.setValue('blinkLeft', 0);
+            this.vrm.expressionManager.setValue('blinkRight', 0);
+            this.activeExpressions.delete('blink');
+            this.activeExpressions.delete('blinkLeft');
+            this.activeExpressions.delete('blinkRight');
+            this.blinkTimer = 0;
+            this.nextBlinkTime = CONFIG.BLINK_MIN_INTERVAL +
+                Math.random() * (CONFIG.BLINK_MAX_INTERVAL - CONFIG.BLINK_MIN_INTERVAL);
         }
 
         this.setExpression(expressionName, presetValue);

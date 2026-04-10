@@ -80,18 +80,46 @@ async function readTextStream(response, onChunk) {
         buffer = parts.pop() ?? '';
 
         for (const part of parts) {
-            if (!part) {
+            const line = part.replace(/\r$/, '');
+            if (!line) {
                 continue;
             }
-            fullText += part;
+
+            if (line.startsWith(':') || line.startsWith('event:')) {
+                continue;
+            }
+
+            let chunkText = line;
+            if (line.startsWith('data:')) {
+                chunkText = line.slice(5);
+                if (chunkText.startsWith(' ')) {
+                    chunkText = chunkText.slice(1);
+                }
+            }
+
+            if (!chunkText) {
+                continue;
+            }
+
+            fullText += chunkText;
             onChunk?.(fullText);
         }
     }
 
     buffer += decoder.decode();
-    if (buffer.trim()) {
-        fullText += buffer.trim();
-        onChunk?.(fullText);
+    const restLine = buffer.replace(/\r$/, '');
+    if (restLine) {
+        let chunkText = restLine;
+        if (restLine.startsWith('data:')) {
+            chunkText = restLine.slice(5);
+            if (chunkText.startsWith(' ')) {
+                chunkText = chunkText.slice(1);
+            }
+        }
+        if (chunkText) {
+            fullText += chunkText;
+            onChunk?.(fullText);
+        }
     }
 
     return fullText;

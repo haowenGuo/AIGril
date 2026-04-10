@@ -88,6 +88,7 @@ export class ChatTTSSystem {
         console.log('✨ AIRI 尝试主动发起对话...');
         this.isBusy = true;
         const aiMessageDiv = this.createAIMessage();
+        this.vrmSystem.startFallbackSpeech();
 
         try {
             const payload = await this.fetchAssistantTurn(true, (partialPayload) => {
@@ -123,6 +124,7 @@ export class ChatTTSSystem {
 
         const loadingEl = this.addLoadingMessage();
         const aiMessageDiv = this.createAIMessage();
+        this.vrmSystem.startFallbackSpeech();
 
         try {
             const payload = await this.fetchAssistantTurn(false, (partialPayload) => {
@@ -212,11 +214,6 @@ export class ChatTTSSystem {
         const displayText = payload.display_text || payload.speech_text || '';
 
         this.executeAvatarCue(payload, aiMessageDiv);
-
-        if (!this.vrmSystem.isSpeaking) {
-            this.vrmSystem.startFallbackSpeech();
-        }
-
         aiMessageDiv.textContent = displayText;
         this.scrollToBottom();
     }
