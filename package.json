@@ -1,0 +1,22 @@
+{
+  "name": "AIGril",
+  "version": "1.0.0",
+  "description": "AIRI virtual companion with VRM avatar, FastAPI backend, memory compression, and ElevenLabs TTS.",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite --configLoader native --host 0.0.0.0 --port 5173",
+    "build": "vite build --configLoader native --base ./ --emptyOutDir=false && node scripts/copy-static-assets.mjs",
+    "preview": "vite preview --configLoader native --host 0.0.0.0 --port 4173"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.33.0",
+  "dependencies": {
+    "@pixiv/three-vrm": "^3.5.1",
+    "@pixiv/three-vrm-animation": "^3.5.1",
+    "three": "^0.183.2",
+    "vite": "^8.0.3"
+  }
+}

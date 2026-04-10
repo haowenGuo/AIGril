@@ -1,0 +1,42 @@
+# Node / frontend
+node_modules/
+dist/
+
+# Python / backend
+backend/.env
+backend/data/
+backend/**/__pycache__/
+**/__pycache__/
+*.pyc
+
+# IDE / local cache
+.idea/
+.vscode/
+
+# Local generated folders
+input/
+output/
+tmp/
+历史版本/
+
+# Legacy / generated assets not needed in the published repo
+/main.js
+/AiGril.vrm
+/pinghua.py
+/tupian.py
+output_perfect_smooth.png
+output_smooth.png
+smooth_result.png
+
+# Unused source/export assets under Resources
+Resources/fbx/
+Resources/*.fbx
+Resources/*.glb
+Resources/AiGril-18.vrm
+Resources/AiGril_18.vrm
+Resources/VRMA_MotionPack/vrma/Countach.vrma
+Resources/VRMA_MotionPack/vrma/Relax.vrma
+Resources/VRMA_MotionPack/vrma/VRMA_32.vrma
+Resources/VRMA_MotionPack/vrma/VRMA_33.vrma
+Resources/VRMA_MotionPack/vrma/*.vmd
+Resources/VRMA_MotionPack/vrma/*.converted.vrma
