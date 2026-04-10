@@ -75,8 +75,7 @@ export const CONFIG = {
     IDLE_ACTION_LIST: ['idle', 'idle1', 'idle2'],
     DANCE_ACTION_LIST: [
         'vrma1', 'vrma2', 'vrma10', 'vrma11', 'vrma12',
-        'vrma13', 'vrma14', 'vrma15', 'vrma16', 'vrma17',
-        'jump', 'clapping'
+        'vrma13', 'vrma14', 'vrma15', 'vrma16', 'vrma17'
     ],
     CROSS_FADE_DURATION: 0.4,
     RENDER_PIXEL_RATIO: 2,

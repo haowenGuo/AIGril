@@ -158,7 +158,7 @@ export class ChatTTSSystem {
         const displayText = payload.display_text || payload.speech_text || '...';
         const alignment = payload.normalized_alignment || payload.alignment || null;
 
-        this.executeAvatarCue(payload);
+        this.executeAvatarCue(payload, aiMessageDiv);
 
         if (payload.streamMode) {
             aiMessageDiv.textContent = displayText;
@@ -211,7 +211,7 @@ export class ChatTTSSystem {
     renderStreamingAssistantReply(payload, aiMessageDiv) {
         const displayText = payload.display_text || payload.speech_text || '';
 
-        this.executeAvatarCue(payload);
+        this.executeAvatarCue(payload, aiMessageDiv);
 
         if (!this.vrmSystem.isSpeaking) {
             this.vrmSystem.startFallbackSpeech();
@@ -221,13 +221,15 @@ export class ChatTTSSystem {
         this.scrollToBottom();
     }
 
-    executeAvatarCue(payload) {
-        if (payload.action) {
+    executeAvatarCue(payload, aiMessageDiv) {
+        if (payload.action && aiMessageDiv?.dataset.actionCue !== payload.action) {
             this.vrmSystem.playAction(payload.action);
+            aiMessageDiv.dataset.actionCue = payload.action;
         }
 
-        if (payload.expression) {
+        if (payload.expression && aiMessageDiv?.dataset.expressionCue !== payload.expression) {
             this.vrmSystem.applyExpressionPreset(payload.expression);
+            aiMessageDiv.dataset.expressionCue = payload.expression;
         }
     }
 
@@ -283,6 +285,8 @@ export class ChatTTSSystem {
     createAIMessage() {
         const div = document.createElement('div');
         div.className = 'message-item message-ai';
+        div.dataset.actionCue = '';
+        div.dataset.expressionCue = '';
         this.messageListEl.appendChild(div);
         this.scrollToBottom();
         return div;
