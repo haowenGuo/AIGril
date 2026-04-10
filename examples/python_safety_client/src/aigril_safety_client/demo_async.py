@@ -1,8 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import sys
+from pathlib import Path
 
-from .client import AISafetyAsyncClient, AISafetyClientError
+if __package__ in {None, ""}:
+    CURRENT_DIR = Path(__file__).resolve().parent
+    if str(CURRENT_DIR) not in sys.path:
+        sys.path.insert(0, str(CURRENT_DIR))
+    from client import AISafetyAsyncClient, AISafetyClientError
+else:
+    from .client import AISafetyAsyncClient, AISafetyClientError
 
 
 async def main() -> None:
