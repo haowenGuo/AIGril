@@ -107,7 +107,8 @@ export class VRMModelSystem {
         this.controls.dampingFactor = 0.05;
         this.controls.target.copy(CONFIG.CAMERA_TARGET);
         this.controls.enablePan = false;
-        this.controls.maxDistance = 1.5;
+        this.controls.minDistance = CONFIG.CAMERA_MIN_DISTANCE;
+        this.controls.maxDistance = CONFIG.CAMERA_MAX_DISTANCE;
         this.controls.minPolarAngle = Math.PI * 0.3;
         this.controls.maxPolarAngle = Math.PI * 0.7;
         this.controls.minAzimuthAngle = -Math.PI / 6;
