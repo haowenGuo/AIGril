@@ -72,7 +72,7 @@ app.include_router(tts_router, prefix="/api", tags=["语音"])
 # ---------------- 根路径测试 ----------------
 @app.get("/")
 async def root():
-    return {"message": "AIRI Backend is running", "docs": "/docs"}
+    return {"message": "AIGril Backend is running", "docs": "/docs"}
 
 
 @app.get("/healthz")

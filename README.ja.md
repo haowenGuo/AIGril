@@ -1,8 +1,8 @@
 <div align="center">
-  <h1>AIRI</h1>
-  <p><strong>3D VRM アバター、ストリーミング対話、豊かな表情とモーションを備えたブラウザ向けバーチャルコンパニオンです。</strong></p>
+  <h1>AIGril</h1>
+  <p><strong>AIGL をメインキャラクターとする、3D VRM アバターとストリーミング対話を備えたブラウザ向けバーチャルコンパニオンプロジェクトです。</strong></p>
   <p>
-    <a href="https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com"><img alt="Try AIRI" src="https://img.shields.io/badge/Try%20AIRI-フル体験版-2563eb?style=for-the-badge"></a>
+    <a href="https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com"><img alt="Try AIGril" src="https://img.shields.io/badge/Try%20AIGril-フル体験版-2563eb?style=for-the-badge"></a>
     <a href="https://haowenGuo.github.io/AIGril/"><img alt="Frontend Demo" src="https://img.shields.io/badge/GitHub%20Pages-フロントエンド%20デモ-0f172a?style=for-the-badge"></a>
     <a href="https://airi-backend.onrender.com/docs"><img alt="Backend API" src="https://img.shields.io/badge/Backend-FastAPI%20Docs-059669?style=for-the-badge"></a>
   </p>
@@ -17,7 +17,7 @@
 
 ## 概要
 
-AIRI は、Web 上のバーチャルキャラクターをより生き生きと感じられるようにすることを目指しています。
+AIGL は AIGril のメインキャラクターであり、Web 上のバーチャルキャラクターをより生き生きと感じられるようにすることを目指しています。
 
 - ブラウザ上で 3D VRM アバターを表示
 - FastAPI バックエンドからテキストをストリーミング返信

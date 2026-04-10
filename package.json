@@ -1,7 +1,7 @@
 {
   "name": "AIGril",
   "version": "1.0.0",
-  "description": "AIRI virtual companion with VRM avatar, FastAPI backend, memory compression, and ElevenLabs TTS.",
+  "description": "AIGril virtual companion starring AIGL, with VRM avatar, FastAPI backend, and memory features.",
   "type": "module",
   "main": "index.js",
   "scripts": {

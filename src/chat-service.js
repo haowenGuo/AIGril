@@ -221,7 +221,7 @@ function buildDemoReply(latestUserMessage, isAutoChat) {
 
 export class BackendChatService {
     getWelcomeMessage() {
-        return 'AIRI到啦！现在会优先用流式文字回复你，这样会更快一点~';
+        return 'AIGL到啦！现在会优先用流式文字回复你，这样会更快一点~';
     }
 
     async fetchAssistantTurn({ sessionId, messageHistory, isAutoChat = false, onProgress }) {
@@ -260,7 +260,7 @@ export class BackendChatService {
 
 export class DemoChatService {
     getWelcomeMessage() {
-        return 'AIRI到啦！当前是 GitHub Pages 体验模式，可以先体验模型、动作、表情和文本口型；完整对话、记忆和 ElevenLabs 语音需要连接后端。';
+        return 'AIGL到啦！当前是 GitHub Pages 体验模式，可以先体验模型、动作、表情和文本口型；完整对话和记忆能力需要连接后端。';
     }
 
     async fetchAssistantTurn({ messageHistory, isAutoChat = false }) {

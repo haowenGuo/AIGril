@@ -14,10 +14,13 @@ function getRuntimeSettings() {
     const forceDemo = url.searchParams.get('demo') === '1';
 
     if (queryBackend) {
-        window.localStorage.setItem('airi_backend_base_url', queryBackend);
+        window.localStorage.setItem('aigril_backend_base_url', queryBackend);
     }
 
-    const storedBackend = window.localStorage.getItem('airi_backend_base_url')?.trim();
+    const storedBackend = (
+        window.localStorage.getItem('aigril_backend_base_url') ||
+        window.localStorage.getItem('airi_backend_base_url')
+    )?.trim();
     const backendBaseUrl = queryBackend || storedBackend || 'http://localhost:8000';
     const isGitHubPages = window.location.hostname.endsWith('github.io');
     const demoModeEnabled = forceDemo || (isGitHubPages && !queryBackend && !storedBackend);

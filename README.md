@@ -1,8 +1,8 @@
 <div align="center">
-  <h1>AIRI</h1>
-  <p><strong>A browser-based virtual companion with a 3D VRM avatar, streaming chat, expressive animation, and lightweight memory.</strong></p>
+  <h1>AIGril</h1>
+  <p><strong>A browser-based virtual companion project starring AIGL, with a 3D VRM avatar, streaming chat, expressive animation, and lightweight memory.</strong></p>
   <p>
-    <a href="https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com"><img alt="Try AIRI" src="https://img.shields.io/badge/Try%20AIRI-Live%20Experience-2563eb?style=for-the-badge"></a>
+    <a href="https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com"><img alt="Try AIGril" src="https://img.shields.io/badge/Try%20AIGril-Live%20Experience-2563eb?style=for-the-badge"></a>
     <a href="https://haowenGuo.github.io/AIGril/"><img alt="Frontend Demo" src="https://img.shields.io/badge/GitHub%20Pages-Frontend%20Demo-0f172a?style=for-the-badge"></a>
     <a href="https://airi-backend.onrender.com/docs"><img alt="Backend API" src="https://img.shields.io/badge/Backend-FastAPI%20Docs-059669?style=for-the-badge"></a>
   </p>
@@ -17,7 +17,7 @@
 
 ## Overview
 
-AIRI focuses on making a web-based virtual character feel alive.
+AIGL is the main character of AIGril, designed to feel lively, responsive, and expressive on the web.
 
 - A live 3D VRM avatar rendered directly in the browser
 - Streamed text replies for lower perceived latency

@@ -1,8 +1,8 @@
 <div align="center">
-  <h1>AIRI</h1>
-  <p><strong>一个以 3D VRM 虚拟角色为核心的网页陪伴项目，强调流式对话、动作表情联动，以及轻量记忆能力。</strong></p>
+  <h1>AIGril</h1>
+  <p><strong>一个以 AIGL 为主角色的网页陪伴项目，强调 3D VRM 虚拟形象、流式对话、动作表情联动，以及轻量记忆能力。</strong></p>
   <p>
-    <a href="https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com"><img alt="Try AIRI" src="https://img.shields.io/badge/Try%20AIRI-完整体验-2563eb?style=for-the-badge"></a>
+    <a href="https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com"><img alt="Try AIGril" src="https://img.shields.io/badge/Try%20AIGril-完整体验-2563eb?style=for-the-badge"></a>
     <a href="https://haowenGuo.github.io/AIGril/"><img alt="Frontend Demo" src="https://img.shields.io/badge/GitHub%20Pages-前端展示-0f172a?style=for-the-badge"></a>
     <a href="https://airi-backend.onrender.com/docs"><img alt="Backend API" src="https://img.shields.io/badge/Backend-FastAPI%20文档-059669?style=for-the-badge"></a>
   </p>
@@ -17,7 +17,7 @@
 
 ## 项目简介
 
-AIRI 的重点是让网页中的虚拟角色更像“正在陪你互动”的存在。
+AIGL 是 AIGril 项目中的主角色，重点是让网页中的虚拟角色更像“正在陪你互动”的存在。
 
 - 在浏览器中渲染实时 3D VRM 虚拟角色
 - 通过 FastAPI 后端流式输出文本回复

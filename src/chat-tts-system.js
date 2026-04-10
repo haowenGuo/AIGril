@@ -45,7 +45,7 @@ export class ChatTTSSystem {
 
         window.addEventListener('modelLoaded', () => {
             const welcomeMessage = this.chatService?.getWelcomeMessage?.() ||
-                'AIRI到啦！现在可以聊天，也可以直接听到她的声音啦~';
+                'AIGL到啦！现在可以聊天啦~';
             this.addSystemMessage(welcomeMessage);
             this.inputEl.disabled = false;
             this.sendBtnEl.disabled = false;
@@ -85,7 +85,7 @@ export class ChatTTSSystem {
             return;
         }
 
-        console.log('✨ AIRI 尝试主动发起对话...');
+        console.log('✨ AIGL 尝试主动发起对话...');
         this.isBusy = true;
         const aiMessageDiv = this.createAIMessage();
         this.vrmSystem.startFallbackSpeech();
@@ -308,7 +308,7 @@ export class ChatTTSSystem {
     addLoadingMessage() {
         const div = document.createElement('div');
         div.className = 'message-loading';
-        div.textContent = 'AIRI正在思考...';
+        div.textContent = 'AIGL正在思考...';
         this.messageListEl.appendChild(div);
         this.scrollToBottom();
         return div;
