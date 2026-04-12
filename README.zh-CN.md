@@ -64,6 +64,27 @@ python -m uvicorn backend.main:app --reload
 LLM_API_KEY=your_llm_api_key
 ```
 
+## PC 桌面版
+
+```bash
+pnpm desktop:dev
+pnpm desktop:start
+pnpm desktop:pack
+pnpm desktop:dist
+```
+
+桌面版使用 Electron 加载现有 Vite 前端，默认连接公开后端 `https://airi-backend.onrender.com`。如果要连接本地后端，可以设置 `AIGRIL_BACKEND_URL`。更多说明见 [`docs/pc-desktop.md`](docs/pc-desktop.md)。
+
+## AIGL 资源采集
+
+```bash
+python scripts/harvest_aigl_resources.py --kind motion --limit 5
+python scripts/harvest_aigl_resources.py --kind music-text --limit 5
+python scripts/harvest_aigl_resources.py --kind motion --source curated-commercial --download --download-review-motion-packs --limit 50
+```
+
+资源采集脚本只使用公开 API，并默认生成候选清单，不直接下载。更多说明见 [`docs/resource-harvesting.md`](docs/resource-harvesting.md)。
+
 ## 项目结构
 
 ```text

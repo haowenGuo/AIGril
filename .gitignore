@@ -1,6 +1,9 @@
 # Node / frontend
 node_modules/
 dist/
+release/
+_tmp_*
+pnpm-workspace.yaml.*
 
 # Python / backend
 backend/.env
@@ -17,6 +20,7 @@ backend/**/__pycache__/
 input/
 output/
 tmp/
+Resources/harvested/
 历史版本/
 
 # Legacy / generated assets not needed in the published repo

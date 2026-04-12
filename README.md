@@ -64,6 +64,27 @@ Required environment variable:
 LLM_API_KEY=your_llm_api_key
 ```
 
+## PC Desktop App
+
+```bash
+pnpm desktop:dev
+pnpm desktop:start
+pnpm desktop:pack
+pnpm desktop:dist
+```
+
+The desktop app uses Electron to load the existing Vite frontend. It defaults to the public backend at `https://airi-backend.onrender.com`; set `AIGRIL_BACKEND_URL` to use a local FastAPI backend. See [`docs/pc-desktop.md`](docs/pc-desktop.md) for details.
+
+## AIGL Resource Harvesting
+
+```bash
+python scripts/harvest_aigl_resources.py --kind motion --limit 5
+python scripts/harvest_aigl_resources.py --kind music-text --limit 5
+python scripts/harvest_aigl_resources.py --kind motion --source curated-commercial --download --download-review-motion-packs --limit 50
+```
+
+The harvester uses public APIs and writes candidate manifests by default instead of downloading files. See [`docs/resource-harvesting.md`](docs/resource-harvesting.md) for details.
+
 ## Repository Layout
 
 ```text

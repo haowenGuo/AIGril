@@ -3,11 +3,17 @@
   "version": "1.0.0",
   "description": "AIGril virtual companion starring AIGL, with VRM avatar, FastAPI backend, and memory features.",
   "type": "module",
-  "main": "index.js",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite --configLoader native --host 0.0.0.0 --port 5173",
     "build": "vite build --configLoader native --base ./ --emptyOutDir=false && node scripts/copy-static-assets.mjs",
-    "preview": "vite preview --configLoader native --host 0.0.0.0 --port 4173"
+    "preview": "vite preview --configLoader native --host 0.0.0.0 --port 4173",
+    "desktop:dev": "concurrently -k -s first -n vite,electron -c cyan,magenta \"pnpm dev\" \"wait-on http://127.0.0.1:5173 && cross-env AIGRIL_DESKTOP_DEV_URL=http://127.0.0.1:5173 electron .\"",
+    "desktop:start": "pnpm build && electron .",
+    "desktop:pack": "pnpm build && electron-builder --dir",
+    "desktop:dist": "pnpm build && electron-builder",
+    "resources:discover": "python scripts/harvest_aigl_resources.py --kind all --limit 5",
+    "resources:download": "python scripts/harvest_aigl_resources.py --kind all --limit 5 --download"
   },
   "keywords": [],
   "author": "",
@@ -18,5 +24,55 @@
     "@pixiv/three-vrm-animation": "^3.5.1",
     "three": "^0.183.2",
     "vite": "^8.0.3"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^41.2.0",
+    "electron-builder": "^26.8.1",
+    "wait-on": "^9.0.5"
+  },
+  "build": {
+    "appId": "com.aigril.desktop",
+    "productName": "AIGril",
+    "asar": true,
+    "electronDist": "node_modules/electron/dist",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "electron/main.cjs"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "artifactName": "${productName}-Setup-${version}-${os}-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}-${os}-${arch}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility",
+      "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
+    }
   }
 }
