@@ -8,6 +8,7 @@ const __dirname = dirname(__filename);
 const projectRoot = resolve(__dirname, '..');
 const distRoot = resolve(projectRoot, 'dist');
 const runtimeVrmDir = resolve(projectRoot, 'Resources', 'VRMA_MotionPack', 'vrma');
+const includeHarvestedMotions = process.env.AIGRIL_INCLUDE_HARVESTED_MOTIONS === '1';
 
 const runtimeAnimationFiles = [
     'Angry.vrma',
@@ -27,18 +28,32 @@ const runtimeAnimationFiles = [
     'VRMA_25.vrma'
 ];
 
-// 只复制前端实际会访问到的 VRM 与 VRMA 资源，避免把无关的大文件一起打进 Pages 产物。
 const assetsToCopy = [
     {
         source: resolve(projectRoot, 'Resources', 'AiGril.vrm'),
-        target: resolve(distRoot, 'Resources', 'AiGril.vrm')
+        target: resolve(distRoot, 'Resources', 'AiGril.vrm'),
+        overwrite: false
+    },
+    {
+        source: resolve(projectRoot, 'Resources', 'motion-catalog.json'),
+        target: resolve(distRoot, 'Resources', 'motion-catalog.json'),
+        overwrite: true
     }
 ];
 
 for (const fileName of runtimeAnimationFiles) {
     assetsToCopy.push({
         source: resolve(runtimeVrmDir, fileName),
-        target: resolve(distRoot, 'Resources', 'VRMA_MotionPack', 'vrma', fileName)
+        target: resolve(distRoot, 'Resources', 'VRMA_MotionPack', 'vrma', fileName),
+        overwrite: false
+    });
+}
+
+if (includeHarvestedMotions) {
+    assetsToCopy.push({
+        source: resolve(projectRoot, 'Resources', 'harvested', 'motions', 'vrma'),
+        target: resolve(distRoot, 'Resources', 'harvested', 'motions', 'vrma'),
+        overwrite: true
     });
 }
 
@@ -48,14 +63,14 @@ for (const asset of assetsToCopy) {
         continue;
     }
 
-    if (existsSync(asset.target)) {
+    if (existsSync(asset.target) && !asset.overwrite) {
         console.log(`[build] kept existing asset: ${asset.target}`);
         continue;
     }
 
     mkdirSync(dirname(asset.target), { recursive: true });
     try {
-        cpSync(asset.source, asset.target, { recursive: true });
+        cpSync(asset.source, asset.target, { recursive: true, force: asset.overwrite });
         console.log(`[build] copied: ${asset.source} -> ${asset.target}`);
     } catch (error) {
         console.warn(`[build] skipped asset copy due to ${error.code || error.name}: ${asset.target}`);

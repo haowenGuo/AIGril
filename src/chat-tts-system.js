@@ -219,14 +219,28 @@ export class ChatTTSSystem {
     }
 
     executeAvatarCue(payload, aiMessageDiv) {
-        if (payload.action && aiMessageDiv?.dataset.actionCue !== payload.action) {
-            this.vrmSystem.playAction(payload.action);
-            aiMessageDiv.dataset.actionCue = payload.action;
+        const motionCueKey = payload.motion_category
+            ? `${payload.motion_category}:${payload.motion_intensity || 'medium'}`
+            : payload.action || '';
+        const expressionCueKey = payload.expression
+            ? `${payload.expression}:${payload.expression_intensity || 'medium'}`
+            : '';
+
+        if (motionCueKey && aiMessageDiv?.dataset.actionCue !== motionCueKey) {
+            void this.vrmSystem.playMotionCue({
+                category: payload.motion_category,
+                intensity: payload.motion_intensity,
+                legacyAction: payload.legacy_action || payload.action
+            });
+            aiMessageDiv.dataset.actionCue = motionCueKey;
         }
 
-        if (payload.expression && aiMessageDiv?.dataset.expressionCue !== payload.expression) {
-            this.vrmSystem.applyExpressionPreset(payload.expression);
-            aiMessageDiv.dataset.expressionCue = payload.expression;
+        if (expressionCueKey && aiMessageDiv?.dataset.expressionCue !== expressionCueKey) {
+            this.vrmSystem.applyExpressionCue({
+                name: payload.expression,
+                intensity: payload.expression_intensity
+            });
+            aiMessageDiv.dataset.expressionCue = expressionCueKey;
         }
     }
 

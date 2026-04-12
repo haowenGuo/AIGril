@@ -67,7 +67,11 @@ async def chat_tts_endpoint(
         audio_format=tts_result.audio_format,
         mime_type=tts_result.mime_type,
         action=parsed_reply.action,
+        legacy_action=parsed_reply.legacy_action,
+        motion_category=parsed_reply.motion_category,
+        motion_intensity=parsed_reply.motion_intensity,
         expression=parsed_reply.expression,
+        expression_intensity=parsed_reply.expression_intensity,
         alignment=_to_pydantic_alignment(tts_result.alignment),
         normalized_alignment=_to_pydantic_alignment(tts_result.normalized_alignment),
         duration_hint_seconds=_estimate_duration_seconds(
@@ -98,5 +102,9 @@ async def chat_text_endpoint(
         display_text=parsed_reply.display_text,
         speech_text=parsed_reply.speech_text,
         action=parsed_reply.action,
+        legacy_action=parsed_reply.legacy_action,
+        motion_category=parsed_reply.motion_category,
+        motion_intensity=parsed_reply.motion_intensity,
         expression=parsed_reply.expression,
+        expression_intensity=parsed_reply.expression_intensity,
     )

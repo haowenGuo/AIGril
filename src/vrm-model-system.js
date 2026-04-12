@@ -8,6 +8,8 @@ import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { createVRMAnimationClip, VRMAnimationLoaderPlugin } from '@pixiv/three-vrm-animation';
 
 import { CONFIG } from './config.js';
+import { normalizeCueIntensity } from './cue-utils.js';
+import { buildMotionCatalogIndex, fetchMotionCatalog, selectMotionEntry } from './motion-catalog.js';
 
 
 export class VRMModelSystem {
@@ -23,6 +25,12 @@ export class VRMModelSystem {
         this.mixer = null;
         this.actionMap = {};
         this.currentAction = null;
+        this.currentMotionEntry = null;
+        this.motionCatalog = null;
+        this.motionCatalogIndex = null;
+        this.motionLoader = null;
+        this.failedMotionIds = new Set();
+        this.loadingMotionPromises = new Map();
 
         this.isModelLoaded = false;
         this.autoBlinkEnabled = true;
@@ -162,8 +170,9 @@ export class VRMModelSystem {
             this.scene.add(this.vrm.scene);
 
             this.initExpressionSystem();
+            await this.loadMotionCatalog();
             this.isModelLoaded = true;
-            await this.loadAllAnimations();
+            await this.preloadInitialMotions();
 
             console.log('✅ VRM模型和动作全部加载完成！');
             console.log('📦 当前已加载的动作列表:', Object.keys(this.actionMap));
@@ -180,30 +189,60 @@ export class VRMModelSystem {
         this.resetExpression();
     }
 
-    async loadAllAnimations() {
-        console.log('⏳ 开始加载VRMA动作文件...');
+    async loadMotionCatalog() {
+        console.log('⏳ 开始加载动作目录...');
+
         this.mixer = new THREE.AnimationMixer(this.vrm.scene);
+        this.motionLoader = new GLTFLoader();
+        this.motionLoader.register((parser) => new VRMAnimationLoaderPlugin(parser));
 
-        const animLoader = new GLTFLoader();
-        animLoader.register((parser) => new VRMAnimationLoaderPlugin(parser));
+        const catalog = await fetchMotionCatalog(CONFIG.MOTION_CATALOG_PATH);
+        this.motionCatalog = catalog;
+        this.motionCatalogIndex = buildMotionCatalogIndex(catalog, {
+            includeDesktopOnly: CONFIG.IS_ELECTRON_SHELL
+        });
 
-        for (const fileInfo of CONFIG.ANIMATION_FILES) {
+        console.log(
+            '📚 动作目录加载完成:',
+            `${this.motionCatalogIndex.entries.length} entries`,
+            `version=${this.motionCatalogIndex.meta.version}`
+        );
+    }
+
+    async preloadInitialMotions() {
+        const preloadEntries = this.motionCatalogIndex?.entries?.filter((entry) => entry.preload) || [];
+        console.log(`⏳ 预加载 ${preloadEntries.length} 个基础动作...`);
+
+        for (const entry of preloadEntries) {
             try {
-                await this.loadSingleAnimation(animLoader, fileInfo);
+                await this.ensureMotionLoaded(entry);
             } catch (error) {
-                console.error(`❌ 加载动作失败: ${fileInfo.name}`, error);
+                console.error(`❌ 预加载动作失败: ${entry.id}`, error);
             }
         }
 
         this.setupActionFinishListener();
-        this.playAction('idle');
-        console.log('🎬 默认动作：IDLE 循环模式启动');
+        await this.playMotionCue({ category: 'idle', intensity: 'low', legacyAction: 'idle' });
+        console.log('🎬 默认动作：IDLE 目录模式启动');
     }
 
-    loadSingleAnimation(loader, fileInfo) {
-        return new Promise((resolve, reject) => {
-            loader.load(
-                fileInfo.path,
+    ensureMotionLoaded(entry) {
+        if (!entry?.id) {
+            return Promise.reject(new Error('动作目录项缺少 id'));
+        }
+
+        if (this.actionMap[entry.id]) {
+            return Promise.resolve(this.actionMap[entry.id]);
+        }
+
+        const existingPromise = this.loadingMotionPromises.get(entry.id);
+        if (existingPromise) {
+            return existingPromise;
+        }
+
+        const loadPromise = new Promise((resolve, reject) => {
+            this.motionLoader.load(
+                entry.path,
                 (gltf) => {
                     let vrmAnimation = gltf.userData.vrmAnimation;
                     if (!vrmAnimation && gltf.userData.vrmAnimations?.length > 0) {
@@ -216,26 +255,40 @@ export class VRMModelSystem {
                     } else if (vrmAnimation) {
                         clip = createVRMAnimationClip(vrmAnimation, this.vrm);
                     } else {
-                        reject(new Error('无法解析动画文件格式'));
+                        reject(new Error(`无法解析动作文件: ${entry.path}`));
                         return;
                     }
 
                     const action = this.mixer.clipAction(clip);
-                    if (CONFIG.IDLE_ACTION_LIST.includes(fileInfo.name)) {
-                        action.setLoop(THREE.LoopRepeat, Infinity);
-                        action.clampWhenFinished = false;
-                    } else {
-                        action.setLoop(THREE.LoopOnce, 1);
-                        action.clampWhenFinished = true;
-                    }
-
-                    this.actionMap[fileInfo.name] = action;
-                    resolve();
+                    this.configureActionLoop(action, entry);
+                    this.actionMap[entry.id] = action;
+                    this.failedMotionIds.delete(entry.id);
+                    resolve(action);
                 },
                 () => {},
-                reject
+                (error) => {
+                    this.failedMotionIds.add(entry.id);
+                    reject(error);
+                }
             );
+        }).finally(() => {
+            this.loadingMotionPromises.delete(entry.id);
         });
+
+        this.loadingMotionPromises.set(entry.id, loadPromise);
+        return loadPromise;
+    }
+
+    configureActionLoop(action, entry) {
+        const shouldLoop = Boolean(entry?.loop) || entry?.category === 'idle';
+        if (shouldLoop) {
+            action.setLoop(THREE.LoopRepeat, Infinity);
+            action.clampWhenFinished = false;
+            return;
+        }
+
+        action.setLoop(THREE.LoopOnce, 1);
+        action.clampWhenFinished = true;
     }
 
     setupActionFinishListener() {
@@ -244,7 +297,8 @@ export class VRMModelSystem {
         this.mixer.addEventListener('finished', (event) => {
             const finishedAction = event.action;
             const finishedName = this.getActionNameByInstance(finishedAction);
-            const isIdleAction = finishedName && CONFIG.IDLE_ACTION_LIST.includes(finishedName);
+            const finishedEntry = finishedName ? this.motionCatalogIndex?.byId?.get(finishedName) : null;
+            const isIdleAction = finishedEntry?.category === 'idle';
             const isCurrentAction = finishedAction === this.currentAction;
 
             if (isIdleAction) {
@@ -258,7 +312,7 @@ export class VRMModelSystem {
             }
 
             console.log(`🔄 交互动作(${finishedName})播放完毕，切回IDLE`);
-            this.playAction('idle');
+            void this.playMotionCue({ category: 'idle', intensity: 'low', legacyAction: 'idle' });
         });
     }
 
@@ -266,37 +320,41 @@ export class VRMModelSystem {
         return Object.keys(this.actionMap).find((name) => this.actionMap[name] === actionInstance);
     }
 
-    playAction(actionName) {
+    async playMotionCue({ category = null, intensity = 'medium', legacyAction = null, motionId = null } = {}) {
         if (!this.isModelLoaded) {
             console.warn('⚠️ 模型未加载');
             return;
         }
 
-        let targetActionName = actionName;
-        if (actionName === 'idle') {
-            targetActionName = this.getRandomIdleAction();
-        } else if (actionName === 'dance') {
-            targetActionName = this.getRandomDanceAction();
-            console.log(`💃 Dance指令触发，随机选中: ${targetActionName}`);
-        }
+        const entry = selectMotionEntry({
+            catalogIndex: this.motionCatalogIndex,
+            currentMotionId: this.currentMotionEntry?.id || null,
+            requestedMotionId: motionId,
+            category,
+            intensity,
+            legacyAction,
+            failedMotionIds: this.failedMotionIds
+        });
 
-        if (!targetActionName || !this.actionMap[targetActionName]) {
-            console.warn(`⚠️ 动作 "${targetActionName}" 不存在`);
+        if (!entry) {
+            console.warn(`⚠️ 没有找到匹配动作: category=${category}, legacyAction=${legacyAction}, motionId=${motionId}`);
             return;
         }
 
-        const nextAction = this.actionMap[targetActionName];
+        let nextAction;
+        try {
+            nextAction = await this.ensureMotionLoaded(entry);
+        } catch (error) {
+            console.error(`❌ 懒加载动作失败: ${entry.id}`, error);
+            if (entry.category !== 'idle') {
+                await this.playMotionCue({ category: 'idle', intensity: 'low', legacyAction: 'idle' });
+            }
+            return;
+        }
+
         if (this.currentAction === nextAction) return;
 
-        const isIdleAction = CONFIG.IDLE_ACTION_LIST.includes(targetActionName);
-
-        if (isIdleAction) {
-            nextAction.setLoop(THREE.LoopRepeat, Infinity);
-            nextAction.clampWhenFinished = false;
-        } else {
-            nextAction.setLoop(THREE.LoopOnce, 1);
-            nextAction.clampWhenFinished = true;
-        }
+        this.configureActionLoop(nextAction, entry);
 
         if (this.currentAction) {
             this.currentAction.enabled = true;
@@ -311,42 +369,33 @@ export class VRMModelSystem {
         }
 
         this.currentAction = nextAction;
-        if (actionName !== 'idle') {
-            console.log(`🎬 播放动作: ${targetActionName}`);
+        this.currentMotionEntry = entry;
+
+        if (entry.category !== 'idle') {
+            console.log(`🎬 播放动作: ${entry.id} (${entry.category}/${entry.intensity})`);
         }
     }
 
-    getRandomIdleAction() {
-        const availableIdles = CONFIG.IDLE_ACTION_LIST.filter((name) => this.actionMap[name]);
-        if (availableIdles.length === 0) return null;
-
-        let candidates = availableIdles;
-        if (this.currentAction && availableIdles.length > 1) {
-            const currentName = this.getActionNameByInstance(this.currentAction);
-            if (currentName) {
-                candidates = availableIdles.filter((name) => name !== currentName);
-            }
-        }
-
-        return candidates[Math.floor(Math.random() * candidates.length)];
+    playAction(actionName) {
+        return this.playMotionCue({ legacyAction: actionName, category: actionName });
     }
 
-    getRandomDanceAction() {
-        const availableDances = CONFIG.DANCE_ACTION_LIST.filter((name) => this.actionMap[name]);
-        if (availableDances.length === 0) return null;
-
-        let candidates = availableDances;
-        if (this.currentAction && availableDances.length > 1) {
-            const currentName = this.getActionNameByInstance(this.currentAction);
-            if (currentName) {
-                candidates = availableDances.filter((name) => name !== currentName);
-            }
+    getExpressionIntensityMultiplier(intensity) {
+        const normalizedIntensity = normalizeCueIntensity(intensity) || 'medium';
+        if (normalizedIntensity === 'low') {
+            return 0.78;
         }
-
-        return candidates[Math.floor(Math.random() * candidates.length)];
+        if (normalizedIntensity === 'high') {
+            return 1.18;
+        }
+        return 1;
     }
 
-    applyExpressionPreset(expressionName) {
+    applyExpressionCue({ name, intensity = 'medium' } = {}) {
+        this.applyExpressionPreset(name, intensity);
+    }
+
+    applyExpressionPreset(expressionName, intensity = 'medium') {
         if (expressionName === 'neutral') {
             this.resetExpression();
             return;
@@ -357,6 +406,12 @@ export class VRMModelSystem {
             console.warn(`⚠️ 表情预设 "${expressionName}" 不存在`);
             return;
         }
+
+        const adjustedValue = THREE.MathUtils.clamp(
+            presetValue * this.getExpressionIntensityMultiplier(intensity),
+            0,
+            1
+        );
 
         if (this.isBlinkExpression(expressionName)) {
             this.vrm.expressionManager.setValue('blink', 0);
@@ -370,7 +425,7 @@ export class VRMModelSystem {
                 Math.random() * (CONFIG.BLINK_MAX_INTERVAL - CONFIG.BLINK_MIN_INTERVAL);
         }
 
-        this.setExpression(expressionName, presetValue);
+        this.setExpression(expressionName, adjustedValue);
         this.scheduleNeutralReset(expressionName);
     }
 

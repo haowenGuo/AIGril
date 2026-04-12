@@ -1,12 +1,10 @@
 import { CONFIG } from './config.js';
+import { normalizeCueIntensity, normalizeMotionCategory, parseReplyMarkup } from './cue-utils.js';
 
 
 function sleep(ms) {
     return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
-
-const CONTROL_TAG_PATTERN = /\[(action|expression):([^\]]*)\]/g;
-const LEADING_INCOMPLETE_CONTROL_TAG_PATTERN = /^(?:\[(?:action|expression):[^\]]*)+/;
 
 function pickRandom(items) {
     return items[Math.floor(Math.random() * items.length)];
@@ -19,44 +17,6 @@ function getLatestUserMessage(messageHistory) {
         }
     }
     return '';
-}
-
-function normalizeDisplayLines(text) {
-    return (text || '')
-        .split(/\r?\n/)
-        .map((line) => line.replace(/[ \t]+/g, ' ').trim())
-        .filter(Boolean)
-        .join('\n')
-        .trim();
-}
-
-function parseReplyMarkup(rawText) {
-    let action = null;
-    let expression = null;
-
-    const strippedText = (rawText || '').replace(CONTROL_TAG_PATTERN, (_, kind, value) => {
-        const normalizedValue = value.trim();
-        if (kind === 'action' && !action) {
-            action = normalizedValue;
-        }
-        if (kind === 'expression' && !expression) {
-            expression = normalizedValue;
-        }
-        return '';
-    });
-
-    // 流式输出时，开头的控制标签可能还没闭合；这里先把未完成的片段隐藏掉，
-    // 避免用户看到 “[action:wa” 这类中间态内容。
-    const visibleText = strippedText.replace(LEADING_INCOMPLETE_CONTROL_TAG_PATTERN, '');
-    const displayText = normalizeDisplayLines(visibleText);
-
-    return {
-        raw_text: rawText || '',
-        display_text: displayText,
-        speech_text: displayText.replace(/\n/g, ' '),
-        action,
-        expression
-    };
 }
 
 async function readTextStream(response, onChunk) {
@@ -125,14 +85,26 @@ async function readTextStream(response, onChunk) {
     return fullText;
 }
 
-function createDemoPayload({ text, action = null, expression = null, autoChat = false }) {
+function createDemoPayload({
+    text,
+    action = null,
+    motionCategory = null,
+    motionIntensity = 'medium',
+    expression = null,
+    expressionIntensity = 'medium',
+    autoChat = false
+}) {
+    const normalizedMotionCategory = normalizeMotionCategory(motionCategory || action);
     return {
         session_id: 'github-pages-demo',
         raw_text: text,
         display_text: text,
         speech_text: text,
         action,
+        motion_category: normalizedMotionCategory,
+        motion_intensity: normalizeCueIntensity(motionIntensity),
         expression,
+        expression_intensity: expression ? normalizeCueIntensity(expressionIntensity) : null,
         fallbackMode: true,
         demoMode: true,
         is_auto_chat: autoChat
@@ -144,13 +116,19 @@ function buildDemoReply(latestUserMessage, isAutoChat) {
         return pickRandom([
             createDemoPayload({
                 text: '我刚刚晃着脚发了会儿呆，然后就想起你啦。要不要随便聊点轻松的事情呀？',
-                action: 'wave',
+                action: 'goodbye',
+                motionCategory: 'walk',
+                motionIntensity: 'low',
                 expression: 'relaxed',
+                expressionIntensity: 'low',
                 autoChat: true
             }),
             createDemoPayload({
                 text: '这里安安静静的，正适合慢悠悠地说话。你今天想让我陪你做什么呢？',
+                motionCategory: 'idle',
+                motionIntensity: 'low',
                 expression: 'happy',
+                expressionIntensity: 'low',
                 autoChat: true
             })
         ]);
@@ -162,15 +140,21 @@ function buildDemoReply(latestUserMessage, isAutoChat) {
     if (!normalizedText) {
         return createDemoPayload({
             text: '我有在认真听哦，不过这次你好像没有输入内容。要不要再和我说一句呀？',
-            expression: 'relaxed'
+            motionCategory: 'idle',
+            motionIntensity: 'low',
+            expression: 'relaxed',
+            expressionIntensity: 'low'
         });
     }
 
     if (/你好|hello|hi|嗨|哈喽/i.test(normalizedText)) {
         return createDemoPayload({
             text: '你好呀，我现在在 GitHub Pages 的体验模式里陪着你。后端接上以后，我就能真的带着记忆和 ElevenLabs 声音和你聊天啦。',
-            action: 'wave',
-            expression: 'happy'
+            action: 'goodbye',
+            motionCategory: 'walk',
+            motionIntensity: 'low',
+            expression: 'happy',
+            expressionIntensity: 'medium'
         });
     }
 
@@ -178,7 +162,10 @@ function buildDemoReply(latestUserMessage, isAutoChat) {
         return createDemoPayload({
             text: '好呀，那我先轻轻地转一圈给你看。这一段是网页体验模式里的本地演示动作，正式版会接真实后端回复。',
             action: 'dance',
-            expression: 'happy'
+            motionCategory: 'dance',
+            motionIntensity: 'high',
+            expression: 'happy',
+            expressionIntensity: 'high'
         });
     }
 
@@ -186,7 +173,10 @@ function buildDemoReply(latestUserMessage, isAutoChat) {
         return createDemoPayload({
             text: '欸，突然被你这么一说，我都有点小小地愣住啦。不过我还是会继续认真陪着你的。',
             action: 'surprised',
-            expression: 'surprised'
+            motionCategory: 'superhero',
+            motionIntensity: 'medium',
+            expression: 'surprised',
+            expressionIntensity: 'high'
         });
     }
 
@@ -194,26 +184,38 @@ function buildDemoReply(latestUserMessage, isAutoChat) {
         return createDemoPayload({
             text: '我不会真的和你闹脾气啦，只是先帮你演示一下情绪动作系统。现在这个页面主要是给大家快速体验角色联动效果的。',
             action: 'angry',
-            expression: 'angry'
+            motionCategory: 'fight',
+            motionIntensity: 'high',
+            expression: 'angry',
+            expressionIntensity: 'high'
         });
     }
 
     if (/难过|伤心|sad/i.test(normalizedText)) {
         return createDemoPayload({
             text: '如果你有点低落的话，我就安安静静陪着你。这个公开网页现在是 demo 模式，所以我先用本地逻辑回应你一下。',
-            expression: 'sad'
+            motionCategory: 'idle',
+            motionIntensity: 'low',
+            expression: 'sad',
+            expressionIntensity: 'medium'
         });
     }
 
     return pickRandom([
         createDemoPayload({
             text: `我有听见你刚刚说“${previewText}”。现在这个公开页面主要是展示模型、动作、表情和口型同步，完整对话能力要在后端上线后才会打开哦。`,
-            expression: 'relaxed'
+            motionCategory: 'idle',
+            motionIntensity: 'low',
+            expression: 'relaxed',
+            expressionIntensity: 'low'
         }),
         createDemoPayload({
             text: `你刚刚提到“${previewText}”，我先用体验模式陪你回一句。等真实后端接上之后，我就能记住上下文，还能直接用 ElevenLabs 把整段回答说出来。`,
-            action: 'wave',
-            expression: 'happy'
+            action: 'goodbye',
+            motionCategory: 'walk',
+            motionIntensity: 'low',
+            expression: 'happy',
+            expressionIntensity: 'medium'
         })
     ]);
 }

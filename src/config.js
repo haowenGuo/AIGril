@@ -1,17 +1,21 @@
 import * as THREE from 'three';
+import { CUE_INTENSITY_LEVELS, EXPRESSION_NAMES, MOTION_CATEGORIES } from './cue-utils.js';
 
 function getRuntimeSettings() {
     if (typeof window === 'undefined') {
         return {
             backendBaseUrl: 'http://localhost:8000',
             demoModeEnabled: false,
-            isGitHubPages: false
+            isGitHubPages: false,
+            runtimeShell: 'web',
+            isElectronShell: false
         };
     }
 
     const url = new URL(window.location.href);
     const queryBackend = url.searchParams.get('backend')?.trim();
     const forceDemo = url.searchParams.get('demo') === '1';
+    const runtimeShell = (url.searchParams.get('shell') || '').trim().toLowerCase() || 'web';
 
     if (queryBackend) {
         window.localStorage.setItem('aigril_backend_base_url', queryBackend);
@@ -28,7 +32,9 @@ function getRuntimeSettings() {
     return {
         backendBaseUrl,
         demoModeEnabled,
-        isGitHubPages
+        isGitHubPages,
+        runtimeShell,
+        isElectronShell: runtimeShell === 'electron'
     };
 }
 
@@ -36,25 +42,10 @@ const runtimeSettings = getRuntimeSettings();
 
 export const CONFIG = {
     MODEL_PATH: 'Resources/AiGril.vrm',
-    ANIMATION_FILES: [
-        { name: 'idle', path: 'Resources/VRMA_MotionPack/vrma/Idle.vrma' },
-        { name: 'idle1', path: 'Resources/VRMA_MotionPack/vrma/Idle1.vrma' },
-        { name: 'idle2', path: 'Resources/VRMA_MotionPack/vrma/Idle2.vrma' },
-        { name: 'vrma25', path: 'Resources/VRMA_MotionPack/vrma/VRMA_25.vrma' },
-        { name: 'vrma17', path: 'Resources/VRMA_MotionPack/vrma/VRMA_17.vrma' },
-        { name: 'angry', path: 'Resources/VRMA_MotionPack/vrma/Angry.vrma' },
-        { name: 'blush', path: 'Resources/VRMA_MotionPack/vrma/Blush.vrma' },
-        { name: 'sad', path: 'Resources/VRMA_MotionPack/vrma/Sad.vrma' },
-        { name: 'sleepy', path: 'Resources/VRMA_MotionPack/vrma/Sleepy.vrma' },
-        { name: 'surprised', path: 'Resources/VRMA_MotionPack/vrma/Surprised.vrma' },
-        { name: 'lookaround', path: 'Resources/VRMA_MotionPack/vrma/LookAround.vrma' },
-        { name: 'jump', path: 'Resources/VRMA_MotionPack/vrma/Jump.vrma' },
-        { name: 'goodbye', path: 'Resources/VRMA_MotionPack/vrma/Goodbye.vrma' },
-        { name: 'clapping', path: 'Resources/VRMA_MotionPack/vrma/Clapping.vrma' },
-        { name: 'thinking', path: 'Resources/VRMA_MotionPack/vrma/Thinking.vrma' }
-    ],
-    IDLE_ACTION_LIST: ['idle', 'idle1', 'idle2'],
-    DANCE_ACTION_LIST: ['vrma17', 'vrma25'],
+    MOTION_CATALOG_PATH: 'Resources/motion-catalog.json',
+    MOTION_CATEGORIES,
+    CUE_INTENSITY_LEVELS,
+    EXPRESSION_NAMES,
     CROSS_FADE_DURATION: 0.4,
     RENDER_PIXEL_RATIO: 2,
     CAMERA_POSITION: new THREE.Vector3(0, 1.3, 1.1),
@@ -97,6 +88,8 @@ export const CONFIG = {
     BACKEND_BASE_URL: runtimeSettings.backendBaseUrl,
     DEMO_MODE_ENABLED: runtimeSettings.demoModeEnabled,
     IS_GITHUB_PAGES: runtimeSettings.isGitHubPages,
+    RUNTIME_SHELL: runtimeSettings.runtimeShell,
+    IS_ELECTRON_SHELL: runtimeSettings.isElectronShell,
     BACKEND_STREAM_API_URL: `${runtimeSettings.backendBaseUrl}/api/chat`,
     BACKEND_TTS_API_URL: `${runtimeSettings.backendBaseUrl}/api/chat/tts`,
     BACKEND_TEXT_API_URL: `${runtimeSettings.backendBaseUrl}/api/chat/text`,
