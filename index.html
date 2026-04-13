@@ -15,6 +15,7 @@
             /* 全局主题色，完全匹配截图的柔和浅蓝系 */
             --primary-color: #a8d8f0;
             --primary-deep: #73b8e5;
+            --runtime-accent: #73b8e5;
             --bg-main: #f0f8ff;
             --bg-panel: rgba(255, 255, 255, 0.88);
             --text-main: #333333;
@@ -85,11 +86,22 @@
             position: absolute;
             top: 18px;
             left: 20px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            color: var(--runtime-accent);
+        }
+
+        #runtime-package-label {
             font-size: 22px;
             font-weight: 600;
-            color: var(--primary-deep);
-            z-index: 10;
             letter-spacing: 1px;
+        }
+
+        #runtime-package-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
         }
 
         /* 右上角功能按钮区，匹配截图的极简样式 */
@@ -866,10 +878,13 @@
     </style>
 </head>
 <body>
-    <div id="app-container">
-        <!-- 全屏3D画布区域，虚拟人作为主体 -->
+        <div id="app-container">
+            <!-- 全屏3D画布区域，虚拟人作为主体 -->
         <div id="canvas-container">
-            <div id="app-logo">AIGril</div>
+            <div id="app-logo">
+                <div id="runtime-package-label">AIGril</div>
+                <div id="runtime-package-meta">Runtime</div>
+            </div>
 
             <!-- 右上角功能按钮，匹配截图的极简设计 -->
             <div id="top-controls">

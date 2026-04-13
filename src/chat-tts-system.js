@@ -2,10 +2,11 @@ import { CONFIG } from './config.js';
 
 
 export class ChatTTSSystem {
-    constructor(vrmSystem, audioPlayer, chatService) {
+    constructor(vrmSystem, audioPlayer, chatService, runtimeIdentity = null) {
         this.vrmSystem = vrmSystem;
         this.audioPlayer = audioPlayer;
         this.chatService = chatService;
+        this.runtimeIdentity = runtimeIdentity;
 
         this.messageHistory = [];
         this.messageListEl = document.getElementById('message-list');
@@ -47,6 +48,9 @@ export class ChatTTSSystem {
             const welcomeMessage = this.chatService?.getWelcomeMessage?.() ||
                 'AIGL到啦！现在可以聊天啦~';
             this.addSystemMessage(welcomeMessage);
+            if (this.runtimeIdentity?.packageName) {
+                this.addSystemMessage(`当前角色包：${this.runtimeIdentity.packageName}`);
+            }
             this.inputEl.disabled = false;
             this.sendBtnEl.disabled = false;
             this.startAutoChatTimer();

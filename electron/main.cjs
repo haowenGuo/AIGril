@@ -2,9 +2,11 @@ const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const path = require('node:path');
 const {
     importAssets,
+    loadPackageRegistry,
     loadPlatformState,
     readAssetText,
     resolveAssetUrl,
+    savePackageRegistry,
     savePlatformState
 } = require('./resource-platform.cjs');
 
@@ -127,6 +129,8 @@ if (!gotSingleInstanceLock) {
         ipcMain.handle('aigril:get-backend-base-url', () => backendBaseUrl);
         ipcMain.handle('aigril:load-resource-platform-state', () => loadPlatformState(app));
         ipcMain.handle('aigril:save-resource-platform-state', (_event, nextState) => savePlatformState(app, nextState || {}));
+        ipcMain.handle('aigril:load-runtime-package-registry', () => loadPackageRegistry(app));
+        ipcMain.handle('aigril:save-runtime-package-registry', (_event, nextRegistry) => savePackageRegistry(app, nextRegistry || {}));
         ipcMain.handle('aigril:pick-and-import-assets', async () => {
             const result = await dialog.showOpenDialog({
                 title: '导入本地授权资源',

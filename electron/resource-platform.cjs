@@ -38,6 +38,15 @@ function createEmptyPlatformState() {
     };
 }
 
+function createEmptyPackageRegistry() {
+    return {
+        version: 1,
+        updatedAt: null,
+        activePackageId: '',
+        packages: []
+    };
+}
+
 function ensureDir(dirPath) {
     fs.mkdirSync(dirPath, { recursive: true });
 }
@@ -67,7 +76,8 @@ function getPlatformPaths(app) {
     return {
         root,
         assetsRoot: path.join(root, 'assets'),
-        statePath: path.join(root, 'workspace.json')
+        statePath: path.join(root, 'workspace.json'),
+        packageRegistryPath: path.join(root, 'runtime-packages.json')
     };
 }
 
@@ -113,6 +123,37 @@ function savePlatformState(app, state) {
     };
     fs.writeFileSync(paths.statePath, JSON.stringify(nextState, null, 2), 'utf8');
     return nextState;
+}
+
+function loadPackageRegistry(app) {
+    const paths = getPlatformPaths(app);
+    ensureDir(paths.root);
+
+    if (!fs.existsSync(paths.packageRegistryPath)) {
+        const initialRegistry = createEmptyPackageRegistry();
+        fs.writeFileSync(paths.packageRegistryPath, JSON.stringify(initialRegistry, null, 2), 'utf8');
+        return initialRegistry;
+    }
+
+    const loaded = readJsonSafe(paths.packageRegistryPath, createEmptyPackageRegistry());
+    return {
+        ...createEmptyPackageRegistry(),
+        ...loaded,
+        packages: Array.isArray(loaded.packages) ? loaded.packages : []
+    };
+}
+
+function savePackageRegistry(app, registry) {
+    const paths = getPlatformPaths(app);
+    ensureDir(paths.root);
+    const nextRegistry = {
+        ...createEmptyPackageRegistry(),
+        ...registry,
+        updatedAt: nowIso(),
+        packages: Array.isArray(registry.packages) ? registry.packages : []
+    };
+    fs.writeFileSync(paths.packageRegistryPath, JSON.stringify(nextRegistry, null, 2), 'utf8');
+    return nextRegistry;
 }
 
 function loadSidecar(sourcePath) {
@@ -443,11 +484,14 @@ function resolveAssetUrl(assetPath) {
 }
 
 module.exports = {
+    createEmptyPackageRegistry,
     createEmptyPlatformState,
     getPlatformPaths,
     importAssets,
+    loadPackageRegistry,
     loadPlatformState,
     readAssetText,
     resolveAssetUrl,
+    savePackageRegistry,
     savePlatformState
 };
