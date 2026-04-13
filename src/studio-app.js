@@ -86,7 +86,8 @@ function esc(value) {
 
 function json(raw, fallback) {
     try {
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        return parsed == null ? fallback : parsed;
     } catch {
         return fallback;
     }
