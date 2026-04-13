@@ -689,6 +689,101 @@
             overflow: hidden;
         }
 
+        #runtime-show-dock {
+            padding: 16px 16px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-bottom: 1px solid rgba(168, 216, 240, 0.18);
+        }
+
+        #runtime-show-dock[data-state="playing"] {
+            background: rgba(115, 184, 229, 0.06);
+        }
+
+        .runtime-show-head {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .runtime-show-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        #runtime-show-meta,
+        .runtime-show-status {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .runtime-show-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        #runtime-work-select {
+            width: 100%;
+            height: 38px;
+            padding: 0 12px;
+            border: 1px solid rgba(168, 216, 240, 0.55);
+            border-radius: 8px;
+            outline: none;
+            background: rgba(255, 255, 255, 0.76);
+            color: var(--text-main);
+            font-size: 13px;
+        }
+
+        .runtime-show-btn {
+            height: 38px;
+            padding: 0 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .runtime-show-btn--primary {
+            background: rgba(115, 184, 229, 0.2);
+            color: var(--primary-deep);
+        }
+
+        .runtime-show-btn--ghost {
+            background: rgba(168, 216, 240, 0.14);
+            color: var(--text-secondary);
+        }
+
+        .runtime-show-btn:disabled,
+        #runtime-work-select:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .runtime-show-status {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 0 0 12px;
+        }
+
+        #runtime-show-playback {
+            color: var(--text-main);
+        }
+
+        #runtime-show-lyric {
+            min-height: 38px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: rgba(168, 216, 240, 0.14);
+            color: var(--text-main);
+        }
+
         /* 消息列表容器，去掉生硬分割线 */
         #message-list {
             flex: 1;
@@ -920,6 +1015,23 @@
 
         <!-- 右侧悬浮对话面板，去掉生硬侧边栏 -->
         <div id="chat-panel">
+            <div id="runtime-show-dock" data-state="empty">
+                <div class="runtime-show-head">
+                    <div class="runtime-show-title">正式演出</div>
+                    <div id="runtime-show-meta">正在读取已发布作品...</div>
+                </div>
+                <div class="runtime-show-row">
+                    <select id="runtime-work-select" aria-label="选择作品">
+                        <option value="">没有已发布作品</option>
+                    </select>
+                    <button id="runtime-show-start" class="runtime-show-btn runtime-show-btn--primary" type="button">开演</button>
+                    <button id="runtime-show-stop" class="runtime-show-btn runtime-show-btn--ghost" type="button">停止</button>
+                </div>
+                <div class="runtime-show-status">
+                    <div id="runtime-show-playback">等待选择作品</div>
+                    <div id="runtime-show-lyric">当前没有正在播放的演出。</div>
+                </div>
+            </div>
             <!-- 消息列表，去掉生硬标题栏 -->
             <div id="message-list">
                 <div class="message-system">AIGL到啦~</div>

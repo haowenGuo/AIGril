@@ -15,6 +15,8 @@ export class ChatTTSSystem {
         this.sessionId = this.getOrCreateSessionId();
 
         this.isBusy = false;
+        this.isModelReady = false;
+        this.isPerformanceMode = false;
         this.autoChatTimer = null;
         this.hasShownAutoplayHint = false;
         this.hasShownTextFallbackHint = false;
@@ -35,6 +37,15 @@ export class ChatTTSSystem {
         return sessionId;
     }
 
+    applyInputAvailability() {
+        const disabled = !this.isModelReady || this.isPerformanceMode;
+        this.inputEl.disabled = disabled;
+        this.sendBtnEl.disabled = disabled;
+        this.inputEl.placeholder = this.isPerformanceMode
+            ? '演出进行中，结束后继续聊天...'
+            : '说点什么...';
+    }
+
     bindEvents() {
         this.sendBtnEl.addEventListener('click', () => this.sendMessage());
         this.inputEl.addEventListener('keydown', (event) => {
@@ -51,9 +62,11 @@ export class ChatTTSSystem {
             if (this.runtimeIdentity?.packageName) {
                 this.addSystemMessage(`当前角色包：${this.runtimeIdentity.packageName}`);
             }
-            this.inputEl.disabled = false;
-            this.sendBtnEl.disabled = false;
-            this.startAutoChatTimer();
+            this.isModelReady = true;
+            this.applyInputAvailability();
+            if (!this.isPerformanceMode) {
+                this.startAutoChatTimer();
+            }
         });
     }
 
@@ -71,6 +84,10 @@ export class ChatTTSSystem {
     }
 
     startAutoChatTimer() {
+        if (this.isPerformanceMode || !this.isModelReady) {
+            return;
+        }
+
         if (this.autoChatTimer) {
             clearTimeout(this.autoChatTimer);
         }
@@ -83,9 +100,11 @@ export class ChatTTSSystem {
     }
 
     async triggerAutoChat() {
-        if (this.isBusy) {
+        if (this.isBusy || this.isPerformanceMode) {
             console.log('🤫 当前正忙，跳过本次主动对话');
-            this.startAutoChatTimer();
+            if (!this.isPerformanceMode) {
+                this.startAutoChatTimer();
+            }
             return;
         }
 
@@ -105,12 +124,14 @@ export class ChatTTSSystem {
             console.error('主动对话请求失败：', error);
         } finally {
             this.isBusy = false;
-            this.startAutoChatTimer();
+            if (!this.isPerformanceMode) {
+                this.startAutoChatTimer();
+            }
         }
     }
 
     async sendMessage() {
-        if (this.isBusy) {
+        if (this.isBusy || this.isPerformanceMode) {
             return;
         }
 
@@ -146,6 +167,38 @@ export class ChatTTSSystem {
             console.error('后端请求失败：', error);
         } finally {
             this.isBusy = false;
+            if (!this.isPerformanceMode) {
+                this.startAutoChatTimer();
+            }
+        }
+    }
+
+    async enterPerformanceMode({ title = '' } = {}) {
+        this.isPerformanceMode = true;
+        if (this.autoChatTimer) {
+            clearTimeout(this.autoChatTimer);
+            this.autoChatTimer = null;
+        }
+        this.applyInputAvailability();
+
+        try {
+            await this.audioPlayer.stop();
+        } catch (error) {
+            console.warn('⚠️ 进入演出态时停止语音失败：', error);
+        }
+
+        if (title) {
+            this.addSystemMessage(`进入演出态：${title}`);
+        }
+    }
+
+    async exitPerformanceMode({ reason = '' } = {}) {
+        this.isPerformanceMode = false;
+        this.applyInputAvailability();
+        if (reason) {
+            this.addSystemMessage(reason);
+        }
+        if (this.isModelReady) {
             this.startAutoChatTimer();
         }
     }
@@ -163,6 +216,12 @@ export class ChatTTSSystem {
     async renderAssistantReply(payload, aiMessageDiv) {
         const displayText = payload.display_text || payload.speech_text || '...';
         const alignment = payload.normalized_alignment || payload.alignment || null;
+
+        if (this.isPerformanceMode) {
+            aiMessageDiv.textContent = displayText;
+            this.scrollToBottom();
+            return;
+        }
 
         this.executeAvatarCue(payload, aiMessageDiv);
 
@@ -216,6 +275,12 @@ export class ChatTTSSystem {
 
     renderStreamingAssistantReply(payload, aiMessageDiv) {
         const displayText = payload.display_text || payload.speech_text || '';
+
+        if (this.isPerformanceMode) {
+            aiMessageDiv.textContent = displayText;
+            this.scrollToBottom();
+            return;
+        }
 
         this.executeAvatarCue(payload, aiMessageDiv);
         aiMessageDiv.textContent = displayText;
