@@ -634,6 +634,12 @@ button {
     gap: 8px;
 }
 
+.field-block small {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
 .field-block--wide {
     grid-column: 1 / -1;
 }
@@ -846,6 +852,12 @@ button {
     gap: 12px;
 }
 
+.work-editor-grid,
+.work-binding-grid,
+.detail-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .package-preview-grid,
 .inline-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -921,6 +933,146 @@ button {
     max-height: 420px;
 }
 
+.binding-summary-card {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: rgba(18, 116, 117, 0.08);
+}
+
+.binding-summary-card strong {
+    font-size: 12px;
+}
+
+.binding-summary-card span {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--muted);
+}
+
+.work-embedded-surface {
+    margin-top: 16px;
+}
+
+.detail-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.detail-tags span {
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    background: rgba(31, 36, 33, 0.05);
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.detail-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.detail-form-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.detail-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.detail-field span {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.detail-field-wide {
+    grid-column: 1 / -1;
+}
+
+.detail-field input,
+.detail-field select,
+.detail-field textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--ink);
+    padding: 10px 12px;
+    outline: none;
+}
+
+.detail-field textarea {
+    min-height: 96px;
+    resize: vertical;
+}
+
+.timeline-overview {
+    display: flex;
+    gap: 6px;
+    min-height: 48px;
+    padding: 10px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: rgba(31, 36, 33, 0.04);
+    overflow-x: auto;
+}
+
+.timeline-overview-segment {
+    min-width: 36px;
+    height: 26px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: rgba(18, 116, 117, 0.16);
+    flex: 0 0 auto;
+}
+
+.timeline-overview-segment.is-active {
+    background: rgba(18, 116, 117, 0.28);
+    border-color: rgba(18, 116, 117, 0.34);
+}
+
+.stage-runtime-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.78);
+}
+
+.stage-runtime-time {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.stage-runtime-slider {
+    width: 100%;
+}
+
+.stage-runtime-lyric {
+    min-height: 64px;
+    padding: 12px;
+    border-radius: 6px;
+    background: rgba(18, 116, 117, 0.08);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
 @media (max-width: 1280px) {
     #studio-app {
         grid-template-columns: 220px minmax(0, 1fr);
@@ -934,6 +1086,9 @@ button {
     .preview-canvas,
     .strategy-grid,
     .contract-grid,
+    .work-editor-grid,
+    .work-binding-grid,
+    .detail-form-grid,
     .package-preview-grid,
     .inline-kpis {
         grid-template-columns: 1fr;

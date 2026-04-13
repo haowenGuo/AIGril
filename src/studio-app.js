@@ -31,8 +31,31 @@ import {
     validateCharacterPackage
 } from './aigril-package-contract.js';
 import { EXPRESSION_NAMES, MOTION_CATEGORIES } from './cue-utils.js';
-import { summarizeWorkAssets } from './resource-library.js';
-import { createEmptyResourcePlatformState, loadResourcePlatformState } from './resource-platform-store.js';
+import {
+    addTimelineSegment,
+    buildTimelineSegmentsFromText,
+    createEmptyTimeline,
+    formatTimelineTime,
+    getTimelineDurationHint,
+    removeTimelineSegment,
+    updateTimelineSegment
+} from './performance-workspace.js';
+import { PerformanceRuntimeController } from './performance-runtime.js';
+import { createEmptyResourceLibrary, fetchResourceLibrary, summarizeWorkAssets } from './resource-library.js';
+import {
+    createEmptyResourcePlatformState,
+    loadResourcePlatformState,
+    mergeLibraryWithPlatform,
+    resolveAssetUrl,
+    fetchAssetTextPreview
+} from './resource-platform-store.js';
+import {
+    buildPerformanceFromCharacterWork,
+    collectLibraryBindingCandidates,
+    normalizeWorkResourceRefs,
+    resolveResourceRefById,
+    summarizeWorkResourceRefs
+} from './resource-reference-resolver.js';
 import {
     activateRuntimePackage,
     createEmptyRuntimePackageRegistry,
@@ -65,15 +88,55 @@ const state = {
     activeWorkspace: 'overview',
     draftPackage: createDefaultCharacterPackage(),
     registry: createEmptyRuntimePackageRegistry(),
+    baseLibrary: createEmptyResourceLibrary(),
+    library: createEmptyResourceLibrary(),
     platformState: createEmptyResourcePlatformState(),
     selectedPreviewId: PREVIEWS[0].id,
     selectedAvatarPresetId: identityPresets[0]?.id || '',
     selectedPersonalityProfileId: personalityProfiles[0]?.id || '',
     selectedWorkId: '',
+    selectedTimelineSegmentId: '',
+    stageRuntime: {
+        isPlaying: false,
+        performanceId: '',
+        currentTime: 0,
+        duration: 0,
+        activeSegmentId: '',
+        activeLyricText: '',
+        playbackLabel: ''
+    },
+    stageCue: {
+        motionText: '等待动作',
+        expressionText: '未触发表情'
+    },
     notice: { type: 'info', message: NOTICE }
 };
 
 const appEl = document.getElementById('studio-app');
+
+const stageRuntime = new PerformanceRuntimeController({
+    vrmSystem: {
+        async playMotionCue(cue = {}) {
+            state.stageCue.motionText = cue.motionId
+                ? `动作 ${cue.motionId}`
+                : `${cue.category || cue.legacyAction || 'idle'} · ${cue.intensity || 'medium'}`;
+            render();
+        },
+        applyExpressionCue(cue = {}) {
+            state.stageCue.expressionText = cue?.name
+                ? `${cue.name} · ${cue.intensity || 'medium'}`
+                : '未触发表情';
+            render();
+        }
+    },
+    onStateChange(runtimeState) {
+        state.stageRuntime = runtimeState;
+        if (runtimeState.activeSegmentId) {
+            state.selectedTimelineSegmentId = runtimeState.activeSegmentId;
+        }
+        render();
+    }
+});
 
 function esc(value) {
     return String(value ?? '')
@@ -144,10 +207,17 @@ function ensureWork() {
     const works = state.draftPackage.works || [];
     if (!works.length) {
         state.selectedWorkId = '';
+        state.selectedTimelineSegmentId = '';
         return;
     }
     if (!works.some((work) => work.id === state.selectedWorkId)) {
         state.selectedWorkId = works[0].id;
+    }
+
+    const currentWork = works.find((work) => work.id === state.selectedWorkId) || works[0];
+    const segments = currentWork?.timeline?.segments || [];
+    if (!segments.some((segment) => segment.id === state.selectedTimelineSegmentId)) {
+        state.selectedTimelineSegmentId = segments[0]?.id || '';
     }
 }
 
@@ -161,7 +231,8 @@ function saveUi() {
         selectedPreviewId: state.selectedPreviewId,
         selectedAvatarPresetId: state.selectedAvatarPresetId,
         selectedPersonalityProfileId: state.selectedPersonalityProfileId,
-        selectedWorkId: state.selectedWorkId
+        selectedWorkId: state.selectedWorkId,
+        selectedTimelineSegmentId: state.selectedTimelineSegmentId
     }));
 }
 
@@ -204,6 +275,13 @@ function importedWorkTemplate(importedWork) {
     const motionCategory = (importedWork?.assets?.motions || [])
         .map((motion) => String(motion?.metadata?.motion_category || '').toLowerCase())
         .find((item) => MOTION_CATEGORIES.includes(item)) || (summary.motion > 0 ? 'dance' : 'idle');
+
+    const firstAudio = importedWork?.assets?.audio || [];
+    const songAsset = firstAudio.find((asset) => asset.role !== 'accompaniment') || null;
+    const accompanimentAsset = firstAudio.find((asset) => asset.role === 'accompaniment') || null;
+    const lyricsAsset = importedWork?.assets?.lyrics?.[0] || null;
+    const scoreAsset = importedWork?.assets?.scores?.[0] || null;
+
     return {
         ...createDefaultWorkTemplate(state.draftPackage.works.length),
         title: importedWork?.title || '导入作品',
@@ -211,11 +289,201 @@ function importedWorkTemplate(importedWork) {
         mood: (importedWork?.tags || []).slice(0, 2).join(' / ') || (summary.motion > 0 ? '舞台 / 互动' : '温柔 / 抒情'),
         summary: `从本地授权资源导入，含 ${summary.song} 首歌曲、${summary.accompaniment} 条伴奏、${summary.lyrics} 份歌词、${summary.motion} 条动作。`,
         resourceBindings: { songs: summary.song, accompaniments: summary.accompaniment, lyrics: summary.lyrics, motions: summary.motion },
+        resourceRefs: {
+            songId: songAsset?.id || '',
+            accompanimentId: accompanimentAsset?.id || '',
+            lyricsId: lyricsAsset?.id || '',
+            scoreId: scoreAsset?.id || '',
+            motionId: ''
+        },
+        timeline: createEmptyTimeline(),
         preferredMotionCategory: motionCategory,
         defaultExpression: summary.motion > 0 ? 'happy' : 'relaxed',
         stagePreset: summary.motion > 0 ? '聚光舞台' : '晚安广播',
         status: 'review'
     };
+}
+
+function getBindingCandidates() {
+    return collectLibraryBindingCandidates(state.library);
+}
+
+function getSelectedWork() {
+    return state.draftPackage.works.find((work) => work.id === state.selectedWorkId) || null;
+}
+
+function getSelectedWorkIndex() {
+    return state.draftPackage.works.findIndex((work) => work.id === state.selectedWorkId);
+}
+
+function getSelectedTimelineSegment(work = getSelectedWork()) {
+    return work?.timeline?.segments?.find((segment) => segment.id === state.selectedTimelineSegmentId) || null;
+}
+
+function refreshMergedLibrary() {
+    state.library = mergeLibraryWithPlatform(state.baseLibrary, state.platformState);
+}
+
+function selectedBindingTitle(resourceId) {
+    const binding = resolveResourceRefById(resourceId, state.library);
+    return binding?.searchLabel || binding?.title || '';
+}
+
+function workBindingSummary(work) {
+    const summary = summarizeWorkResourceRefs(work?.resourceRefs || {});
+    return {
+        ...summary,
+        labels: [
+            summary.songId ? `歌 ${selectedBindingTitle(summary.songId) || shortId(summary.songId)}` : '',
+            summary.accompanimentId ? `伴奏 ${selectedBindingTitle(summary.accompanimentId) || shortId(summary.accompanimentId)}` : '',
+            summary.lyricsId ? `词 ${selectedBindingTitle(summary.lyricsId) || shortId(summary.lyricsId)}` : '',
+            summary.motionId ? `动作 ${selectedBindingTitle(summary.motionId) || shortId(summary.motionId)}` : ''
+        ].filter(Boolean)
+    };
+}
+
+function renderBindingSelect(labelText, workIndex, bindingKey, slotKey, placeholder) {
+    const work = state.draftPackage.works[workIndex];
+    const refs = normalizeWorkResourceRefs(work?.resourceRefs || {});
+    const selectedId = refs[bindingKey];
+    const candidates = getBindingCandidates()[slotKey] || [];
+
+    return field(labelText, `
+        <select data-change="work-resource-ref" data-work-index="${workIndex}" data-binding-key="${esc(bindingKey)}">
+            <option value="">${esc(placeholder)}</option>
+            ${candidates.map((candidate) => `
+                <option value="${esc(candidate.id)}"${candidate.id === selectedId ? ' selected' : ''}>${esc(candidate.searchLabel || candidate.title || candidate.id)}</option>
+            `).join('')}
+        </select>
+        <small>${esc(selectedBindingTitle(selectedId) || '未绑定具体资源')}</small>
+    `);
+}
+
+function renderSegmentMotionSelect(segment) {
+    const motionCandidates = getBindingCandidates().motion || [];
+    return field('段落动作 ID', `
+        <select data-change="work-segment-motion" data-segment-id="${esc(segment.id)}">
+            <option value="">选择动作资源</option>
+            ${motionCandidates.map((candidate) => `
+                <option value="${esc(candidate.id)}"${candidate.id === segment.motionId ? ' selected' : ''}>${esc(candidate.searchLabel || candidate.title || candidate.id)}</option>
+            `).join('')}
+        </select>
+        <small>${esc(selectedBindingTitle(segment.motionId) || '未绑定具体动作 ID，优先走动作类别兜底')}</small>
+    `);
+}
+
+function stageMotionLabel(segment) {
+    if (segment?.motionId) {
+        return selectedBindingTitle(segment.motionId) || segment.motionId;
+    }
+    if (segment?.motionCategory) {
+        return `${segment.motionCategory} · ${segment.motionIntensity || 'medium'}`;
+    }
+    return '沿用默认动作';
+}
+
+async function rebuildSelectedWorkTimeline() {
+    const work = getSelectedWork();
+    if (!work) {
+        setNotice('error', '先选中一个作品模板，再生成歌词时间轴。');
+        render();
+        return false;
+    }
+
+    const refs = normalizeWorkResourceRefs(work.resourceRefs);
+    if (!refs.lyricsId) {
+        setNotice('error', '当前作品还没有绑定歌词资源，先绑定一份具体歌词再生成时间轴。');
+        render();
+        return false;
+    }
+
+    const lyricsBinding = resolveResourceRefById(refs.lyricsId, state.library);
+    if (!lyricsBinding?.path) {
+        setNotice('error', '当前歌词资源缺少可读取路径，暂时无法生成时间轴。');
+        render();
+        return false;
+    }
+
+    try {
+        const lyricsText = await fetchAssetTextPreview(lyricsBinding, 120000);
+        const defaultMotionBinding = refs.motionId ? resolveResourceRefById(refs.motionId, state.library) : null;
+        const segments = buildTimelineSegmentsFromText({
+            text: lyricsText,
+            ext: lyricsBinding.ext || '.txt',
+            defaultMotionCategory:
+                defaultMotionBinding?.metadata?.category ||
+                defaultMotionBinding?.metadata?.motion_category ||
+                work.preferredMotionCategory ||
+                'idle',
+            defaultMotionIntensity:
+                defaultMotionBinding?.metadata?.intensity ||
+                defaultMotionBinding?.metadata?.motionIntensity ||
+                'medium'
+        });
+
+        state.selectedTimelineSegmentId = segments[0]?.id || '';
+        updateDraft((draft) => {
+            const workIndex = draft.works.findIndex((item) => item.id === work.id);
+            if (workIndex < 0) {
+                return;
+            }
+            draft.works[workIndex].timeline = {
+                ...createEmptyTimeline(),
+                ...(draft.works[workIndex].timeline || {}),
+                updatedAt: new Date().toISOString(),
+                sourceAssetId: lyricsBinding.id || '',
+                sourceExt: lyricsBinding.ext || '',
+                segments
+            };
+        }, {
+            type: 'success',
+            message: `已根据歌词资源生成 ${segments.length} 个时间轴段。`
+        }, work.id);
+        return true;
+    } catch (error) {
+        setNotice('error', `歌词读取失败：${error.message || error}`);
+        render();
+        return false;
+    }
+}
+
+async function playSelectedWorkPerformance() {
+    let work = getSelectedWork();
+    if (!work) {
+        setNotice('error', '先选中一个作品模板，再开始预演。');
+        render();
+        return;
+    }
+
+    if (!work.timeline?.segments?.length && normalizeWorkResourceRefs(work.resourceRefs).lyricsId) {
+        const rebuilt = await rebuildSelectedWorkTimeline();
+        if (!rebuilt) {
+            return;
+        }
+        work = getSelectedWork();
+    }
+
+    const performance = buildPerformanceFromCharacterWork(work, state.library);
+    if (!performance.bindings.song && !performance.bindings.accompaniment && !performance.timeline.segments.length) {
+        setNotice('error', '当前作品还没有可播放音频，也没有歌词时间轴段，暂时无法预演。');
+        render();
+        return;
+    }
+
+    try {
+        await stageRuntime.play({ performance, resolveAssetUrl });
+        setNotice('success', `开始预演：${work.title}。`);
+        render();
+    } catch (error) {
+        setNotice('error', `预演启动失败：${error.message || error}`);
+        render();
+    }
+}
+
+async function stopSelectedWorkPerformance() {
+    await stageRuntime.stop();
+    setNotice('info', '已停止当前预演。');
+    render();
 }
 
 function updateDraft(mutator, notice = null, nextWorkId = '') {
@@ -351,6 +619,11 @@ function workEditor(workIndex) {
     if (!work) {
         return `<div class="empty-state">先新建一个作品模板，或者从资源平台直接导入。</div>`;
     }
+
+    const bindingSummary = workBindingSummary(work);
+    const segment = getSelectedTimelineSegment(work);
+    const stageDuration = state.stageRuntime.duration || getTimelineDurationHint(work);
+
     return `
         <div class="work-editor-grid">
             ${input('作品标题', `works.${workIndex}.title`, work.title)}
@@ -363,14 +636,106 @@ function workEditor(workIndex) {
             ${textarea('作品说明', `works.${workIndex}.summary`, work.summary, 4)}
         </div>
         <div class="field-grid work-binding-grid">
-            ${input('歌曲引用数', `works.${workIndex}.resourceBindings.songs`, work.resourceBindings.songs, 'number')}
-            ${input('伴奏引用数', `works.${workIndex}.resourceBindings.accompaniments`, work.resourceBindings.accompaniments, 'number')}
-            ${input('歌词引用数', `works.${workIndex}.resourceBindings.lyrics`, work.resourceBindings.lyrics, 'number')}
-            ${input('动作引用数', `works.${workIndex}.resourceBindings.motions`, work.resourceBindings.motions, 'number')}
+            ${renderBindingSelect('歌曲资源', workIndex, 'songId', 'song', '选择歌曲资源')}
+            ${renderBindingSelect('伴奏资源', workIndex, 'accompanimentId', 'accompaniment', '选择伴奏资源')}
+            ${renderBindingSelect('歌词资源', workIndex, 'lyricsId', 'lyrics', '选择歌词资源')}
+            ${renderBindingSelect('乐谱资源', workIndex, 'scoreId', 'score', '选择乐谱资源')}
+            ${renderBindingSelect('默认动作', workIndex, 'motionId', 'motion', '选择动作资源')}
+            <div class="binding-summary-card">
+                <strong>当前绑定</strong>
+                <span>${bindingSummary.labels.length ? esc(bindingSummary.labels.join(' / ')) : '还没有具体资源 ID 绑定'}</span>
+            </div>
         </div>
         <div class="work-editor-actions">
+            <button class="ghost-btn mini-btn" type="button" data-action="rebuild-work-timeline">按歌词生成时间轴</button>
+            <button class="ghost-btn mini-btn" type="button" data-action="play-work-performance">开始预演</button>
+            <button class="ghost-btn mini-btn" type="button" data-action="stop-work-performance">停止预演</button>
             <button class="ghost-btn mini-btn" type="button" data-action="promote-work" data-work-id="${esc(work.id)}">设为主推作品</button>
             <button class="ghost-btn mini-btn danger-btn" type="button" data-action="remove-work" data-work-id="${esc(work.id)}">删除作品</button>
+        </div>
+        <div class="tool-surface work-embedded-surface">
+            <div class="surface-head">
+                <div>
+                    <h3>歌词时间轴</h3>
+                    <p>这里开始不是数量，而是具体歌词资源、具体动作段和实际时刻。</p>
+                </div>
+            </div>
+            <div class="detail-tags">
+                <span>${esc(selectedBindingTitle(work.resourceRefs?.lyricsId) || '未绑定歌词')}</span>
+                <span>${esc(selectedBindingTitle(work.resourceRefs?.motionId) || '未绑定默认动作')}</span>
+                <span>段落 ${work.timeline?.segments?.length || 0}</span>
+            </div>
+            ${
+                work.timeline?.segments?.length
+                    ? `<div class="timeline-overview">${work.timeline.segments.map((timelineSegment) => {
+                        const duration = Math.max(getTimelineDurationHint(work), 0.1);
+                        const width = Math.max(4, ((timelineSegment.endTime - timelineSegment.startTime) / duration) * 100);
+                        return `<button class="timeline-overview-segment${timelineSegment.id === state.selectedTimelineSegmentId ? ' is-active' : ''}" style="width:${width}%;" type="button" data-action="select-work-segment" data-segment-id="${esc(timelineSegment.id)}" title="${esc(timelineSegment.text || formatTimelineTime(timelineSegment.startTime))}"></button>`;
+                    }).join('')}</div>`
+                    : `<div class="empty-state">先绑定一份具体歌词资源，再用“按歌词生成时间轴”自动拆段。</div>`
+            }
+            <div class="detail-actions-row">
+                <button class="ghost-btn mini-btn" type="button" data-action="add-work-segment">新增段落</button>
+                ${segment ? `<button class="ghost-btn mini-btn danger-btn" type="button" data-action="remove-work-segment" data-segment-id="${esc(segment.id)}">删除当前段</button>` : ''}
+            </div>
+            ${
+                segment ? `
+                    <div class="detail-form-grid">
+                        <label class="detail-field">
+                            <span>开始时间</span>
+                            <input type="number" step="0.01" min="0" value="${segment.startTime}" data-change="work-segment-field" data-segment-id="${segment.id}" data-field="startTime" />
+                        </label>
+                        <label class="detail-field">
+                            <span>结束时间</span>
+                            <input type="number" step="0.01" min="0" value="${segment.endTime}" data-change="work-segment-field" data-segment-id="${segment.id}" data-field="endTime" />
+                        </label>
+                        <label class="detail-field detail-field-wide">
+                            <span>歌词文本</span>
+                            <textarea rows="3" data-change="work-segment-field" data-segment-id="${segment.id}" data-field="text">${esc(segment.text || '')}</textarea>
+                        </label>
+                        ${renderSegmentMotionSelect(segment)}
+                        <label class="detail-field">
+                            <span>动作类别兜底</span>
+                            <select data-change="work-segment-field" data-segment-id="${segment.id}" data-field="motionCategory">${options(MOTION_CATEGORIES, segment.motionCategory)}</select>
+                        </label>
+                        <label class="detail-field">
+                            <span>动作强度</span>
+                            <select data-change="work-segment-field" data-segment-id="${segment.id}" data-field="motionIntensity">${options(['low', 'medium', 'high'], segment.motionIntensity || 'medium')}</select>
+                        </label>
+                        <label class="detail-field">
+                            <span>表情</span>
+                            <select data-change="work-segment-field" data-segment-id="${segment.id}" data-field="expression">${options(EXPRESSIONS, segment.expression || '')}</select>
+                        </label>
+                        <label class="detail-field">
+                            <span>表情强度</span>
+                            <select data-change="work-segment-field" data-segment-id="${segment.id}" data-field="expressionIntensity">${options(['low', 'medium', 'high'], segment.expressionIntensity || 'medium')}</select>
+                        </label>
+                    </div>
+                `
+                    : ''
+            }
+        </div>
+        <div class="tool-surface work-embedded-surface">
+            <div class="surface-head">
+                <div>
+                    <h3>演出预演</h3>
+                    <p>按具体资源 ID、歌词时间轴和动作段实际驱动。</p>
+                </div>
+            </div>
+            <div class="detail-tags">
+                <span>播放源 ${esc(state.stageRuntime.playbackLabel || 'auto')}</span>
+                <span>当前歌词 ${esc(state.stageRuntime.activeLyricText || '等待开始')}</span>
+                <span>当前动作 ${esc(state.stageCue.motionText || '等待动作')}</span>
+                <span>当前表情 ${esc(state.stageCue.expressionText || '未触发表情')}</span>
+            </div>
+            <div class="stage-runtime-card">
+                <div class="stage-runtime-time">
+                    <span>${esc(formatTimelineTime(state.stageRuntime.currentTime || 0))}</span>
+                    <span>${esc(formatTimelineTime(stageDuration || 0))}</span>
+                </div>
+                <input class="stage-runtime-slider" type="range" min="0" max="${stageDuration || 0}" step="0.01" value="${Math.min(state.stageRuntime.currentTime || 0, stageDuration || 0)}" data-change="studio-stage-seek" />
+                <div class="stage-runtime-lyric">${esc(state.stageRuntime.activeLyricText || '开始预演后，这里会按时间轴滚动歌词。')}</div>
+            </div>
         </div>
     `;
 }
@@ -382,10 +747,10 @@ function performanceView(workspace, supply) {
         <div class="workspace-grid">
             <div class="workspace-stack">
                 <section class="tool-surface"><div class="surface-head"><div><h3>资源槽位</h3><p>角色包声明“她需要多少资源”，资源平台负责供货。</p></div><button class="ghost-btn mini-btn" type="button" data-action="sync-resource-counts">从资源平台同步</button></div><div class="asset-slots">${slotRows(supply)}</div></section>
-                <section class="tool-surface"><div class="surface-head"><div><h3>本地资源作品</h3><p>把已经整理好的歌曲、伴奏、歌词、动作一键变成可编辑作品模板。</p></div></div>${importedWorksView()}</section>
+                <section class="tool-surface"><div class="surface-head"><div><h3>资源候选池</h3><p>现在这里不再只是统计数量，而是给当前作品提供具体资源 ID 候选。</p></div></div>${importedWorksView()}</section>
             </div>
             <div class="workspace-stack">
-                <section class="tool-surface"><div class="surface-head"><div><h3>作品模板</h3><p>作品是资源装配单位，也是 Runtime 的推荐演出单位。</p></div><button class="primary-btn mini-btn" type="button" data-action="add-work">新增作品</button></div><div class="work-list">${state.draftPackage.works.map((work) => `<button class="work-row ${work.id === state.selectedWorkId ? 'is-selected' : ''}" type="button" data-action="select-work" data-work-id="${esc(work.id)}"><header><strong>${esc(work.title)}</strong><span class="work-progress ${cls(work.status)}">${esc(label(work.status))}</span></header><p>${esc(work.summary)}</p><span>${esc(work.preferredMotionCategory)} · 歌 ${work.resourceBindings.songs} · 动作 ${work.resourceBindings.motions}</span></button>`).join('')}</div></section>
+                <section class="tool-surface"><div class="surface-head"><div><h3>作品模板</h3><p>作品是资源装配单位，也是 Runtime 的推荐演出单位。</p></div><button class="primary-btn mini-btn" type="button" data-action="add-work">新增作品</button></div><div class="work-list">${state.draftPackage.works.map((work) => { const summary = workBindingSummary(work); return `<button class="work-row ${work.id === state.selectedWorkId ? 'is-selected' : ''}" type="button" data-action="select-work" data-work-id="${esc(work.id)}"><header><strong>${esc(work.title)}</strong><span class="work-progress ${cls(work.status)}">${esc(label(work.status))}</span></header><p>${esc(work.summary)}</p><span>${summary.labels.length ? esc(summary.labels.join(' / ')) : '等待具体资源 ID 绑定'}</span></button>`; }).join('')}</div></section>
                 <section class="tool-surface"><h3>当前作品装配</h3>${workEditor(workIndex)}</section>
             </div>
         </div>
@@ -574,6 +939,11 @@ async function onAction(actionEl) {
         render();
         return;
     }
+    if (action === 'select-work-segment') {
+        state.selectedTimelineSegmentId = actionEl.dataset.segmentId || '';
+        render();
+        return;
+    }
     if (action === 'remove-work') {
         if (state.draftPackage.works.length <= 1) {
             setNotice('error', '至少保留一个作品模板，Runtime 才有默认演出入口。');
@@ -581,6 +951,9 @@ async function onAction(actionEl) {
             return;
         }
         const workId = actionEl.dataset.workId || '';
+        if (state.stageRuntime.performanceId === workId) {
+            await stageRuntime.stop();
+        }
         return updateDraft((draft) => { draft.works = draft.works.filter((work) => work.id !== workId); }, { type: 'info', message: '作品模板已移除。' });
     }
     if (action === 'promote-work') {
@@ -602,6 +975,43 @@ async function onAction(actionEl) {
         const nextWork = importedWorkTemplate(importedWork);
         return updateDraft((draft) => draft.works.push(nextWork), { type: 'success', message: `已从资源平台生成作品模板：${nextWork.title}。` }, nextWork.id);
     }
+    if (action === 'rebuild-work-timeline') return rebuildSelectedWorkTimeline();
+    if (action === 'add-work-segment') {
+        const work = getSelectedWork();
+        if (!work) {
+            setNotice('error', '先选中一个作品模板，再新增时间轴段。');
+            render();
+            return;
+        }
+        const nextPerformance = addTimelineSegment(buildPerformanceFromCharacterWork(work, state.library));
+        const nextSegment = nextPerformance.timeline.segments[nextPerformance.timeline.segments.length - 1] || null;
+        state.selectedTimelineSegmentId = nextSegment?.id || '';
+        return updateDraft((draft) => {
+            const workIndex = draft.works.findIndex((item) => item.id === work.id);
+            if (workIndex < 0) {
+                return;
+            }
+            draft.works[workIndex].timeline = nextPerformance.timeline;
+        }, { type: 'success', message: '已新增一个歌词时间轴段。' }, work.id);
+    }
+    if (action === 'remove-work-segment') {
+        const work = getSelectedWork();
+        const segmentId = actionEl.dataset.segmentId || '';
+        if (!work || !segmentId) {
+            return;
+        }
+        const nextWork = removeTimelineSegment(work, segmentId);
+        state.selectedTimelineSegmentId = nextWork.timeline?.segments?.[0]?.id || '';
+        return updateDraft((draft) => {
+            const workIndex = draft.works.findIndex((item) => item.id === work.id);
+            if (workIndex < 0) {
+                return;
+            }
+            draft.works[workIndex].timeline = nextWork.timeline;
+        }, { type: 'info', message: '已移除当前时间轴段。' }, work.id);
+    }
+    if (action === 'play-work-performance') return playSelectedWorkPerformance();
+    if (action === 'stop-work-performance') return stopSelectedWorkPerformance();
     if (action === 'publish-package') return publishPackage();
     if (action === 'activate-package') {
         state.registry = await saveRuntimePackageRegistry(activateRuntimePackage(state.registry, actionEl.dataset.packageId || ''));
@@ -619,7 +1029,86 @@ async function onAction(actionEl) {
     if (action === 'open-runtime-preview') return openRuntime();
 }
 
-function onChange(event) {
+async function onChange(event) {
+    const changeEl = event.target.closest('[data-change]');
+    if (changeEl) {
+        const changeType = changeEl.dataset.change;
+
+        if (changeType === 'work-resource-ref') {
+            const workIndex = Number(changeEl.dataset.workIndex);
+            const bindingKey = changeEl.dataset.bindingKey || '';
+            const nextValue = String(changeEl.value || '').trim();
+
+            updateDraft((draft) => {
+                const work = draft.works[workIndex];
+                if (!work) {
+                    return;
+                }
+                const nextRefs = normalizeWorkResourceRefs(work.resourceRefs);
+                const previousValue = nextRefs[bindingKey];
+                nextRefs[bindingKey] = nextValue;
+                work.resourceRefs = nextRefs;
+
+                if (bindingKey === 'lyricsId' && previousValue !== nextValue) {
+                    work.timeline = createEmptyTimeline();
+                    if (work.id === state.selectedWorkId) {
+                        state.selectedTimelineSegmentId = '';
+                    }
+                }
+            });
+            return;
+        }
+
+        if (changeType === 'work-segment-field') {
+            const work = getSelectedWork();
+            const segmentId = changeEl.dataset.segmentId || '';
+            const fieldName = changeEl.dataset.field || '';
+            if (!work || !segmentId || !fieldName) {
+                return;
+            }
+
+            const patchValue = fieldName === 'startTime' || fieldName === 'endTime'
+                ? Number(changeEl.value || 0)
+                : changeEl.value;
+            const nextWork = updateTimelineSegment(work, segmentId, { [fieldName]: patchValue });
+            state.selectedTimelineSegmentId = segmentId;
+            updateDraft((draft) => {
+                const workIndex = draft.works.findIndex((item) => item.id === work.id);
+                if (workIndex < 0) {
+                    return;
+                }
+                draft.works[workIndex].timeline = nextWork.timeline;
+            }, null, work.id);
+            return;
+        }
+
+        if (changeType === 'work-segment-motion') {
+            const work = getSelectedWork();
+            const segmentId = changeEl.dataset.segmentId || '';
+            if (!work || !segmentId) {
+                return;
+            }
+
+            const nextWork = updateTimelineSegment(work, segmentId, {
+                motionId: String(changeEl.value || '').trim()
+            });
+            state.selectedTimelineSegmentId = segmentId;
+            updateDraft((draft) => {
+                const workIndex = draft.works.findIndex((item) => item.id === work.id);
+                if (workIndex < 0) {
+                    return;
+                }
+                draft.works[workIndex].timeline = nextWork.timeline;
+            }, null, work.id);
+            return;
+        }
+
+        if (changeType === 'studio-stage-seek') {
+            await stageRuntime.seek(Number(changeEl.value || 0));
+            return;
+        }
+    }
+
     const bindEl = event.target.closest('[data-bind]');
     if (!bindEl) {
         return;
@@ -645,9 +1134,15 @@ function onInput(event) {
 }
 
 async function boot() {
-    const [registry, platformState] = await Promise.all([loadRuntimePackageRegistry(), loadResourcePlatformState()]);
+    const [registry, platformState, baseLibrary] = await Promise.all([
+        loadRuntimePackageRegistry(),
+        loadResourcePlatformState(),
+        fetchResourceLibrary()
+    ]);
     state.registry = registry;
     state.platformState = platformState;
+    state.baseLibrary = baseLibrary;
+    refreshMergedLibrary();
     const activePackage = getActiveRuntimePackage(registry);
     const uiState = json(localStorage.getItem(UI_KEY), {});
     state.draftPackage = loadDraft(activePackage);
@@ -656,6 +1151,7 @@ async function boot() {
     state.selectedAvatarPresetId = uiState.selectedAvatarPresetId || state.selectedAvatarPresetId;
     state.selectedPersonalityProfileId = uiState.selectedPersonalityProfileId || state.selectedPersonalityProfileId;
     state.selectedWorkId = uiState.selectedWorkId || state.draftPackage.works[0]?.id || '';
+    state.selectedTimelineSegmentId = uiState.selectedTimelineSegmentId || '';
     ensureWork();
     render();
 }
@@ -666,7 +1162,9 @@ appEl.addEventListener('click', (event) => {
         void onAction(actionEl);
     }
 });
-appEl.addEventListener('change', onChange);
+appEl.addEventListener('change', (event) => {
+    void onChange(event);
+});
 appEl.addEventListener('input', onInput);
 window.addEventListener('runtimePackageRegistryChanged', (event) => {
     state.registry = event.detail || state.registry;
@@ -674,6 +1172,7 @@ window.addEventListener('runtimePackageRegistryChanged', (event) => {
 });
 window.addEventListener('resourcePlatformChanged', (event) => {
     state.platformState = event.detail || state.platformState;
+    refreshMergedLibrary();
     render();
 });
 void boot();

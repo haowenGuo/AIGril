@@ -1,4 +1,10 @@
 import { MOTION_CATEGORIES } from './cue-utils.js';
+import { createEmptyTimeline, sortTimelineSegments } from './performance-workspace.js';
+import {
+    createEmptyWorkResourceRefs,
+    normalizeWorkResourceRefs,
+    summarizeWorkResourceRefs
+} from './resource-reference-resolver.js';
 
 
 export const RESOURCE_SLOT_DEFS = Object.freeze([
@@ -64,7 +70,9 @@ export function createDefaultWorkTemplate(index = 0) {
         preferredMotionCategory: index === 0 ? 'idle' : 'dance',
         defaultExpression: index === 0 ? 'relaxed' : 'happy',
         stagePreset: index === 0 ? '晚安广播' : '聚光舞台',
-        status: index === 0 ? 'ready' : 'draft'
+        status: index === 0 ? 'ready' : 'draft',
+        resourceRefs: createEmptyWorkResourceRefs(),
+        timeline: createEmptyTimeline()
     };
 }
 
@@ -187,6 +195,12 @@ export function normalizeCharacterPackage(inputPackage) {
                 resourceBindings: {
                     ...createDefaultWorkTemplate(index).resourceBindings,
                     ...(work.resourceBindings || {})
+                },
+                resourceRefs: normalizeWorkResourceRefs(work.resourceRefs),
+                timeline: {
+                    ...createEmptyTimeline(),
+                    ...(work.timeline || {}),
+                    segments: sortTimelineSegments(work?.timeline?.segments || [])
                 }
             }))
             : defaults.works
@@ -220,6 +234,12 @@ export function normalizeCharacterPackage(inputPackage) {
         resourceBindings: {
             ...createDefaultWorkTemplate(index).resourceBindings,
             ...(work.resourceBindings || {})
+        },
+        resourceRefs: normalizeWorkResourceRefs(work.resourceRefs),
+        timeline: {
+            ...createEmptyTimeline(),
+            ...(work.timeline || {}),
+            segments: sortTimelineSegments(work?.timeline?.segments || [])
         }
     }));
 
@@ -259,29 +279,46 @@ export function validateCharacterPackage(characterPackage) {
     }
 
     normalizedPackage.works.forEach((work, index) => {
+        const bindingSummary = summarizeWorkResourceRefs(work.resourceRefs);
+        const legacyBindingCounts = work.resourceBindings || {};
+        const usesLegacyCounts = !bindingSummary.totalBound &&
+            ['songs', 'accompaniments', 'lyrics', 'motions'].some((key) => Number(legacyBindingCounts[key] || 0) > 0);
+
         if (!work.title.trim()) {
             errors.push(`作品 ${index + 1} 缺少标题。`);
         }
         if (!MOTION_CATEGORIES.includes(work.preferredMotionCategory)) {
             errors.push(`作品 ${index + 1} 的默认动作类别无效。`);
         }
-        if ((work.resourceBindings.songs || 0) <= 0 && (work.resourceBindings.accompaniments || 0) <= 0) {
+        if (!bindingSummary.hasAudio && (legacyBindingCounts.songs || 0) <= 0 && (legacyBindingCounts.accompaniments || 0) <= 0) {
             errors.push(`作品 ${index + 1} 至少需要歌曲或伴奏其中一种资源。`);
         }
-        if ((work.resourceBindings.lyrics || 0) <= 0) {
+        if (!bindingSummary.hasLyrics && (legacyBindingCounts.lyrics || 0) <= 0) {
             warnings.push(`作品 ${index + 1} 没有歌词资源，后续做对齐会比较困难。`);
         }
-        if ((work.resourceBindings.motions || 0) <= 0) {
+        if (!bindingSummary.hasMotion && (legacyBindingCounts.motions || 0) <= 0) {
             warnings.push(`作品 ${index + 1} 没有动作资源，Runtime 只能用默认动作。`);
+        }
+        if (usesLegacyCounts) {
+            warnings.push(`作品 ${index + 1} 仍在使用旧的数量绑定，建议升级为具体资源 ID 绑定。`);
+        }
+        if (work.timeline?.segments?.length && !bindingSummary.hasLyrics) {
+            warnings.push(`作品 ${index + 1} 已有时间轴，但还没有绑定具体歌词资源。`);
         }
     });
 
-    const totalRequiredSongs = normalizedPackage.works.reduce((sum, work) => sum + (work.resourceBindings.songs || 0), 0);
+    const totalRequiredSongs = normalizedPackage.works.reduce((sum, work) => {
+        const bindingSummary = summarizeWorkResourceRefs(work.resourceRefs);
+        return sum + (bindingSummary.songId ? 1 : (work.resourceBindings.songs || 0));
+    }, 0);
     if ((normalizedPackage.resources.slots.songs?.count || 0) < totalRequiredSongs) {
         warnings.push('资源槽位里的歌曲数量少于作品模板引用需求。');
     }
 
-    const totalRequiredMotions = normalizedPackage.works.reduce((sum, work) => sum + (work.resourceBindings.motions || 0), 0);
+    const totalRequiredMotions = normalizedPackage.works.reduce((sum, work) => {
+        const bindingSummary = summarizeWorkResourceRefs(work.resourceRefs);
+        return sum + (bindingSummary.motionId ? 1 : (work.resourceBindings.motions || 0));
+    }, 0);
     if ((normalizedPackage.resources.slots.motions?.count || 0) < totalRequiredMotions) {
         warnings.push('资源槽位里的动作数量少于作品模板引用需求。');
     }
@@ -334,7 +371,14 @@ export function buildRuntimeManifest(characterPackage) {
             title: work.title,
             mood: work.mood,
             preferredMotionCategory: work.preferredMotionCategory,
-            defaultExpression: work.defaultExpression
+            defaultExpression: work.defaultExpression,
+            resourceRefs: normalizeWorkResourceRefs(work.resourceRefs),
+            timeline: {
+                sourceAssetId: work.timeline?.sourceAssetId || '',
+                sourceExt: work.timeline?.sourceExt || '',
+                motionLeadSeconds: work.timeline?.motionLeadSeconds || 0,
+                segments: sortTimelineSegments(work.timeline?.segments || [])
+            }
         })),
         publishMeta: {
             versionTag: normalizedPackage.publishMeta.versionTag,
