@@ -2,14 +2,21 @@
 
 这套脚本用于发现 AIGL 可用的动作和音乐文本资源。默认策略是先生成候选清单，不直接下载；只有资源许可证通过白名单，并且手动加上 `--download` 时，才会把文件或元数据保存到 `output/resource-harvest/`。
 
+新版脚本重点强化了三件事：
+
+- 面向“唱歌 / 跳舞 / 漂亮动作”的 `performer` 检索画像
+- 候选资源自动打分、排序、去重
+- 下载后的 `.zip` 动作包自动解包，直接进入可整理状态
+
 ## 资源范围
 
 动作资源：
 
 - `.fbx`
 - `.vrma`
+- 经人工复核后允许下载的 `.zip` / `.7z` 动作包
 
-音乐文本/结构化音乐资源：
+音乐文本 / 结构化音乐资源：
 
 - `.musicxml`
 - `.mxl`
@@ -34,7 +41,26 @@
 - GitHub：通过 REST code search 搜索文件，需要 `GITHUB_TOKEN`，并检查仓库 license endpoint。
 - MusicBrainz：只收集音乐元数据，不包含歌词和音频。
 - Openverse：只收集开放许可音频的元数据和来源链接，默认不下载音频。
+- Mutopia：抓取公开索引页中的公版乐谱资源，直接下载 `.ly` / `.mid` 等符号音乐文件。
 - Curated commercial motion：高质量动作包白名单，优先包含明确许可的 Thingiverse 动作包，以及可下载到待审目录的 Rokoko 免费动作包。
+
+## 质量排序
+
+每个候选资源都会写入：
+
+- `license_status`：`verified / review / metadata`
+- `quality_score`：0-100
+- `tags`
+- `review_notes`
+
+排序时会综合考虑：
+
+- 文件格式质量，例如 `VRMA > FBX > ZIP`，`MusicXML/MXL > MIDI > LilyPond > metadata`
+- 来源质量，例如 curated-commercial、Mutopia 会加权更高
+- 授权清晰度
+- 是否命中 `dance / vocal / song / idle / performance` 等画像关键词
+
+你可以用 `--min-quality 75` 之类的阈值，先把低价值候选过滤掉。
 
 ## 快速运行
 
@@ -44,7 +70,7 @@
 python scripts\harvest_aigl_resources.py --kind motion --limit 5
 ```
 
-只发现音乐文本/元数据资源：
+只发现音乐文本 / 元数据资源：
 
 ```powershell
 python scripts\harvest_aigl_resources.py --kind music-text --limit 5
@@ -71,13 +97,26 @@ python scripts\harvest_aigl_resources.py --kind motion --source internet-archive
 下载高质量商业免费动作包：
 
 ```powershell
-python scripts\harvest_aigl_resources.py --kind motion --source curated-commercial --download --download-review-motion-packs --limit 50
+python scripts\harvest_aigl_resources.py --kind motion --source curated-commercial --download --download-review-motion-packs --extract-archives --limit 50
 ```
 
-其中：
+跑一轮“虚拟歌舞姬画像”的高质量资源发现：
 
-- 明确许可的动作包会进入 `downloads/motion/verified/curated-commercial/`
-- 需要人工复核条款的动作包会进入 `downloads/motion/review/rokoko-curated/`
+```powershell
+python scripts\harvest_aigl_resources.py --profile performer --kind all --limit 5 --min-quality 75
+```
+
+直接下载高质量资源，并自动解包动作包：
+
+```powershell
+python scripts\harvest_aigl_resources.py --profile performer --kind all --limit 5 --min-quality 75 --download --download-review-motion-packs --extract-archives
+```
+
+只抓公版乐谱和 MIDI：
+
+```powershell
+python scripts\harvest_aigl_resources.py --kind music-text --source mutopia --query voice --limit 5 --min-quality 80 --download
+```
 
 使用 GitHub 搜索：
 
@@ -94,18 +133,22 @@ $env:AIGRIL_HARVESTER_CONTACT = "your-email@example.com"
 
 ## 输出
 
-每次运行都会创建一个时间戳目录：
+每次运行都会创建一个带纳秒后缀的目录，避免并发运行时互相覆盖：
 
 ```text
-output/resource-harvest/YYYYMMDD-HHMMSS/
+output/resource-harvest/YYYYMMDD-HHMMSS-<ns>/
 ```
 
 其中包含：
 
 - `manifest.jsonl`：完整机器可读清单
 - `manifest.csv`：方便人工筛选的表格
+- `summary.json`：来源、授权状态、Top 候选的汇总
 - `ATTRIBUTIONS.md`：署名草稿
 - `downloads/`：只有加 `--download` 时才会出现下载文件或元数据 JSON
+- `downloads/**/extracted/`：只有加 `--extract-archives` 时才会出现解包内容
+
+注意：`limit` 是“每个查询 / 来源的搜索结果上限”。对 Mutopia 这类来源，1 个乐谱条目可能会产出多个文件，例如同一首曲子的 `.ly` 和 `.mid`。
 
 ## 许可证审查
 
@@ -115,5 +158,6 @@ output/resource-harvest/YYYYMMDD-HHMMSS/
 - Internet Archive 的 `licenseurl` 来自条目元数据，需要打开条目页面复核。
 - Openverse 聚合不同来源，发布前仍应打开原始页面复核。
 - MusicBrainz 收集的是元数据，不是歌词或歌曲文件。
+- Rokoko 这类待审动作包即使下载到了 `review` 区，也不代表你可以直接打包分发。
 
 发布进 `Resources/` 前，建议把最终保留的资源与其来源、作者、许可证链接一起记录到项目文档。

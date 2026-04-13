@@ -1,5 +1,12 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const path = require('node:path');
+const {
+    importAssets,
+    loadPlatformState,
+    readAssetText,
+    resolveAssetUrl,
+    savePlatformState
+} = require('./resource-platform.cjs');
 
 const DEFAULT_BACKEND_BASE_URL = 'https://airi-backend.onrender.com';
 const DEFAULT_DEV_SERVER_URL = 'http://127.0.0.1:5173';
@@ -118,6 +125,45 @@ if (!gotSingleInstanceLock) {
 
     app.whenReady().then(() => {
         ipcMain.handle('aigril:get-backend-base-url', () => backendBaseUrl);
+        ipcMain.handle('aigril:load-resource-platform-state', () => loadPlatformState(app));
+        ipcMain.handle('aigril:save-resource-platform-state', (_event, nextState) => savePlatformState(app, nextState || {}));
+        ipcMain.handle('aigril:pick-and-import-assets', async () => {
+            const result = await dialog.showOpenDialog({
+                title: '导入本地授权资源',
+                properties: ['openFile', 'multiSelections'],
+                filters: [
+                    {
+                        name: '支持的资源文件',
+                        extensions: [
+                            'mp3', 'wav', 'flac', 'ogg', 'm4a', 'aac', 'opus',
+                            'lrc', 'txt', 'vtt', 'srt', 'ass',
+                            'musicxml', 'mxl', 'mei', 'abc', 'krn', 'ly', 'mid', 'midi',
+                            'vrma', 'fbx', 'glb', 'gltf', 'vmd'
+                        ]
+                    }
+                ]
+            });
+
+            if (result.canceled || !result.filePaths.length) {
+                return {
+                    importedCount: 0,
+                    skipped: [],
+                    canceled: true,
+                    state: loadPlatformState(app)
+                };
+            }
+
+            return {
+                ...importAssets(app, result.filePaths),
+                canceled: false
+            };
+        });
+        ipcMain.handle('aigril:read-asset-text', (_event, payload = {}) => (
+            readAssetText(payload.path, payload.maxChars)
+        ));
+        ipcMain.handle('aigril:resolve-asset-url', (_event, payload = {}) => (
+            resolveAssetUrl(payload.path)
+        ));
         createWindow();
 
         app.on('activate', () => {

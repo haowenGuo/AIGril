@@ -2,9 +2,10 @@
 """
 License-aware resource discovery for AIGril.
 
-The harvester only uses public APIs, keeps source/license metadata, and downloads
-files only when --download is provided. It intentionally does not scrape login
-gated marketplaces, lyric sites, or pages with unclear rights.
+The harvester uses public APIs and public index pages, keeps source/license
+metadata, and downloads files only when --download is provided. It intentionally
+does not scrape login-gated marketplaces, lyric sites, or pages with unclear
+rights.
 """
 
 from __future__ import annotations
@@ -13,22 +14,25 @@ import argparse
 import csv
 import dataclasses
 import hashlib
+import html
 import json
 import os
 import re
+import shutil
 import sys
 import time
+import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib import robotparser
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlencode, urlparse
+from urllib.parse import quote, urlencode, urljoin, urlparse
 from urllib.request import Request, urlopen
 
 
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.2.0"
 CONTACT = os.getenv("AIGRIL_HARVESTER_CONTACT", "local-run")
 USER_AGENT = os.getenv(
     "AIGRIL_HARVESTER_USER_AGENT",
@@ -38,7 +42,8 @@ USER_AGENT = os.getenv(
 MOTION_EXTENSIONS = {".fbx", ".vrma"}
 MOTION_REVIEW_EXTENSIONS = MOTION_EXTENSIONS | {".zip", ".7z"}
 MUSIC_TEXT_EXTENSIONS = {".musicxml", ".mxl", ".mei", ".abc", ".krn", ".ly", ".mid", ".midi"}
-DOWNLOADABLE_EXTENSIONS = MOTION_EXTENSIONS | MUSIC_TEXT_EXTENSIONS
+ARCHIVE_EXTENSIONS = {".zip"}
+DOWNLOADABLE_EXTENSIONS = MOTION_REVIEW_EXTENSIONS | MUSIC_TEXT_EXTENSIONS
 
 LICENSE_URL_ALLOW_MARKERS = (
     "creativecommons.org/publicdomain/zero",
@@ -53,6 +58,28 @@ LICENSE_URL_NONCOMMERCIAL_MARKERS = (
 LICENSE_URL_DENY_MARKERS = (
     "creativecommons.org/licenses/by-nd/",
     "creativecommons.org/licenses/by-nc-nd/",
+)
+
+LICENSE_TEXT_ALLOW_MARKERS = (
+    "public domain",
+    "cc by",
+    "cc-by",
+    "cc by-sa",
+    "cc-by-sa",
+    "cc0",
+)
+LICENSE_TEXT_NONCOMMERCIAL_MARKERS = (
+    "cc by-nc",
+    "cc-by-nc",
+    "cc by-nc-sa",
+    "cc-by-nc-sa",
+)
+LICENSE_TEXT_DENY_MARKERS = (
+    "all rights reserved",
+    "cc by-nd",
+    "cc-by-nd",
+    "cc by-nc-nd",
+    "cc-by-nc-nd",
 )
 
 SPDX_ALLOW = {
@@ -100,9 +127,9 @@ DEFAULT_QUERIES = {
             "extension:fbx avatar",
         ],
         "music_text": [
-            "extension:musicxml",
-            "extension:mxl music",
-            "extension:mei music",
+            "extension:musicxml score",
+            "extension:mxl score",
+            "extension:mei score",
             "extension:abc music",
             "extension:ly lilypond",
         ],
@@ -123,12 +150,63 @@ DEFAULT_QUERIES = {
             "electronic music",
         ],
     },
+    "mutopia": {
+        "music_text": [
+            "voice",
+            "song",
+            "vocalise",
+            "dance",
+            "waltz",
+        ],
+    },
     "curated-commercial": {
         "motion": [
             "thingiverse",
             "rokoko",
             "commercial-free",
         ],
+    },
+}
+
+PROFILE_QUERIES = {
+    "performer": {
+        "internet-archive": {
+            "motion": [
+                "dance mocap zip",
+                "idle mocap zip",
+                "walk run cycles mocap",
+                "stage performance fbx",
+            ],
+            "music_text": [
+                "vocal musicxml",
+                "dance midi",
+                "lilypond song",
+                "public domain vocal score",
+            ],
+        },
+        "github": {
+            "motion": [
+                "extension:fbx dance animation",
+                "extension:vrma idle",
+            ],
+            "music_text": [
+                "extension:musicxml vocal score",
+                "extension:mid waltz",
+                "extension:ly song",
+            ],
+        },
+        "musicbrainz": {
+            "music_text": ["dance", "song", "waltz", "vocal"],
+        },
+        "openverse": {
+            "music_text": ["dance music", "waltz music", "vocal music"],
+        },
+        "mutopia": {
+            "music_text": ["voice", "song", "vocalise", "waltz", "dance"],
+        },
+        "curated-commercial": {
+            "motion": ["rokoko", "dance", "idle", "walk", "commercial-free"],
+        },
     },
 }
 
@@ -143,6 +221,56 @@ FILE_DENY_PATTERN = re.compile(
 MOTION_REVIEW_NAME_PATTERN = re.compile(
     r"(?:mocap|motion|animation|walk|idle|dance|fight|martial|sports|superhero|shots|weapons|fbx|vrma)",
     re.IGNORECASE,
+)
+RESULT_TABLE_RE = re.compile(r'<table class="table-bordered result-table">(.*?)</table>', re.IGNORECASE | re.DOTALL)
+ROW_RE = re.compile(r"<tr>(.*?)</tr>", re.IGNORECASE | re.DOTALL)
+CELL_RE = re.compile(r"<td>(.*?)</td>", re.IGNORECASE | re.DOTALL)
+ANCHOR_RE = re.compile(r'<a href="([^"]+)">(.+?)</a>', re.IGNORECASE | re.DOTALL)
+TAG_RE = re.compile(r"<[^>]+>")
+WHITESPACE_RE = re.compile(r"\s+")
+
+MUTOPIA_BASE_URL = "https://www.mutopiaproject.org/"
+MUTOPIA_SEARCH_URL = urljoin(MUTOPIA_BASE_URL, "cgibin/make-table.cgi")
+
+MOTION_QUALITY_BY_EXT = {
+    ".vrma": 92,
+    ".fbx": 86,
+    ".zip": 72,
+    ".7z": 68,
+}
+MUSIC_QUALITY_BY_EXT = {
+    ".musicxml": 96,
+    ".mxl": 94,
+    ".mei": 90,
+    ".mid": 88,
+    ".midi": 88,
+    ".ly": 86,
+    ".abc": 82,
+    ".krn": 80,
+    ".json": 30,
+}
+SOURCE_QUALITY_BONUS = {
+    "curated-commercial": 12,
+    "mutopia": 10,
+    "github": 6,
+    "internet-archive": 4,
+    "musicbrainz": 0,
+    "openverse": 0,
+}
+PERFORMANCE_KEYWORDS = (
+    ("dance", 8),
+    ("song", 8),
+    ("voice", 9),
+    ("vocal", 9),
+    ("sing", 10),
+    ("waltz", 7),
+    ("opera", 7),
+    ("performance", 6),
+    ("stage", 5),
+    ("idle", 4),
+    ("gesture", 4),
+    ("clap", 4),
+    ("mocap", 4),
 )
 
 
@@ -165,6 +293,8 @@ class ResourceCandidate:
     review_notes: list[str] = field(default_factory=list)
     download_path: str = ""
     sha256: str = ""
+    license_status: str = ""
+    quality_score: int = 0
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -215,6 +345,21 @@ def normalize_list(value: Any) -> list[str]:
     return [str(value)]
 
 
+def unique_strings(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        cleaned = value.strip()
+        if not cleaned:
+            continue
+        lowered = cleaned.lower()
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        result.append(cleaned)
+    return result
+
+
 def first_text(value: Any) -> str:
     values = normalize_list(value)
     return values[0] if values else ""
@@ -232,6 +377,13 @@ def looks_like_motion_review_file(file_name: str, file_ext: str) -> bool:
 
 def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def strip_html_fragment(fragment: str) -> str:
+    normalized = re.sub(r"<br\s*/?>", "\n", fragment, flags=re.IGNORECASE)
+    normalized = TAG_RE.sub(" ", normalized)
+    normalized = html.unescape(normalized).replace("\xa0", " ")
+    return WHITESPACE_RE.sub(" ", normalized).strip()
 
 
 def is_license_url_allowed(license_url: str, allow_noncommercial: bool) -> bool:
@@ -256,6 +408,103 @@ def is_spdx_allowed(spdx_id: str, allow_noncommercial: bool) -> bool:
     return normalized in SPDX_ALLOW
 
 
+def is_license_text_allowed(license_text: str, allow_noncommercial: bool) -> bool:
+    lowered = (license_text or "").lower()
+    if not lowered:
+        return False
+    if any(marker in lowered for marker in LICENSE_TEXT_DENY_MARKERS):
+        return False
+    if any(marker in lowered for marker in LICENSE_TEXT_NONCOMMERCIAL_MARKERS):
+        return allow_noncommercial
+    return any(marker in lowered for marker in LICENSE_TEXT_ALLOW_MARKERS)
+
+
+def infer_license_status(candidate: ResourceCandidate, allow_noncommercial: bool) -> str:
+    download_allowed = candidate.metadata.get("download_allowed")
+    review_download_allowed = candidate.metadata.get("review_download_allowed")
+    if download_allowed is True:
+        return "verified"
+    if review_download_allowed:
+        return "review"
+    if candidate.file_ext == ".json" and candidate.source in {"musicbrainz", "openverse"}:
+        return "metadata"
+    if is_license_url_allowed(candidate.license_url, allow_noncommercial):
+        return "verified"
+    if is_license_text_allowed(candidate.license, allow_noncommercial):
+        return "verified"
+    return "review"
+
+
+def clamp_score(score: int) -> int:
+    return max(0, min(100, score))
+
+
+def keyword_bonus(candidate: ResourceCandidate) -> int:
+    haystack = " ".join(
+        [
+            candidate.title,
+            candidate.file_name,
+            " ".join(candidate.tags),
+            " ".join(candidate.review_notes),
+        ]
+    ).lower()
+    score = 0
+    for keyword, bonus in PERFORMANCE_KEYWORDS:
+        if keyword in haystack:
+            score += bonus
+    return min(score, 15)
+
+
+def base_quality_for(candidate: ResourceCandidate) -> int:
+    from_metadata = candidate.metadata.get("quality_score")
+    if isinstance(from_metadata, int):
+        return from_metadata
+    if candidate.kind == "motion":
+        return MOTION_QUALITY_BY_EXT.get(candidate.file_ext, 60)
+    return MUSIC_QUALITY_BY_EXT.get(candidate.file_ext, 45)
+
+
+def source_bonus_for(candidate: ResourceCandidate) -> int:
+    return SOURCE_QUALITY_BONUS.get(candidate.source, 0)
+
+
+def score_candidate(candidate: ResourceCandidate, allow_noncommercial: bool) -> int:
+    score = base_quality_for(candidate)
+    score += source_bonus_for(candidate)
+    status = infer_license_status(candidate, allow_noncommercial)
+    if status == "verified":
+        score += 10
+    elif status == "review":
+        score -= 12
+    elif status == "metadata":
+        score -= 18
+    if candidate.asset_url and candidate.file_ext in ARCHIVE_EXTENSIONS:
+        score -= 6
+    score += keyword_bonus(candidate)
+    return clamp_score(score)
+
+
+def merge_candidate_records(left: ResourceCandidate, right: ResourceCandidate) -> ResourceCandidate:
+    winner = left if left.quality_score >= right.quality_score else right
+    loser = right if winner is left else left
+    winner.tags = unique_strings(winner.tags + loser.tags)
+    winner.review_notes = unique_strings(winner.review_notes + loser.review_notes)
+    winner.metadata = {**loser.metadata, **winner.metadata}
+    if not winner.page_url:
+        winner.page_url = loser.page_url
+    if not winner.asset_url:
+        winner.asset_url = loser.asset_url
+    if not winner.license and loser.license:
+        winner.license = loser.license
+    if not winner.license_url and loser.license_url:
+        winner.license_url = loser.license_url
+    if not winner.creator and loser.creator:
+        winner.creator = loser.creator
+    if winner.size is None:
+        winner.size = loser.size
+    return winner
+
+
 class RobotsCache:
     def __init__(self, enabled: bool = True) -> None:
         self.enabled = enabled
@@ -274,7 +523,7 @@ class RobotsCache:
             try:
                 parser.read()
                 self.parsers[base] = parser
-            except Exception as error:  # noqa: BLE001 - robotparser raises broad network errors.
+            except Exception as error:  # noqa: BLE001
                 eprint(f"[robots] Could not read {base}/robots.txt: {error}; skipping robots gate for this host.")
                 self.parsers[base] = None
         parser = self.parsers[base]
@@ -298,6 +547,11 @@ class HttpClient:
             time.sleep(remaining)
         self.last_request_by_host[parsed.netloc] = time.monotonic()
 
+    def _full_url(self, url: str, params: dict[str, Any] | list[tuple[str, Any]] | None) -> str:
+        if not params:
+            return url
+        return f"{url}?{urlencode(params, doseq=True)}"
+
     def get_json(
         self,
         url: str,
@@ -305,9 +559,7 @@ class HttpClient:
         headers: dict[str, str] | None = None,
         min_delay: float | None = None,
     ) -> dict[str, Any]:
-        full_url = url
-        if params:
-            full_url = f"{url}?{urlencode(params, doseq=True)}"
+        full_url = self._full_url(url, params)
         self._wait_for_host(full_url, min_delay=min_delay)
         request_headers = {
             "Accept": "application/json",
@@ -319,6 +571,40 @@ class HttpClient:
             try:
                 with urlopen(request, timeout=self.timeout_seconds) as response:
                     return json.loads(response.read().decode("utf-8"))
+            except HTTPError as error:
+                if error.code not in {429, 500, 502, 503, 504} or attempt >= self.retries:
+                    raise
+                time.sleep(1.5 * (attempt + 1))
+            except (URLError, TimeoutError, ConnectionError) as error:
+                if attempt >= self.retries:
+                    raise
+                eprint(f"[http] transient error for {full_url}: {error}; retrying")
+                time.sleep(1.5 * (attempt + 1))
+        raise RuntimeError(f"unreachable retry state for {full_url}")
+
+    def get_text(
+        self,
+        url: str,
+        params: dict[str, Any] | list[tuple[str, Any]] | None = None,
+        headers: dict[str, str] | None = None,
+        min_delay: float | None = None,
+        respect_robots: bool = False,
+    ) -> str:
+        full_url = self._full_url(url, params)
+        if respect_robots and not self.robots.can_fetch(full_url):
+            raise RuntimeError(f"robots.txt disallows fetch: {full_url}")
+        self._wait_for_host(full_url, min_delay=min_delay)
+        request_headers = {
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "User-Agent": USER_AGENT,
+        }
+        request_headers.update(headers or {})
+        request = Request(full_url, headers=request_headers)
+        for attempt in range(self.retries + 1):
+            try:
+                with urlopen(request, timeout=self.timeout_seconds) as response:
+                    charset = response.headers.get_content_charset() or "utf-8"
+                    return response.read().decode(charset, errors="replace")
             except HTTPError as error:
                 if error.code not in {429, 500, 502, 503, 504} or attempt >= self.retries:
                     raise
@@ -707,6 +993,181 @@ class OpenverseAdapter:
         return results
 
 
+def infer_mutopia_filters(query: str) -> dict[str, str]:
+    lowered = query.lower()
+    filters = {
+        "Composer": "",
+        "Instrument": "",
+        "Style": "",
+        "collection": "",
+        "id": "",
+        "lilyversion": "",
+        "preview": "",
+        "recent": "",
+        "searchingfor": query,
+        "solo": "",
+        "startat": "0",
+        "timelength": "",
+        "timeunit": "",
+    }
+    if any(keyword in lowered for keyword in ("voice", "vocal", "song", "opera", "aria")):
+        filters["Instrument"] = "Voice"
+    elif "piano" in lowered:
+        filters["Instrument"] = "Piano"
+    if "waltz" in lowered:
+        filters["Style"] = "Waltz"
+    elif "dance" in lowered:
+        filters["Style"] = "Dance"
+    elif "song" in lowered:
+        filters["Style"] = "Song"
+    return filters
+
+
+def parse_mutopia_candidates(page_html: str, query: str) -> tuple[list[ResourceCandidate], int, int | None]:
+    tables = RESULT_TABLE_RE.findall(page_html)
+    piece_count = 0
+    results: list[ResourceCandidate] = []
+
+    next_match = re.search(r'make-table\.cgi\?startat=(\d+)[^"]*">Next', page_html, re.IGNORECASE)
+    next_start = int(next_match.group(1)) if next_match else None
+
+    for block in tables:
+        rows = [CELL_RE.findall(row_html) for row_html in ROW_RE.findall(block)]
+        if len(rows) < 4:
+            continue
+        piece_count += 1
+
+        title = strip_html_fragment(rows[0][0]) if rows[0] else ""
+        creator = strip_html_fragment(rows[0][1]) if len(rows[0]) > 1 else ""
+        if creator.lower().startswith("by "):
+            creator = creator[3:].strip()
+        instrumentation = strip_html_fragment(rows[1][0]) if len(rows) > 1 and rows[1] else ""
+        style = strip_html_fragment(rows[1][2]) if len(rows) > 1 and len(rows[1]) > 2 else ""
+        source_note = strip_html_fragment(rows[2][0]) if len(rows) > 2 and rows[2] else ""
+        license_label = strip_html_fragment(rows[2][1]) if len(rows) > 2 and len(rows[2]) > 1 else ""
+        updated_at = strip_html_fragment(rows[2][3]) if len(rows) > 2 and len(rows[2]) > 3 else ""
+
+        piece_info_match = re.search(r'href="([^"]*piece-info\.cgi\?id=(\d+))"', block, re.IGNORECASE)
+        piece_href = piece_info_match.group(1) if piece_info_match else ""
+        piece_id = piece_info_match.group(2) if piece_info_match else safe_file_name(title, "mutopia-piece")
+        page_url = urljoin(MUTOPIA_BASE_URL, piece_href) if piece_href else MUTOPIA_BASE_URL
+
+        license_match = re.search(r'href="([^"]*legal\.html#[^"]+)"', block, re.IGNORECASE)
+        license_url = urljoin(MUTOPIA_BASE_URL, license_match.group(1)) if license_match else ""
+
+        ftp_area = ""
+        links_by_url: dict[str, tuple[str, str]] = {}
+        for href, label_html in ANCHOR_RE.findall(block):
+            label = strip_html_fragment(label_html)
+            absolute_href = urljoin(MUTOPIA_BASE_URL, href)
+            if "Appropriate FTP area" in label:
+                ftp_area = absolute_href
+                continue
+            file_ext = get_file_ext(absolute_href)
+            if file_ext not in MUSIC_TEXT_EXTENSIONS:
+                continue
+            links_by_url[absolute_href] = (label, file_ext)
+
+        tags = unique_strings(
+            [
+                "mutopia",
+                style,
+                instrumentation,
+                query,
+                "public-domain-score" if "public domain" in license_label.lower() else "",
+            ]
+        )
+
+        for absolute_href, (_, file_ext) in links_by_url.items():
+            file_name = Path(urlparse(absolute_href).path).name
+            results.append(
+                ResourceCandidate(
+                    discovered_at=now_iso(),
+                    kind="music_text",
+                    source="mutopia",
+                    source_id=f"{piece_id}:{file_name}",
+                    title=title or file_name,
+                    creator=creator,
+                    license=license_label or "Public Domain",
+                    license_url=license_url or urljoin(MUTOPIA_BASE_URL, "legal.html#publicdomain"),
+                    page_url=page_url,
+                    asset_url=absolute_href,
+                    file_name=file_name,
+                    file_ext=file_ext,
+                    tags=tags,
+                    review_notes=[
+                        "Mutopia is a strong source for public-domain symbolic music files.",
+                    ],
+                    metadata={
+                        "piece_id": piece_id,
+                        "instrumentation": instrumentation,
+                        "style": style,
+                        "source_note": source_note,
+                        "updated_at": updated_at,
+                        "ftp_area": ftp_area,
+                        "query": query,
+                        "download_allowed": True,
+                    },
+                )
+            )
+
+    return results, piece_count, next_start
+
+
+class MutopiaAdapter:
+    name = "mutopia"
+
+    def discover(self, kind: str, queries: list[str], limit: int, ctx: CrawlContext) -> list[ResourceCandidate]:
+        if kind != "music_text":
+            return []
+
+        results: list[ResourceCandidate] = []
+        for query in queries:
+            eprint(f"[mutopia] Searching: {query}")
+            start_at = 0
+            pieces_seen = 0
+            while pieces_seen < limit:
+                params = infer_mutopia_filters(query)
+                params["startat"] = str(start_at)
+                try:
+                    page_html = ctx.http.get_text(
+                        MUTOPIA_SEARCH_URL,
+                        params=params,
+                        min_delay=0.8,
+                        respect_robots=True,
+                    )
+                except (HTTPError, URLError, TimeoutError, RuntimeError) as error:
+                    eprint(f"[mutopia] Search failed for {query!r} start={start_at}: {error}")
+                    break
+
+                page_results, page_pieces, next_start = parse_mutopia_candidates(page_html, query)
+                if not page_results or page_pieces == 0:
+                    break
+                remaining = max(limit - pieces_seen, 0)
+                if remaining <= 0:
+                    break
+                if page_pieces > remaining:
+                    unique_piece_ids: list[str] = []
+                    truncated: list[ResourceCandidate] = []
+                    for candidate in page_results:
+                        piece_id = str(candidate.metadata.get("piece_id") or "")
+                        if piece_id not in unique_piece_ids:
+                            if len(unique_piece_ids) >= remaining:
+                                continue
+                            unique_piece_ids.append(piece_id)
+                        truncated.append(candidate)
+                    page_results = truncated
+                    page_pieces = len(unique_strings([str(candidate.metadata.get("piece_id") or "") for candidate in page_results]))
+
+                results.extend(page_results)
+                pieces_seen += page_pieces
+                if next_start is None or next_start <= start_at:
+                    break
+                start_at = next_start
+
+        return results
+
+
 class CuratedCommercialAdapter:
     name = "curated-commercial"
 
@@ -764,7 +1225,7 @@ class CuratedCommercialAdapter:
                 )
             )
 
-        return results[: max(limit, len(results))]
+        return results[:limit] if limit else results
 
 
 ADAPTERS = {
@@ -772,13 +1233,17 @@ ADAPTERS = {
     "github": GitHubAdapter(),
     "musicbrainz": MusicBrainzAdapter(),
     "openverse": OpenverseAdapter(),
+    "mutopia": MutopiaAdapter(),
     "curated-commercial": CuratedCommercialAdapter(),
 }
 
 
-def queries_for(source: str, kind: str, user_queries: list[str] | None) -> list[str]:
+def queries_for(source: str, kind: str, user_queries: list[str] | None, profile: str) -> list[str]:
     if user_queries:
         return user_queries
+    profile_queries = PROFILE_QUERIES.get(profile, {}).get(source, {}).get(kind, [])
+    if profile_queries:
+        return list(profile_queries)
     return list(DEFAULT_QUERIES.get(source, {}).get(kind, []))
 
 
@@ -788,16 +1253,68 @@ def should_run_source(source: str, kind: str) -> bool:
     return bool(DEFAULT_QUERIES.get(source, {}).get(kind)) or source in {"internet-archive", "github"}
 
 
-def dedupe(candidates: list[ResourceCandidate]) -> list[ResourceCandidate]:
-    seen: set[tuple[str, str, str]] = set()
-    unique: list[ResourceCandidate] = []
+def enrich_candidates(candidates: list[ResourceCandidate], ctx: CrawlContext) -> list[ResourceCandidate]:
     for candidate in candidates:
-        key = (candidate.source, candidate.source_id, candidate.asset_url or candidate.page_url)
-        if key in seen:
+        candidate.tags = unique_strings(candidate.tags)
+        candidate.review_notes = unique_strings(candidate.review_notes)
+        candidate.license_status = infer_license_status(candidate, ctx.args.allow_noncommercial)
+        candidate.quality_score = score_candidate(candidate, ctx.args.allow_noncommercial)
+    return candidates
+
+
+def dedupe(candidates: list[ResourceCandidate]) -> list[ResourceCandidate]:
+    by_key: dict[tuple[str, str], ResourceCandidate] = {}
+    for candidate in candidates:
+        identity = candidate.asset_url or candidate.page_url or candidate.source_id
+        key = (candidate.kind, identity)
+        if key not in by_key:
+            by_key[key] = candidate
             continue
-        seen.add(key)
-        unique.append(candidate)
-    return unique
+        by_key[key] = merge_candidate_records(by_key[key], candidate)
+    return list(by_key.values())
+
+
+def sort_candidates(candidates: list[ResourceCandidate]) -> list[ResourceCandidate]:
+    return sorted(
+        candidates,
+        key=lambda candidate: (
+            candidate.kind,
+            -candidate.quality_score,
+            candidate.source,
+            candidate.title.lower(),
+            candidate.file_name.lower(),
+        ),
+    )
+
+
+def safe_extract_zip(zip_path: Path, extract_root: Path) -> list[str]:
+    extract_root.mkdir(parents=True, exist_ok=True)
+    resolved_root = extract_root.resolve()
+    extracted: list[str] = []
+    with zipfile.ZipFile(zip_path) as archive:
+        for member in archive.infolist():
+            member_name = member.filename.replace("\\", "/")
+            if not member_name or member.is_dir():
+                continue
+            destination = (extract_root / member_name).resolve()
+            if not destination.is_relative_to(resolved_root):
+                raise RuntimeError(f"zip member escapes extraction root: {member.filename}")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open(member) as source, destination.open("wb") as target:
+                shutil.copyfileobj(source, target)
+            extracted.append(str(destination))
+    return extracted
+
+
+def maybe_extract_archive(candidate: ResourceCandidate, target: Path) -> None:
+    if target.suffix.lower() not in ARCHIVE_EXTENSIONS:
+        return
+    extract_root = target.parent / "extracted" / safe_file_name(target.stem, "archive")
+    extracted = safe_extract_zip(target, extract_root)
+    candidate.metadata["extracted_root"] = str(extract_root)
+    candidate.metadata["extracted_count"] = len(extracted)
+    candidate.metadata["extracted_sample"] = extracted[:25]
+    candidate.review_notes.append(f"Extracted archive into {extract_root}")
 
 
 def materialize_candidate(candidate: ResourceCandidate, run_dir: Path, ctx: CrawlContext) -> None:
@@ -826,7 +1343,9 @@ def materialize_candidate(candidate: ResourceCandidate, run_dir: Path, ctx: Craw
             candidate.download_path = str(target)
             candidate.sha256 = sha256
             candidate.size = candidate.size or bytes_written
-        except Exception as error:  # noqa: BLE001 - report and continue other resources.
+            if ctx.args.extract_archives and target.suffix.lower() in ARCHIVE_EXTENSIONS:
+                maybe_extract_archive(candidate, target)
+        except Exception as error:  # noqa: BLE001
             candidate.review_notes.append(f"Download failed: {error}")
             eprint(f"[download] Failed {candidate.asset_url}: {error}")
         return
@@ -839,11 +1358,19 @@ def materialize_candidate(candidate: ResourceCandidate, run_dir: Path, ctx: Craw
         candidate.sha256 = hashlib.sha256(target.read_bytes()).hexdigest()
 
 
+def _counter(values: list[str] | Any) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for value in values:
+        counts[str(value)] = counts.get(str(value), 0) + 1
+    return counts
+
+
 def write_manifests(candidates: list[ResourceCandidate], run_dir: Path) -> None:
     run_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = run_dir / "manifest.jsonl"
     csv_path = run_dir / "manifest.csv"
     attribution_path = run_dir / "ATTRIBUTIONS.md"
+    summary_path = run_dir / "summary.json"
 
     with manifest_path.open("w", encoding="utf-8") as manifest:
         for candidate in candidates:
@@ -852,9 +1379,12 @@ def write_manifests(candidates: list[ResourceCandidate], run_dir: Path) -> None:
     fieldnames = [
         "kind",
         "source",
+        "source_id",
         "title",
         "creator",
         "license",
+        "license_status",
+        "quality_score",
         "license_url",
         "page_url",
         "asset_url",
@@ -863,6 +1393,7 @@ def write_manifests(candidates: list[ResourceCandidate], run_dir: Path) -> None:
         "size",
         "download_path",
         "sha256",
+        "tags",
         "review_notes",
     ]
     with csv_path.open("w", newline="", encoding="utf-8") as csv_file:
@@ -871,6 +1402,7 @@ def write_manifests(candidates: list[ResourceCandidate], run_dir: Path) -> None:
         for candidate in candidates:
             row = dataclasses.asdict(candidate)
             row["review_notes"] = " | ".join(candidate.review_notes)
+            row["tags"] = " | ".join(candidate.tags)
             writer.writerow({field: row.get(field, "") for field in fieldnames})
 
     lines = [
@@ -880,9 +1412,12 @@ def write_manifests(candidates: list[ResourceCandidate], run_dir: Path) -> None:
         "",
     ]
     for candidate in candidates:
-        lines.append(f"- {candidate.title} ({candidate.source})")
+        lines.append(f"- [{candidate.quality_score:03d}] {candidate.title} ({candidate.source})")
+        lines.append(f"  - Kind: {candidate.kind} / License status: {candidate.license_status}")
         if candidate.creator:
             lines.append(f"  - Creator: {candidate.creator}")
+        if candidate.tags:
+            lines.append(f"  - Tags: {', '.join(candidate.tags)}")
         if candidate.license or candidate.license_url:
             lines.append(f"  - License: {candidate.license} {candidate.license_url}".strip())
         if candidate.page_url:
@@ -891,10 +1426,31 @@ def write_manifests(candidates: list[ResourceCandidate], run_dir: Path) -> None:
             lines.append(f"  - Local file: {candidate.download_path}")
     attribution_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+    summary = {
+        "generated_at": now_iso(),
+        "candidates": len(candidates),
+        "downloaded": sum(1 for candidate in candidates if candidate.download_path),
+        "by_kind": dict(_counter(candidate.kind for candidate in candidates)),
+        "by_source": dict(_counter(candidate.source for candidate in candidates)),
+        "by_license_status": dict(_counter(candidate.license_status for candidate in candidates)),
+        "top_candidates": [
+            {
+                "title": candidate.title,
+                "kind": candidate.kind,
+                "source": candidate.source,
+                "quality_score": candidate.quality_score,
+                "file_name": candidate.file_name,
+                "license_status": candidate.license_status,
+            }
+            for candidate in candidates[:25]
+        ],
+    }
+    summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Discover license-aware FBX/VRMA motion resources and open music metadata/text resources."
+        description="Discover license-aware FBX/VRMA motion resources and open symbolic music resources."
     )
     parser.add_argument("--kind", choices=["motion", "music-text", "all"], default="all")
     parser.add_argument(
@@ -904,9 +1460,16 @@ def parse_args() -> argparse.Namespace:
         help="Source adapter to use. Repeatable. Defaults to all compatible adapters.",
     )
     parser.add_argument("--query", action="append", help="Search query. Repeatable. Defaults are source-specific.")
+    parser.add_argument(
+        "--profile",
+        choices=sorted(PROFILE_QUERIES.keys()),
+        default="performer",
+        help="Preset query profile for the virtual-human use case.",
+    )
     parser.add_argument("--limit", type=int, default=10, help="Max search results per query/source.")
     parser.add_argument("--output", type=Path, default=Path("output/resource-harvest"))
     parser.add_argument("--download", action="store_true", help="Download allowed files or metadata JSON.")
+    parser.add_argument("--extract-archives", action="store_true", help="Unzip downloaded .zip archives into an extracted/ folder.")
     parser.add_argument("--max-bytes", type=int, default=100 * 1024 * 1024, help="Per-file download size cap.")
     parser.add_argument("--delay", type=float, default=0.5, help="Minimum delay between requests to the same host.")
     parser.add_argument("--timeout", type=int, default=45, help="HTTP timeout in seconds.")
@@ -933,6 +1496,12 @@ def parse_args() -> argparse.Namespace:
         help="Max files to list per unverified Internet Archive item when --include-review-candidates is used.",
     )
     parser.add_argument(
+        "--min-quality",
+        type=int,
+        default=0,
+        help="Discard candidates scoring below this threshold after ranking.",
+    )
+    parser.add_argument(
         "--disable-robots-check",
         action="store_true",
         help="Disable robots.txt checks for direct downloads. Keep this off unless you know the source permits it.",
@@ -944,8 +1513,10 @@ def main() -> int:
     args = parse_args()
     if args.limit < 1:
         raise SystemExit("--limit must be >= 1")
+    if not 0 <= args.min_quality <= 100:
+        raise SystemExit("--min-quality must be between 0 and 100")
 
-    run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
+    run_id = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{time.time_ns()}"
     run_dir = args.output / run_id
     robots = RobotsCache(enabled=not args.disable_robots_check)
     ctx = CrawlContext(args=args, http=HttpClient(args.delay, args.timeout, robots, args.retries))
@@ -959,12 +1530,16 @@ def main() -> int:
             if not should_run_source(source_name, kind):
                 continue
             adapter = ADAPTERS[source_name]
-            queries = queries_for(source_name, kind, args.query)
+            queries = queries_for(source_name, kind, args.query, args.profile)
             if not queries:
                 continue
             candidates.extend(adapter.discover(kind, queries, args.limit, ctx))
 
+    candidates = enrich_candidates(candidates, ctx)
     candidates = dedupe(candidates)
+    candidates = [candidate for candidate in candidates if candidate.quality_score >= args.min_quality]
+    candidates = sort_candidates(candidates)
+
     for candidate in candidates:
         materialize_candidate(candidate, run_dir, ctx)
 
@@ -972,10 +1547,12 @@ def main() -> int:
 
     summary = {
         "run_dir": str(run_dir),
+        "profile": args.profile,
         "candidates": len(candidates),
         "downloaded": sum(1 for candidate in candidates if candidate.download_path),
         "sources": selected_sources,
         "kinds": selected_kinds,
+        "min_quality": args.min_quality,
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0

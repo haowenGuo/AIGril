@@ -80,10 +80,22 @@ pnpm desktop:dist
 ```bash
 python scripts/harvest_aigl_resources.py --kind motion --limit 5
 python scripts/harvest_aigl_resources.py --kind music-text --limit 5
-python scripts/harvest_aigl_resources.py --kind motion --source curated-commercial --download --download-review-motion-packs --limit 50
+python scripts/harvest_aigl_resources.py --profile performer --kind all --limit 5 --min-quality 75
+python scripts/harvest_aigl_resources.py --profile performer --kind all --limit 5 --min-quality 75 --download --download-review-motion-packs --extract-archives
+python scripts/harvest_aigl_resources.py --kind music-text --source mutopia --query voice --limit 5 --min-quality 80 --download
 ```
 
-资源采集脚本只使用公开 API，并默认生成候选清单，不直接下载。更多说明见 [`docs/resource-harvesting.md`](docs/resource-harvesting.md)。
+资源采集脚本会基于“唱歌 / 跳舞 / 漂亮动作”的画像做高质量检索，自动打分排序，并支持动作包自动解压。更多说明见 [`docs/resource-harvesting.md`](docs/resource-harvesting.md)。
+
+## 本地授权资源库
+
+```bash
+python scripts/import_authorized_assets.py
+python scripts/build_resource_library.py
+pnpm run resources:authorized:sync
+```
+
+把你本地合法持有的歌曲、伴奏、歌词、乐谱、动作放进 [`input/authorized-media`](input/authorized-media/README.md) 后，就可以统一导入到 `Resources/library/`，并生成总索引 `Resources/resource-library.json`。更多说明见 [`docs/resource-library.md`](docs/resource-library.md)。
 
 ## 项目结构
 

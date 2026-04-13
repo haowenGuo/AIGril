@@ -80,10 +80,22 @@ The desktop app uses Electron to load the existing Vite frontend. It defaults to
 ```bash
 python scripts/harvest_aigl_resources.py --kind motion --limit 5
 python scripts/harvest_aigl_resources.py --kind music-text --limit 5
-python scripts/harvest_aigl_resources.py --kind motion --source curated-commercial --download --download-review-motion-packs --limit 50
+python scripts/harvest_aigl_resources.py --profile performer --kind all --limit 5 --min-quality 75
+python scripts/harvest_aigl_resources.py --profile performer --kind all --limit 5 --min-quality 75 --download --download-review-motion-packs --extract-archives
+python scripts/harvest_aigl_resources.py --kind music-text --source mutopia --query voice --limit 5 --min-quality 80 --download
 ```
 
-The harvester uses public APIs and writes candidate manifests by default instead of downloading files. See [`docs/resource-harvesting.md`](docs/resource-harvesting.md) for details.
+The harvester uses public APIs, ranks candidates for the virtual performer use case, and can auto-extract downloaded motion packs. See [`docs/resource-harvesting.md`](docs/resource-harvesting.md) for details.
+
+## Local Authorized Library
+
+```bash
+python scripts/import_authorized_assets.py
+python scripts/build_resource_library.py
+pnpm run resources:authorized:sync
+```
+
+Drop locally authorized songs, accompaniment tracks, lyrics, symbolic scores, and motions into [`input/authorized-media`](input/authorized-media/README.md), then import them into `Resources/library/` and build a unified `Resources/resource-library.json` index. See [`docs/resource-library.md`](docs/resource-library.md) for details.
 
 ## Repository Layout
 

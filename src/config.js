@@ -43,6 +43,7 @@ const runtimeSettings = getRuntimeSettings();
 export const CONFIG = {
     MODEL_PATH: 'Resources/AiGril.vrm',
     MOTION_CATALOG_PATH: 'Resources/motion-catalog.json',
+    RESOURCE_LIBRARY_PATH: 'Resources/resource-library.json',
     MOTION_CATEGORIES,
     CUE_INTENSITY_LEVELS,
     EXPRESSION_NAMES,

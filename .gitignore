@@ -15,12 +15,15 @@ backend/**/__pycache__/
 # IDE / local cache
 .idea/
 .vscode/
+.claude/
 
 # Local generated folders
 input/
 output/
 tmp/
 Resources/harvested/
+Resources/library/
+Resources/resource-library.json
 历史版本/
 
 # Legacy / generated assets not needed in the published repo

@@ -9,6 +9,7 @@ const projectRoot = resolve(__dirname, '..');
 const distRoot = resolve(projectRoot, 'dist');
 const runtimeVrmDir = resolve(projectRoot, 'Resources', 'VRMA_MotionPack', 'vrma');
 const includeHarvestedMotions = process.env.AIGRIL_INCLUDE_HARVESTED_MOTIONS === '1';
+const includeAuthorizedLibrary = process.env.AIGRIL_INCLUDE_AUTHORIZED_LIBRARY === '1';
 
 const runtimeAnimationFiles = [
     'Angry.vrma',
@@ -38,6 +39,11 @@ const assetsToCopy = [
         source: resolve(projectRoot, 'Resources', 'motion-catalog.json'),
         target: resolve(distRoot, 'Resources', 'motion-catalog.json'),
         overwrite: true
+    },
+    {
+        source: resolve(projectRoot, 'Resources', 'resource-library.json'),
+        target: resolve(distRoot, 'Resources', 'resource-library.json'),
+        overwrite: true
     }
 ];
 
@@ -53,6 +59,14 @@ if (includeHarvestedMotions) {
     assetsToCopy.push({
         source: resolve(projectRoot, 'Resources', 'harvested', 'motions', 'vrma'),
         target: resolve(distRoot, 'Resources', 'harvested', 'motions', 'vrma'),
+        overwrite: true
+    });
+}
+
+if (includeAuthorizedLibrary) {
+    assetsToCopy.push({
+        source: resolve(projectRoot, 'Resources', 'library'),
+        target: resolve(distRoot, 'Resources', 'library'),
         overwrite: true
     });
 }
