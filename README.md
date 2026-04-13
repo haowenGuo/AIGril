@@ -1,6 +1,6 @@
 <div align="center">
   <h1>AIGril</h1>
-  <p><strong>A browser-based virtual companion project starring AIGL, with a 3D VRM avatar, streaming chat, expressive animation, and lightweight memory.</strong></p>
+  <p><strong>AIGL virtual companion for both the browser and a desktop-pet style Electron app, with a 3D VRM avatar, streaming chat, expressive animation, and lightweight memory.</strong></p>
   <p>
     <a href="https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com"><img alt="Try AIGril" src="https://img.shields.io/badge/Try%20AIGril-Live%20Experience-2563eb?style=for-the-badge"></a>
     <a href="https://haowenGuo.github.io/AIGril/"><img alt="Frontend Demo" src="https://img.shields.io/badge/GitHub%20Pages-Frontend%20Demo-0f172a?style=for-the-badge"></a>
@@ -17,19 +17,27 @@
 
 ## Overview
 
-AIGL is the main character of AIGril, designed to feel lively, responsive, and expressive on the web.
+AIGril now has two usable fronts built around the same AIGL runtime:
 
-- A live 3D VRM avatar rendered directly in the browser
-- Streamed text replies for lower perceived latency
-- Action and expression control driven by model-generated tags
-- Lip sync, blink, idle motion, and dance motion systems
-- Session memory with periodic summary compression
+- Web experience for browser-based conversation and demo access
+- Electron desktop pet for always-on-top companionship on Windows PC
+
+The project keeps the same VRM avatar, motion system, chat flow, and backend integration, while packaging them differently for browser and desktop use.
 
 ## Experience
 
-- Full experience: [https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com](https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com)
+- Full web experience: [https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com](https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com)
 - Frontend-only demo: [https://haowenGuo.github.io/AIGril/](https://haowenGuo.github.io/AIGril/)
 - Backend API docs: [https://airi-backend.onrender.com/docs](https://airi-backend.onrender.com/docs)
+
+## Desktop Pet Features
+
+- Frameless transparent pet window
+- Always-on-top desktop presence with remembered size and position
+- Click the pet to open chat
+- Right-click menu for `Chat`, `Scale`, and `Quit`
+- System tray entry with visibility and taskbar options
+- Separate chat window synchronized with the pet runtime
 
 ## Core Features
 
@@ -37,16 +45,19 @@ AIGL is the main character of AIGril, designed to feel lively, responsive, and e
 - VRM avatar actions such as idle, dance, surprise, wave, and anger
 - Expression presets such as happy, sad, relaxed, surprised, and playful blink
 - Speaking-state animation and lip-sync fallback while text is arriving
-- Memory storage and timed summary compression for longer conversations
+- Session memory with periodic summary compression
 
 ## Tech Stack
 
 - Frontend: Vite, Three.js, `@pixiv/three-vrm`
+- Desktop shell: Electron
 - Backend: FastAPI, SQLAlchemy, SQLite
 - Model access: OpenAI-compatible API
 - Deployment: GitHub Pages + Render
 
 ## Run Locally
+
+### Web
 
 ```bash
 pnpm install
@@ -58,20 +69,48 @@ copy backend\.env.example backend\.env
 python -m uvicorn backend.main:app --reload
 ```
 
+### Desktop Pet
+
+```bash
+pnpm install
+pnpm desktop:start
+```
+
+### Desktop Development
+
+```bash
+pnpm desktop:dev
+```
+
 Required environment variable:
 
 ```env
 LLM_API_KEY=your_llm_api_key
 ```
 
+## Packaging
+
+Build the latest Windows desktop packages with:
+
+```bash
+pnpm desktop:package
+```
+
+Generated files are written to [`release/`](release), including:
+
+- `AIGril-Setup-<version>-win-x64.exe`
+- `AIGril-Portable-<version>-win-x64.exe`
+- `release/win-unpacked/AIGril.exe`
+
 ## Repository Layout
 
 ```text
 backend/   FastAPI API, memory logic, deployment config
-src/       VRM avatar, chat UI, actions, expressions, frontend runtime
+electron/  Electron main process, preload bridge, desktop state
+src/       VRM avatar, chat runtime, desktop render entry points
 Resources/ VRM model and VRMA animation assets
 scripts/   Static build helpers
-examples/  Standalone developer examples, including the Python safety API demo
+examples/  Standalone developer examples
 ```
 
 ## Deployment
@@ -82,4 +121,4 @@ examples/  Standalone developer examples, including the Python safety API demo
 
 ## Goal
 
-Build a virtual character experience that feels responsive, expressive, and pleasant to interact with on the web, while keeping the project easy to evolve.
+Build a virtual companion that feels responsive, expressive, and pleasant both in the browser and as a desktop pet, while keeping the project structure practical to evolve.

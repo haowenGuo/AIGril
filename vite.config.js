@@ -1,11 +1,22 @@
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
+const workspaceRoot = fileURLToPath(new URL('.', import.meta.url));
 
-// 使用相对 base，避免 GitHub Pages 项目站点因为仓库名不同而出现资源路径错误。
 export default defineConfig({
     base: './',
     server: {
         host: '0.0.0.0',
         port: 5173
+    },
+    build: {
+        rollupOptions: {
+            input: {
+                index: resolve(workspaceRoot, 'index.html'),
+                pet: resolve(workspaceRoot, 'pet.html'),
+                chat: resolve(workspaceRoot, 'chat.html')
+            }
+        }
     }
 });

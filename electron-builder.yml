@@ -1,0 +1,27 @@
+appId: com.aigril.desktop
+productName: AIGril
+artifactName: ${productName}-${version}-${arch}.${ext}
+directories:
+  output: release
+files:
+  - dist/**/*
+  - electron/**/*
+  - package.json
+extraMetadata:
+  main: electron/main.cjs
+asar: true
+npmRebuild: false
+win:
+  executableName: AIGril
+  signAndEditExecutable: false
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+nsis:
+  artifactName: ${productName}-Setup-${version}-win-${arch}.${ext}
+portable:
+  artifactName: ${productName}-Portable-${version}-win-${arch}.${ext}
