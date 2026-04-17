@@ -1,50 +1,40 @@
 # Blog Content Guide
 
-这个目录就是博客的内容层，后续大部分更新都只需要改这里。
+这个目录就是博客的内容层。以后大多数更新都只需要改这里。
 
-## 文件说明
+## 结构
 
 - `site.json`
-  - 站点基础信息
-  - 首页 Hero 文案
-  - About 页面内容
-  - Featured Projects
-  - Inspirations
+  - 站点配置
+  - 支持 `zh` / `en` 两套文案
+  - 首页、About、Projects、Writing 的静态内容都放这里
 
 - `posts.json`
-  - 博客文章列表
-  - 每篇文章包含 slug、标题、摘要、时间、标签和正文段落
+  - 文章元数据
+  - 每篇文章支持多语言翻译
+  - 通过 `body_file` 指向 Markdown 正文
 
-## 后续如何更新
+- `posts/zh/*.md`
+  - 中文文章正文
 
-### 新增文章
+- `posts/en/*.md`
+  - 英文文章正文
 
-在 `posts.json` 里追加一个对象：
+## 新增文章
 
-```json
-{
-  "slug": "my-new-post",
-  "title": "My New Post",
-  "summary": "文章摘要",
-  "published_at": "2026-04-17",
-  "reading_time": "4 min",
-  "featured": false,
-  "tags": ["notes", "devlog"],
-  "content": [
-    "第一段。",
-    "第二段。"
-  ]
-}
-```
+1. 在 `posts/zh/` 和 `posts/en/` 下分别新建 Markdown 文件
+2. 在 `posts.json` 中新增一条文章记录
+3. 提交并推送，Render 会自动更新
 
-### 修改首页 / About / Projects
-
-直接编辑 `site.json`。
-
-## 当前博客页面
+## 当前页面
 
 - `/blog`
 - `/blog/about`
 - `/blog/projects`
 - `/blog/writing`
 - `/blog/{slug}`
+- `/en/blog`
+- `/en/blog/about`
+- `/en/blog/projects`
+- `/en/blog/writing`
+- `/en/blog/{slug}`

@@ -9,3 +9,4 @@ langchain-core>=0.3,<1.0
 langchain-openai>=0.3,<1.0
 langchain-chroma>=0.2,<1.0
 chromadb>=0.5,<1.0
+markdown>=3.6,<4.0

@@ -2,11 +2,17 @@ import json
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
+
+import markdown
 
 
 BLOG_DIR = Path(__file__).resolve().parent.parent / "blog_content"
 POSTS_PATH = BLOG_DIR / "posts.json"
 SITE_PATH = BLOG_DIR / "site.json"
+POSTS_DIR = BLOG_DIR / "posts"
+
+SUPPORTED_LOCALES = {"zh", "en"}
 
 
 @dataclass(frozen=True)
@@ -31,6 +37,7 @@ class InspirationLink:
 
 @dataclass(frozen=True)
 class BlogSite:
+    locale: str
     site_title: str
     site_subtitle: str
     hero_title: str
@@ -42,13 +49,18 @@ class BlogSite:
     x: str
     now_title: str
     now_text: str
+    nav: dict[str, str]
+    labels: dict[str, str]
     about_sections: list[AboutSection]
     featured_projects: list[FeaturedProject]
     inspirations: list[InspirationLink]
+    projects_intro: str
+    writing_intro: str
 
 
 @dataclass(frozen=True)
 class BlogPost:
+    locale: str
     slug: str
     title: str
     summary: str
@@ -56,28 +68,39 @@ class BlogPost:
     reading_time: str
     featured: bool
     tags: list[str]
-    content: list[str]
+    body_html: str
 
 
-def _load_site() -> BlogSite:
+def _resolve_locale(locale: str | None) -> str:
+    normalized = (locale or "zh").strip().lower()
+    return normalized if normalized in SUPPORTED_LOCALES else "zh"
+
+
+def _load_site(locale: str) -> BlogSite:
     with SITE_PATH.open("r", encoding="utf-8") as file:
         raw_site = json.load(file)
 
+    locale_key = _resolve_locale(locale)
+    localized = raw_site["locales"][locale_key]
+
     return BlogSite(
-        site_title=str(raw_site["site_title"]),
-        site_subtitle=str(raw_site["site_subtitle"]),
-        hero_title=str(raw_site["hero_title"]),
-        hero_intro=str(raw_site["hero_intro"]),
-        bio=str(raw_site["bio"]),
-        location=str(raw_site["location"]),
-        email=str(raw_site["email"]),
-        github=str(raw_site["github"]),
-        x=str(raw_site.get("x", "")),
-        now_title=str(raw_site["now_title"]),
-        now_text=str(raw_site["now_text"]),
+        locale=locale_key,
+        site_title=str(localized["site_title"]),
+        site_subtitle=str(localized["site_subtitle"]),
+        hero_title=str(localized["hero_title"]),
+        hero_intro=str(localized["hero_intro"]),
+        bio=str(localized["bio"]),
+        location=str(localized["location"]),
+        email=str(localized["email"]),
+        github=str(localized["github"]),
+        x=str(localized.get("x", "")),
+        now_title=str(localized["now_title"]),
+        now_text=str(localized["now_text"]),
+        nav=dict(localized["nav"]),
+        labels=dict(localized["labels"]),
         about_sections=[
             AboutSection(title=str(item["title"]), body=str(item["body"]))
-            for item in raw_site.get("about_sections", [])
+            for item in localized.get("about_sections", [])
         ],
         featured_projects=[
             FeaturedProject(
@@ -85,7 +108,7 @@ def _load_site() -> BlogSite:
                 description=str(item["description"]),
                 link=str(item["link"]),
             )
-            for item in raw_site.get("featured_projects", [])
+            for item in localized.get("featured_projects", [])
         ],
         inspirations=[
             InspirationLink(
@@ -93,45 +116,62 @@ def _load_site() -> BlogSite:
                 url=str(item["url"]),
                 note=str(item["note"]),
             )
-            for item in raw_site.get("inspirations", [])
+            for item in localized.get("inspirations", [])
         ],
+        projects_intro=str(localized["projects_intro"]),
+        writing_intro=str(localized["writing_intro"]),
     )
 
 
-def _load_posts() -> list[BlogPost]:
+def _render_markdown(body_file: str) -> str:
+    body_path = BLOG_DIR / body_file
+    raw_text = body_path.read_text(encoding="utf-8")
+    return markdown.markdown(
+        raw_text,
+        extensions=["extra", "sane_lists", "smarty"],
+    )
+
+
+def _load_posts(locale: str) -> list[BlogPost]:
     with POSTS_PATH.open("r", encoding="utf-8") as file:
         raw_posts = json.load(file)
+
+    locale_key = _resolve_locale(locale)
+    default_locale = "zh"
     return [
         BlogPost(
+            locale=locale_key,
             slug=str(item["slug"]),
-            title=str(item["title"]),
-            summary=str(item["summary"]),
+            title=str((item.get("translations", {}).get(locale_key) or item.get("translations", {}).get(default_locale))["title"]),
+            summary=str((item.get("translations", {}).get(locale_key) or item.get("translations", {}).get(default_locale))["summary"]),
             published_at=str(item["published_at"]),
             reading_time=str(item.get("reading_time", "")),
             featured=bool(item.get("featured", False)),
             tags=[str(tag) for tag in item.get("tags", [])],
-            content=[str(paragraph) for paragraph in item.get("content", [])],
+            body_html=_render_markdown(
+                str((item.get("translations", {}).get(locale_key) or item.get("translations", {}).get(default_locale))["body_file"])
+            ),
         )
         for item in raw_posts
     ]
 
 
 @lru_cache()
-def get_blog_site() -> BlogSite:
-    return _load_site()
+def get_blog_site(locale: str = "zh") -> BlogSite:
+    return _load_site(locale)
 
 
 @lru_cache()
-def get_blog_posts() -> list[BlogPost]:
-    return _load_posts()
+def get_blog_posts(locale: str = "zh") -> list[BlogPost]:
+    return _load_posts(locale)
 
 
-def get_blog_post(slug: str) -> BlogPost | None:
-    for post in get_blog_posts():
+def get_blog_post(slug: str, locale: str = "zh") -> BlogPost | None:
+    for post in get_blog_posts(locale):
         if post.slug == slug:
             return post
     return None
 
 
-def get_featured_posts() -> list[BlogPost]:
-    return [post for post in get_blog_posts() if post.featured]
+def get_featured_posts(locale: str = "zh") -> list[BlogPost]:
+    return [post for post in get_blog_posts(locale) if post.featured]
