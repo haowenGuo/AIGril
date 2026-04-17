@@ -1,30 +1,40 @@
 [
   {
     "slug": "hello-blog-framework",
-    "title": "Hello, Blog Framework",
-    "summary": "这是一篇占位文章，用来验证博客框架已经搭建完成，后续只需要填内容即可。",
     "published_at": "2026-04-17",
     "reading_time": "2 min",
     "featured": true,
     "tags": ["intro", "blog", "framework"],
-    "content": [
-      "欢迎来到我的博客。",
-      "这个版本的重点不是一次把内容全写满，而是先把一个结构清晰、可长期维护的博客框架搭起来。",
-      "后续我会在这个框架上继续填项目复盘、技术笔记、开发日志和更长期的思考。"
-    ]
+    "translations": {
+      "zh": {
+        "title": "Hello, Blog Framework",
+        "summary": "这是一篇占位文章，用来验证博客框架已经搭建完成，后续只需要填内容即可。",
+        "body_file": "posts/zh/hello-blog-framework.md"
+      },
+      "en": {
+        "title": "Hello, Blog Framework",
+        "summary": "This is a placeholder post to verify that the blog framework is ready and content can be added later without touching the page code.",
+        "body_file": "posts/en/hello-blog-framework.md"
+      }
+    }
   },
   {
     "slug": "why-build-in-public",
-    "title": "Why Build in Public",
-    "summary": "我希望博客不仅展示结果，也记录过程，这会让项目和成长轨迹都更清楚。",
     "published_at": "2026-04-17",
     "reading_time": "3 min",
     "featured": false,
     "tags": ["writing", "notes"],
-    "content": [
-      "很多时候，真正有价值的不是最后那一版完成品，而是中间不断调整、试错和重构的过程。",
-      "所以我希望这个博客以后能成为一个公开的工作台，而不只是一个静态展示页。",
-      "项目的结构、决策的理由、失败过的方案，都值得留下来。"
-    ]
+    "translations": {
+      "zh": {
+        "title": "Why Build in Public",
+        "summary": "我希望博客不仅展示结果，也记录过程，这会让项目和成长轨迹都更清楚。",
+        "body_file": "posts/zh/why-build-in-public.md"
+      },
+      "en": {
+        "title": "Why Build in Public",
+        "summary": "I want the blog to show not only finished work, but also the process that produced it.",
+        "body_file": "posts/en/why-build-in-public.md"
+      }
+    }
   }
 ]

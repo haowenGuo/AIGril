@@ -16,9 +16,15 @@ from backend.services.blog_service import (
 router = APIRouter()
 
 
-def _page_shell(title: str, body: str) -> str:
+def _page_shell(title: str, body: str, site: BlogSite, locale: str, prefix: str) -> str:
+    lang_attr = "en" if locale == "en" else "zh-CN"
+    lang_toggle = (
+        f'<a href="/blog">{escape(site.labels.get("home", "Home"))} / 中文</a>'
+        if locale == "en"
+        else f'<a href="/en/blog">English</a>'
+    )
     return f"""<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{lang_attr}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -244,10 +250,11 @@ def _page_shell(title: str, body: str) -> str:
     <div class="topbar">
       <div class="brand">Personal Blog Framework</div>
       <nav class="topnav">
-        <a href="/blog">Home</a>
-        <a href="/blog/about">About</a>
-        <a href="/blog/projects">Projects</a>
-        <a href="/blog/writing">Writing</a>
+        <a href="{prefix}/blog">{escape(site.nav['home'])}</a>
+        <a href="{prefix}/blog/about">{escape(site.nav['about'])}</a>
+        <a href="{prefix}/blog/projects">{escape(site.nav['projects'])}</a>
+        <a href="{prefix}/blog/writing">{escape(site.nav['writing'])}</a>
+        {lang_toggle}
       </nav>
     </div>
     {body}
@@ -260,7 +267,7 @@ def _page_shell(title: str, body: str) -> str:
 """
 
 
-def _render_post_card(post: BlogPost) -> str:
+def _render_post_card(post: BlogPost, prefix: str) -> str:
     tags = "".join(
         f'<span class="tag">{escape(tag)}</span>'
         for tag in post.tags
@@ -269,7 +276,7 @@ def _render_post_card(post: BlogPost) -> str:
     return f"""
     <article class="card">
       <div class="meta">{escape(post.published_at)}{reading}</div>
-      <h2><a class="post-link" href="/blog/{escape(post.slug)}">{escape(post.title)}</a></h2>
+      <h2><a class="post-link" href="{prefix}/blog/{escape(post.slug)}">{escape(post.title)}</a></h2>
       <p>{escape(post.summary)}</p>
       <div class="tags">{tags}</div>
     </article>
@@ -285,9 +292,9 @@ def _render_project_card(name: str, description: str, link: str) -> str:
     """
 
 
-def _home_page(site: BlogSite, featured_posts: list[BlogPost], recent_posts: list[BlogPost]) -> str:
-    featured_section = "".join(_render_post_card(post) for post in featured_posts)
-    recent_section = "".join(_render_post_card(post) for post in recent_posts)
+def _home_page(site: BlogSite, featured_posts: list[BlogPost], recent_posts: list[BlogPost], prefix: str) -> str:
+    featured_section = "".join(_render_post_card(post, prefix) for post in featured_posts)
+    recent_section = "".join(_render_post_card(post, prefix) for post in recent_posts)
     project_section = "".join(
         _render_project_card(project.name, project.description, project.link)
         for project in site.featured_projects
@@ -303,17 +310,17 @@ def _home_page(site: BlogSite, featured_posts: list[BlogPost], recent_posts: lis
       <h1>{escape(site.hero_title)}</h1>
       <p>{escape(site.hero_intro)}</p>
       <div class="nav">
-        <a href="/blog/writing">Read writing</a>
-        <a href="/blog/projects">View projects</a>
-        <a href="/blog/about">About me</a>
+        <a href="{prefix}/blog/writing">{escape(site.labels['read_writing'])}</a>
+        <a href="{prefix}/blog/projects">{escape(site.labels['view_projects'])}</a>
+        <a href="{prefix}/blog/about">{escape(site.labels['about_me'])}</a>
       </div>
     </section>
 
     <section class="grid">
       <div>
         <article class="card">
-          <div class="eyebrow">Recent writing</div>
-          <h2 class="section-title">Recent posts</h2>
+          <div class="eyebrow">{escape(site.labels['recent_writing'])}</div>
+          <h2 class="section-title">{escape(site.labels['recent_posts'])}</h2>
           {recent_section}
         </article>
       </div>
@@ -332,50 +339,54 @@ def _home_page(site: BlogSite, featured_posts: list[BlogPost], recent_posts: lis
 
     <section class="grid">
       <article class="card">
-        <div class="eyebrow">Featured writing</div>
-        <h2 class="section-title">Start here</h2>
+        <div class="eyebrow">{escape(site.labels['featured_writing'])}</div>
+        <h2 class="section-title">{escape(site.labels['start_here'])}</h2>
         {featured_section}
       </article>
       <article class="card">
-        <div class="eyebrow">Projects</div>
-        <h2 class="section-title">Selected work</h2>
+        <div class="eyebrow">{escape(site.labels['projects'])}</div>
+        <h2 class="section-title">{escape(site.labels['selected_work'])}</h2>
         <div class="list">{project_section}</div>
       </article>
     </section>
 
     <section class="grid">
       <article class="card">
-        <div class="eyebrow">Inspiration</div>
-        <h2 class="section-title">Blog references</h2>
+        <div class="eyebrow">{escape(site.labels['inspiration'])}</div>
+        <h2 class="section-title">{escape(site.labels['blog_references'])}</h2>
         <div class="list">{inspiration_section}</div>
       </article>
       <article class="card">
-        <div class="eyebrow">How to update</div>
-        <h2 class="section-title">Future workflow</h2>
-        <p class="muted">以后你主要只需要修改 <code>backend/blog_content/site.json</code> 和 <code>backend/blog_content/posts.json</code>，不需要动页面代码。</p>
+        <div class="eyebrow">{escape(site.labels['how_to_update'])}</div>
+        <h2 class="section-title">{escape(site.labels['future_workflow'])}</h2>
+        <p class="muted">以后你主要只需要修改 <code>backend/blog_content/site.json</code>、<code>backend/blog_content/posts.json</code> 和 <code>backend/blog_content/posts/</code> 下的 Markdown 文件，不需要动页面代码。</p>
       </article>
     </section>
     """
 
 
-@router.get("/blog")
-async def blog_home():
-    site = get_blog_site()
-    posts = get_blog_posts()
-    body = _home_page(site, get_featured_posts(), posts[:6])
-    return HTMLResponse(_page_shell(site.site_title, body))
+def _get_prefix(locale: str) -> str:
+    return "/en" if locale == "en" else ""
 
 
-@router.get("/blog/about")
-async def blog_about():
-    site = get_blog_site()
+def _blog_home(locale: str):
+    site = get_blog_site(locale)
+    posts = get_blog_posts(locale)
+    prefix = _get_prefix(locale)
+    body = _home_page(site, get_featured_posts(locale), posts[:6], prefix)
+    return HTMLResponse(_page_shell(site.site_title, body, site, locale, prefix))
+
+
+def _blog_about(locale: str):
+    site = get_blog_site(locale)
+    prefix = _get_prefix(locale)
     sections = "".join(
         f'<article class="card"><div class="eyebrow">{escape(section.title)}</div><p class="muted">{escape(section.body)}</p></article>'
         for section in site.about_sections
     )
     body = f"""
     <section class="hero">
-      <div class="eyebrow">About</div>
+      <div class="eyebrow">{escape(site.labels['about'])}</div>
       <h1>{escape(site.site_title)}</h1>
       <p>{escape(site.bio)}</p>
       <div class="nav">
@@ -387,7 +398,7 @@ async def blog_about():
       <div>{sections}</div>
       <div>
         <article class="card">
-          <div class="eyebrow">Base</div>
+          <div class="eyebrow">{escape(site.labels['base'])}</div>
           <p class="muted">Location: {escape(site.location)}</p>
           <p class="muted">Email: {escape(site.email)}</p>
           <p class="muted">GitHub: <a class="post-link" href="{escape(site.github)}" target="_blank">{escape(site.github)}</a></p>
@@ -399,55 +410,52 @@ async def blog_about():
       </div>
     </section>
     """
-    return HTMLResponse(_page_shell(f"{site.site_title} · About", body))
+    return HTMLResponse(_page_shell(f"{site.site_title} · {site.labels['about']}", body, site, locale, prefix))
 
 
-@router.get("/blog/projects")
-async def blog_projects():
-    site = get_blog_site()
+def _blog_projects(locale: str):
+    site = get_blog_site(locale)
+    prefix = _get_prefix(locale)
     project_cards = "".join(
-        f'<article class="card"><div class="eyebrow">Project</div><h2><a class="post-link" href="{escape(project.link)}" target="_blank">{escape(project.name)}</a></h2><p>{escape(project.description)}</p></article>'
+        f'<article class="card"><div class="eyebrow">{escape(site.labels["project"])}</div><h2><a class="post-link" href="{escape(project.link)}" target="_blank">{escape(project.name)}</a></h2><p>{escape(project.description)}</p></article>'
         for project in site.featured_projects
     )
     body = f"""
     <section class="hero">
-      <div class="eyebrow">Projects</div>
-      <h1>Selected projects</h1>
-      <p>这里会逐步收录我认为值得长期维护和展示的项目。当前先保留最核心的两个入口，后面你只需要继续往 site.json 里追加项目即可。</p>
+      <div class="eyebrow">{escape(site.labels['projects'])}</div>
+      <h1>{escape(site.labels['selected_work'])}</h1>
+      <p>{escape(site.projects_intro)}</p>
     </section>
     {project_cards}
     """
-    return HTMLResponse(_page_shell(f"{site.site_title} · Projects", body))
+    return HTMLResponse(_page_shell(f"{site.site_title} · {site.labels['projects']}", body, site, locale, prefix))
 
 
-@router.get("/blog/writing")
-async def blog_writing():
-    site = get_blog_site()
-    posts = "".join(_render_post_card(post) for post in get_blog_posts())
+def _blog_writing(locale: str):
+    site = get_blog_site(locale)
+    prefix = _get_prefix(locale)
+    posts = "".join(_render_post_card(post, prefix) for post in get_blog_posts(locale))
     body = f"""
     <section class="hero">
-      <div class="eyebrow">Writing</div>
-      <h1>All writing</h1>
-      <p>这里是文章列表页。后续无论你写项目复盘、技术笔记、周记还是更个人化的随笔，都可以沿用同一套结构。</p>
+      <div class="eyebrow">{escape(site.labels['writing'])}</div>
+      <h1>{escape(site.labels['all_writing'])}</h1>
+      <p>{escape(site.writing_intro)}</p>
     </section>
     {posts}
     """
-    return HTMLResponse(_page_shell(f"{site.site_title} · Writing", body))
+    return HTMLResponse(_page_shell(f"{site.site_title} · {site.labels['writing']}", body, site, locale, prefix))
 
 
-@router.get("/blog/{slug}")
-async def blog_post(slug: str):
-    post = get_blog_post(slug)
+def _blog_post(locale: str, slug: str):
+    site = get_blog_site(locale)
+    prefix = _get_prefix(locale)
+    post = get_blog_post(slug, locale)
     if post is None:
         raise HTTPException(status_code=404, detail="文章不存在")
 
     tags = "".join(
         f'<span class="tag">{escape(tag)}</span>'
         for tag in post.tags
-    )
-    paragraphs = "".join(
-        f"<p>{escape(paragraph)}</p>"
-        for paragraph in post.content
     )
     reading = f" · {escape(post.reading_time)}" if post.reading_time else ""
     body = f"""
@@ -456,18 +464,73 @@ async def blog_post(slug: str):
       <h1>{escape(post.title)}</h1>
       <p>{escape(post.summary)}</p>
       <div class="nav">
-        <a href="/blog/writing">← Back to writing</a>
-        <a href="/blog/projects">Projects</a>
+        <a href="{prefix}/blog/writing">{escape(site.labels['back_to_writing'])}</a>
+        <a href="{prefix}/blog/projects">{escape(site.labels['projects'])}</a>
       </div>
     </section>
     <article class="card content prose">
-      {paragraphs}
+      {post.body_html}
       <div class="tags">{tags}</div>
     </article>
     """
-    return HTMLResponse(_page_shell(post.title, body))
+    return HTMLResponse(_page_shell(post.title, body, site, locale, prefix))
+
+
+@router.get("/blog")
+async def blog_home():
+    return _blog_home("zh")
+
+
+@router.get("/en/blog")
+async def blog_home_en():
+    return _blog_home("en")
+
+
+@router.get("/blog/about")
+async def blog_about():
+    return _blog_about("zh")
+
+
+@router.get("/en/blog/about")
+async def blog_about_en():
+    return _blog_about("en")
+
+
+@router.get("/blog/projects")
+async def blog_projects():
+    return _blog_projects("zh")
+
+
+@router.get("/en/blog/projects")
+async def blog_projects_en():
+    return _blog_projects("en")
+
+
+@router.get("/blog/writing")
+async def blog_writing():
+    return _blog_writing("zh")
+
+
+@router.get("/en/blog/writing")
+async def blog_writing_en():
+    return _blog_writing("en")
+
+
+@router.get("/blog/{slug}")
+async def blog_post(slug: str):
+    return _blog_post("zh", slug)
+
+
+@router.get("/en/blog/{slug}")
+async def blog_post_en(slug: str):
+    return _blog_post("en", slug)
 
 
 @router.get("/blog/")
 async def blog_home_slash():
     return RedirectResponse(url="/blog", status_code=307)
+
+
+@router.get("/en/blog/")
+async def blog_home_en_slash():
+    return RedirectResponse(url="/en/blog", status_code=307)
