@@ -1,0 +1,52 @@
+{
+  "site_title": "HaoWen Guo",
+  "site_subtitle": "Personal blog · projects · notes",
+  "hero_title": "Building systems, avatars, and ideas in public.",
+  "hero_intro": "这是一个偏写作优先的个人博客框架。结构参考了几种非常成熟的个人博客写法：Paul Graham 的简洁文章流、Josh Comeau 的个人主页式入口，以及 swyx 的项目 / 写作 / 关于页面分层。",
+  "bio": "郭浩文，偏向图形、AI 应用、虚拟人系统和工程化实现。这里后续会持续更新项目记录、技术笔记、随笔以及阶段性思考。",
+  "location": "Wuhan / China",
+  "email": "1910481404@qq.com",
+  "github": "https://github.com/haowenGuo",
+  "x": "",
+  "now_title": "Now",
+  "now_text": "当前重点：把个人项目、技术文章和实验记录系统化整理出来，逐步形成稳定的个人表达空间。",
+  "about_sections": [
+    {
+      "title": "About me",
+      "body": "我主要关注图形渲染、虚拟人交互、大模型应用工程，以及把想法真正做成可部署系统的过程。这个博客后续会逐步承接这些内容。"
+    },
+    {
+      "title": "What I write about",
+      "body": "博客将主要记录项目复盘、技术实现、开发日志、个人想法，以及一些更长期的研究兴趣。"
+    }
+  ],
+  "featured_projects": [
+    {
+      "name": "AIGril / AIGL",
+      "description": "一个基于浏览器的 3D 虚拟人项目，包含 VRM 渲染、动作表情联动、流式对话和记忆系统。",
+      "link": "https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com"
+    },
+    {
+      "name": "AI Safety API",
+      "description": "部署在同一 Render 服务中的内容安全审核接口，提供综合判定和多算法结果。",
+      "link": "https://airi-backend.onrender.com/docs"
+    }
+  ],
+  "inspirations": [
+    {
+      "name": "Paul Graham",
+      "url": "https://paulgraham.com/",
+      "note": "文章优先、极简结构"
+    },
+    {
+      "name": "Josh Comeau",
+      "url": "https://www.joshwcomeau.com/",
+      "note": "首页即品牌入口，信息组织清晰"
+    },
+    {
+      "name": "swyx",
+      "url": "https://www.swyx.io/",
+      "note": "About / Projects / Writing 分层明确"
+    }
+  ]
+}

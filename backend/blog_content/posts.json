@@ -1,26 +1,30 @@
 [
   {
-    "slug": "hello-ai-blog",
-    "title": "Hello, My Blog",
-    "summary": "这是博客的第一篇占位文章，用来验证博客系统已经成功上线。",
+    "slug": "hello-blog-framework",
+    "title": "Hello, Blog Framework",
+    "summary": "这是一篇占位文章，用来验证博客框架已经搭建完成，后续只需要填内容即可。",
     "published_at": "2026-04-17",
-    "tags": ["blog", "launch", "render"],
+    "reading_time": "2 min",
+    "featured": true,
+    "tags": ["intro", "blog", "framework"],
     "content": [
-      "欢迎来到我的个人博客。",
-      "这个页面目前是一个最小可上线版本，先用于完成部署和访问验证。后面我会继续补充正式文章内容、项目记录和开发随笔。",
-      "目前博客已经和现有的 Render 后端整合在一起，部署和更新都会复用同一条 GitHub -> Render 自动发布链路。"
+      "欢迎来到我的博客。",
+      "这个版本的重点不是一次把内容全写满，而是先把一个结构清晰、可长期维护的博客框架搭起来。",
+      "后续我会在这个框架上继续填项目复盘、技术笔记、开发日志和更长期的思考。"
     ]
   },
   {
-    "slug": "building-in-public",
-    "title": "Building in Public",
-    "summary": "后续这里会记录我的项目实践、开发思考以及部署笔记。",
+    "slug": "why-build-in-public",
+    "title": "Why Build in Public",
+    "summary": "我希望博客不仅展示结果，也记录过程，这会让项目和成长轨迹都更清楚。",
     "published_at": "2026-04-17",
-    "tags": ["notes", "devlog"],
+    "reading_time": "3 min",
+    "featured": false,
+    "tags": ["writing", "notes"],
     "content": [
-      "我希望这个博客不仅用于展示结果，也用于记录过程。",
-      "后续计划会加入项目更新、技术笔记、学习记录，以及一些更个人化的表达。",
-      "如果你现在看到这里，说明这个博客的基础框架已经可以正常访问了。"
+      "很多时候，真正有价值的不是最后那一版完成品，而是中间不断调整、试错和重构的过程。",
+      "所以我希望这个博客以后能成为一个公开的工作台，而不只是一个静态展示页。",
+      "项目的结构、决策的理由、失败过的方案，都值得留下来。"
     ]
   }
 ]
