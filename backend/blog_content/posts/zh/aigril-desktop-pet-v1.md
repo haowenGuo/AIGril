@@ -15,6 +15,16 @@
 
 这意味着 AIGril 已经从“能演示的角色原型”，进入了“可以持续放在桌面上使用”的阶段。
 
+## 下载桌宠安装包
+
+这一版已经同步提供 Windows 桌面安装包和便携版：
+
+- [下载 Windows 安装版（EXE）](https://github.com/haowenGuo/AIGril/releases/download/v1.0.2/AIGril-Setup-1.0.2-win-x64.exe)
+- [下载 Windows 便携版（EXE）](https://github.com/haowenGuo/AIGril/releases/download/v1.0.2/AIGril-Portable-1.0.2-win-x64.exe)
+- [查看完整发布页面](https://github.com/haowenGuo/AIGril/releases/tag/v1.0.2)
+
+如果你只是想直接体验桌宠，安装版会更省事；如果你希望解压后直接运行，便携版更适合。
+
 ## 我这次怎么处理语音
 
 这次我把语音能力拆成了两层。

@@ -15,6 +15,16 @@ At this point, AIGL is no longer only a 3D character on a web page. She can stay
 
 That is the point where AIGril stops being only a character prototype and starts becoming a usable desktop companion.
 
+## Download the desktop build
+
+This release now includes both a Windows installer and a portable build:
+
+- [Download the Windows installer (EXE)](https://github.com/haowenGuo/AIGril/releases/download/v1.0.2/AIGril-Setup-1.0.2-win-x64.exe)
+- [Download the Windows portable build (EXE)](https://github.com/haowenGuo/AIGril/releases/download/v1.0.2/AIGril-Portable-1.0.2-win-x64.exe)
+- [Open the full release page](https://github.com/haowenGuo/AIGril/releases/tag/v1.0.2)
+
+If you want the simplest setup, use the installer. If you prefer a self-contained build you can unpack and run directly, use the portable package.
+
 ## How I handled speech in this version
 
 I split speech into two layers.
