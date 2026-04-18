@@ -56,6 +56,7 @@ export class TTSAudioPlayer {
 
     async playSpeech({
         audioBase64,
+        audioBlob,
         mimeType,
         displayText,
         alignment,
@@ -69,7 +70,14 @@ export class TTSAudioPlayer {
         const safeAlignment = getSafeAlignment(alignment, displayText);
         let visibleCharCount = 0;
 
-        this.currentObjectUrl = base64ToBlobUrl(audioBase64, mimeType);
+        if (audioBlob instanceof Blob) {
+            this.currentObjectUrl = URL.createObjectURL(audioBlob);
+        } else if (audioBase64) {
+            this.currentObjectUrl = base64ToBlobUrl(audioBase64, mimeType);
+        } else {
+            throw new Error('缺少可播放的音频数据');
+        }
+
         this.audioElement.src = this.currentObjectUrl;
         this.audioElement.currentTime = 0;
         this.audioElement.load();

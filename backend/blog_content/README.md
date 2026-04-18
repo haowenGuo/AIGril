@@ -8,6 +8,17 @@
 - `templates/post_template_zh.md`
 - `templates/post_template_en.md`
 - `templates/posts_json_entry_template.json`
+- `authoring_kit/README.md`
+- `authoring_kit/PUBLISHING_GUIDE.md`
+- `authoring_kit/post_template_zh.md`
+- `authoring_kit/post_template_en.md`
+- `authoring_kit/posts_json_entry_template.json`
+
+为了方便以后反复发文，规范和模板已经额外整理进：
+
+- `backend/blog_content/authoring_kit/`
+
+你以后只要记住这一个文件夹就够了。
 
 ## 结构
 
@@ -35,9 +46,9 @@
 
 ## 推荐流程
 
-1. 先阅读 `PUBLISHING_GUIDE.md`
+1. 先阅读 `authoring_kit/PUBLISHING_GUIDE.md`
 2. 按模板写中英文文章
-3. 复制 `posts_json_entry_template.json` 作为元数据起点
+3. 复制 `authoring_kit/posts_json_entry_template.json` 作为元数据起点
 4. 提交并推送
 
 ## 当前页面

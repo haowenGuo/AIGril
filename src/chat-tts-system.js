@@ -1,11 +1,13 @@
 import { CONFIG } from './config.js';
 
+const CHAT_UI_EVENT_NAME = 'aigril-chat-ui-event';
 
 export class ChatTTSSystem {
-    constructor(vrmSystem, audioPlayer, chatService) {
+    constructor(vrmSystem, audioPlayer, chatService, { speechProvider = null } = {}) {
         this.vrmSystem = vrmSystem;
         this.audioPlayer = audioPlayer;
         this.chatService = chatService;
+        this.speechProvider = speechProvider;
 
         this.messageHistory = [];
         this.messageListEl = document.getElementById('message-list');
@@ -17,12 +19,15 @@ export class ChatTTSSystem {
         this.autoChatTimer = null;
         this.hasShownAutoplayHint = false;
         this.hasShownTextFallbackHint = false;
+        this.hasShownSpeechProviderHint = false;
+        this.messageCounter = 0;
 
         this.inputEl.disabled = true;
         this.sendBtnEl.disabled = true;
 
         this.bindEvents();
         this.installAudioUnlockHandlers();
+        this.emitChatUiEvent({ type: 'state', isBusy: this.isBusy });
     }
 
     getOrCreateSessionId() {
@@ -50,6 +55,7 @@ export class ChatTTSSystem {
             this.inputEl.disabled = false;
             this.sendBtnEl.disabled = false;
             this.startAutoChatTimer();
+            this.emitChatUiEvent({ type: 'state', isBusy: this.isBusy });
         });
     }
 
@@ -78,6 +84,120 @@ export class ChatTTSSystem {
         this.autoChatTimer = setTimeout(() => this.triggerAutoChat(), randomDelay);
     }
 
+    createMessageId(role = 'message') {
+        this.messageCounter += 1;
+        return `${role}-${Date.now()}-${this.messageCounter}`;
+    }
+
+    ensureMessageIdentity(element, role) {
+        if (!element.dataset.messageId) {
+            element.dataset.messageId = this.createMessageId(role);
+        }
+        if (role) {
+            element.dataset.messageRole = role;
+        }
+        return element.dataset.messageId;
+    }
+
+    inferMessageRole(element) {
+        if (element.dataset.messageRole) {
+            return element.dataset.messageRole;
+        }
+        if (element.classList.contains('message-user')) {
+            return 'user';
+        }
+        if (element.classList.contains('message-ai')) {
+            return 'assistant';
+        }
+        if (element.classList.contains('message-system')) {
+            return 'system';
+        }
+        if (element.classList.contains('message-loading')) {
+            return 'loading';
+        }
+        return 'system';
+    }
+
+    serializeMessageElement(element) {
+        const role = this.inferMessageRole(element);
+        return {
+            id: this.ensureMessageIdentity(element, role),
+            role,
+            content: element.textContent || '',
+            pending: role === 'loading'
+        };
+    }
+
+    emitChatUiEvent(payload) {
+        window.dispatchEvent(new CustomEvent(CHAT_UI_EVENT_NAME, { detail: payload }));
+    }
+
+    notifyMessageAdded(element, role) {
+        this.ensureMessageIdentity(element, role);
+        this.emitChatUiEvent({
+            type: 'message-added',
+            message: this.serializeMessageElement(element)
+        });
+    }
+
+    notifyMessageUpdated(element) {
+        if (!element?.dataset?.messageId) {
+            return;
+        }
+        this.emitChatUiEvent({
+            type: 'message-updated',
+            message: this.serializeMessageElement(element)
+        });
+    }
+
+    notifyMessageRemoved(element) {
+        if (!element?.dataset?.messageId || element.dataset.removalNotified === 'true') {
+            return;
+        }
+        element.dataset.removalNotified = 'true';
+        this.emitChatUiEvent({
+            type: 'message-removed',
+            id: element.dataset.messageId
+        });
+    }
+
+    setBusy(nextBusy) {
+        this.isBusy = nextBusy;
+        this.emitChatUiEvent({ type: 'state', isBusy: nextBusy });
+    }
+
+    updateMessageContent(element, content) {
+        if (!element) {
+            return;
+        }
+        element.textContent = content;
+        this.notifyMessageUpdated(element);
+    }
+
+    removeMessageElement(element) {
+        if (!element) {
+            return;
+        }
+        this.notifyMessageRemoved(element);
+        element.remove();
+        this.scrollToBottom();
+    }
+
+    getTranscriptSnapshot() {
+        return Array.from(this.messageListEl.children)
+            .filter((element) => element instanceof HTMLElement)
+            .map((element) => this.serializeMessageElement(element));
+    }
+
+    async sendExternalMessage(content) {
+        return this.sendMessage(content);
+    }
+
+    setSpeechProvider(nextProvider) {
+        this.speechProvider = nextProvider;
+        this.hasShownSpeechProviderHint = false;
+    }
+
     async triggerAutoChat() {
         if (this.isBusy) {
             console.log('🤫 当前正忙，跳过本次主动对话');
@@ -86,39 +206,42 @@ export class ChatTTSSystem {
         }
 
         console.log('✨ AIGL 尝试主动发起对话...');
-        this.isBusy = true;
+        this.setBusy(true);
         const aiMessageDiv = this.createAIMessage();
         this.vrmSystem.startFallbackSpeech();
 
         try {
-            const payload = await this.fetchAssistantTurn(true, (partialPayload) => {
+            const payload = await this.fetchAssistantTurnWithFallback(true, (partialPayload) => {
                 this.renderStreamingAssistantReply(partialPayload, aiMessageDiv);
             });
             await this.renderAssistantReply(payload, aiMessageDiv);
             this.messageHistory.push({ role: 'assistant', content: payload.display_text });
         } catch (error) {
-            aiMessageDiv.remove();
+            this.removeMessageElement(aiMessageDiv);
             console.error('主动对话请求失败：', error);
         } finally {
-            this.isBusy = false;
+            this.setBusy(false);
             this.startAutoChatTimer();
         }
     }
 
-    async sendMessage() {
+    async sendMessage(contentOverride = null) {
         if (this.isBusy) {
             return;
         }
 
-        const content = this.inputEl.value.trim();
+        const hasOverride = typeof contentOverride === 'string';
+        const content = String(hasOverride ? contentOverride : this.inputEl.value).trim();
         if (!content) {
             return;
         }
 
-        this.isBusy = true;
+        this.setBusy(true);
         this.startAutoChatTimer();
 
-        this.inputEl.value = '';
+        if (!hasOverride) {
+            this.inputEl.value = '';
+        }
         this.addUserMessage(content);
         this.messageHistory.push({ role: 'user', content });
 
@@ -127,21 +250,21 @@ export class ChatTTSSystem {
         this.vrmSystem.startFallbackSpeech();
 
         try {
-            const payload = await this.fetchAssistantTurn(false, (partialPayload) => {
-                loadingEl.remove();
+            const payload = await this.fetchAssistantTurnWithFallback(false, (partialPayload) => {
+                this.removeMessageElement(loadingEl);
                 this.renderStreamingAssistantReply(partialPayload, aiMessageDiv);
             });
-            loadingEl.remove();
+            this.removeMessageElement(loadingEl);
             await this.renderAssistantReply(payload, aiMessageDiv);
             this.messageHistory.push({ role: 'assistant', content: payload.display_text });
         } catch (error) {
-            loadingEl.remove();
-            aiMessageDiv.remove();
+            this.removeMessageElement(loadingEl);
+            this.removeMessageElement(aiMessageDiv);
             this.vrmSystem.stopSpeaking();
             this.addSystemMessage(`请求失败：${error.message}`);
             console.error('后端请求失败：', error);
         } finally {
-            this.isBusy = false;
+            this.setBusy(false);
             this.startAutoChatTimer();
         }
     }
@@ -152,8 +275,34 @@ export class ChatTTSSystem {
             messageHistory: this.messageHistory,
             is_auto_chat: isAutoChat,
             isAutoChat,
+            replyMode: 'stream_text',
             onProgress
         });
+    }
+
+    async fetchAssistantTurnWithFallback(isAutoChat = false, onProgress) {
+        const replyModes = this.speechProvider?.replyModeFallbackChain || ['stream_text'];
+        let lastError = null;
+
+        for (let index = 0; index < replyModes.length; index += 1) {
+            const replyMode = replyModes[index];
+
+            try {
+                return await this.chatService.fetchAssistantTurn({
+                    sessionId: this.sessionId,
+                    messageHistory: this.messageHistory,
+                    is_auto_chat: isAutoChat,
+                    isAutoChat,
+                    replyMode,
+                    onProgress: replyMode === 'stream_text' ? onProgress : null
+                });
+            } catch (error) {
+                lastError = error;
+                console.warn(`语音回复模式 ${replyMode} 失败：`, error);
+            }
+        }
+
+        throw lastError || new Error('获取回复失败');
     }
 
     async renderAssistantReply(payload, aiMessageDiv) {
@@ -163,13 +312,76 @@ export class ChatTTSSystem {
         this.executeAvatarCue(payload, aiMessageDiv);
 
         if (payload.streamMode) {
-            aiMessageDiv.textContent = displayText;
+            this.updateMessageContent(aiMessageDiv, displayText);
+            this.scrollToBottom();
+            await this.playPreferredSpeech({
+                payload,
+                displayText,
+                alignment,
+                aiMessageDiv
+            });
+            return;
+        }
+
+        await this.playPreferredSpeech({
+            payload,
+            displayText,
+            alignment,
+            aiMessageDiv
+        });
+    }
+
+    renderStreamingAssistantReply(payload, aiMessageDiv) {
+        const displayText = payload.display_text || payload.speech_text || '';
+
+        this.executeAvatarCue(payload, aiMessageDiv);
+        this.updateMessageContent(aiMessageDiv, displayText);
+        this.scrollToBottom();
+    }
+
+    executeAvatarCue(payload, aiMessageDiv) {
+        if (payload.action && aiMessageDiv?.dataset.actionCue !== payload.action) {
+            this.vrmSystem.playAction(payload.action);
+            aiMessageDiv.dataset.actionCue = payload.action;
+        }
+
+        if (payload.expression && aiMessageDiv?.dataset.expressionCue !== payload.expression) {
+            this.vrmSystem.applyExpressionPreset(payload.expression);
+            aiMessageDiv.dataset.expressionCue = payload.expression;
+        }
+    }
+
+    async playPreferredSpeech({ payload, displayText, alignment, aiMessageDiv }) {
+        if (this.speechProvider?.isSpeechDisabled) {
             this.vrmSystem.stopSpeaking();
+            this.updateMessageContent(aiMessageDiv, displayText);
             this.scrollToBottom();
             return;
         }
 
-        if (payload.fallbackMode) {
+        const speechResult = await this.speechProvider?.playSpeech?.({
+            payload,
+            displayText,
+            alignment,
+            audioPlayer: this.audioPlayer,
+            vrmSystem: this.vrmSystem,
+            updateMessageContent: (text) => this.updateMessageContent(aiMessageDiv, text),
+            scrollToBottom: () => this.scrollToBottom()
+        });
+
+        if (speechResult?.played) {
+            return;
+        }
+
+        if (this.speechProvider?.supportsTTS && !speechResult?.played) {
+            const failureMessage = this.speechProvider.getLastTTSFailureMessage();
+            if (failureMessage && !this.hasShownSpeechProviderHint) {
+                this.addSystemMessage(`语音播放暂时不可用：${failureMessage}`);
+                this.hasShownSpeechProviderHint = true;
+            }
+        }
+
+        if (payload.fallbackMode || !payload.audio_base64 || !this.speechProvider?.supportsTTS) {
             await this.playFallbackSpeech(displayText, aiMessageDiv);
             if (!this.hasShownTextFallbackHint) {
                 this.addSystemMessage('当前语音服务不可用，已自动切换为纯文本回复。');
@@ -185,48 +397,28 @@ export class ChatTTSSystem {
                 displayText,
                 alignment,
                 onTextProgress: (text) => {
-                    aiMessageDiv.textContent = text || '';
+                    this.updateMessageContent(aiMessageDiv, text || '');
                     this.scrollToBottom();
                 },
                 onPlaybackStart: () => {
                     if (alignment?.characters?.length) {
-                        aiMessageDiv.textContent = '';
+                        this.updateMessageContent(aiMessageDiv, '');
                     } else {
-                        aiMessageDiv.textContent = displayText;
+                        this.updateMessageContent(aiMessageDiv, displayText);
                     }
                     this.scrollToBottom();
                 },
                 onPlaybackEnd: () => {
-                    aiMessageDiv.textContent = displayText;
+                    this.updateMessageContent(aiMessageDiv, displayText);
                     this.scrollToBottom();
                 }
             });
         } catch (error) {
-            aiMessageDiv.textContent = displayText;
+            this.updateMessageContent(aiMessageDiv, displayText);
             this.vrmSystem.stopSpeaking();
 
             this.showAutoplayHintOnce(error);
             console.error('音频播放失败：', error);
-        }
-    }
-
-    renderStreamingAssistantReply(payload, aiMessageDiv) {
-        const displayText = payload.display_text || payload.speech_text || '';
-
-        this.executeAvatarCue(payload, aiMessageDiv);
-        aiMessageDiv.textContent = displayText;
-        this.scrollToBottom();
-    }
-
-    executeAvatarCue(payload, aiMessageDiv) {
-        if (payload.action && aiMessageDiv?.dataset.actionCue !== payload.action) {
-            this.vrmSystem.playAction(payload.action);
-            aiMessageDiv.dataset.actionCue = payload.action;
-        }
-
-        if (payload.expression && aiMessageDiv?.dataset.expressionCue !== payload.expression) {
-            this.vrmSystem.applyExpressionPreset(payload.expression);
-            aiMessageDiv.dataset.expressionCue = payload.expression;
         }
     }
 
@@ -246,7 +438,7 @@ export class ChatTTSSystem {
                 const progress = Math.min(1, elapsedMs / durationMs);
                 const visibleLength = Math.max(1, Math.round(displayText.length * progress));
 
-                aiMessageDiv.textContent = displayText.slice(0, visibleLength);
+                this.updateMessageContent(aiMessageDiv, displayText.slice(0, visibleLength));
                 this.scrollToBottom();
 
                 if (progress >= 1) {
@@ -285,6 +477,7 @@ export class ChatTTSSystem {
         div.dataset.actionCue = '';
         div.dataset.expressionCue = '';
         this.messageListEl.appendChild(div);
+        this.notifyMessageAdded(div, 'assistant');
         this.scrollToBottom();
         return div;
     }
@@ -294,6 +487,7 @@ export class ChatTTSSystem {
         div.className = 'message-item message-user';
         div.textContent = content;
         this.messageListEl.appendChild(div);
+        this.notifyMessageAdded(div, 'user');
         this.scrollToBottom();
     }
 
@@ -302,6 +496,7 @@ export class ChatTTSSystem {
         div.className = 'message-item message-system';
         div.textContent = content;
         this.messageListEl.appendChild(div);
+        this.notifyMessageAdded(div, 'system');
         this.scrollToBottom();
     }
 
@@ -310,6 +505,7 @@ export class ChatTTSSystem {
         div.className = 'message-loading';
         div.textContent = 'AIGL正在思考...';
         this.messageListEl.appendChild(div);
+        this.notifyMessageAdded(div, 'loading');
         this.scrollToBottom();
         return div;
     }

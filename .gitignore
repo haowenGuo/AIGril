@@ -12,12 +12,15 @@ backend/**/__pycache__/
 # IDE / local cache
 .idea/
 .vscode/
+.claude/
+.local/
 
 # Local generated folders
 input/
 output/
 tmp/
 历史版本/
+release/
 
 # Legacy / generated assets not needed in the published repo
 /main.js
@@ -40,3 +43,7 @@ Resources/VRMA_MotionPack/vrma/VRMA_32.vrma
 Resources/VRMA_MotionPack/vrma/VRMA_33.vrma
 Resources/VRMA_MotionPack/vrma/*.vmd
 Resources/VRMA_MotionPack/vrma/*.converted.vrma
+Resources/harvested/
+Resources/library/
+Resources/resource-library.json
+Resources/speech-models/

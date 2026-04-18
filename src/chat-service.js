@@ -131,10 +131,13 @@ function createDemoPayload({ text, action = null, expression = null, autoChat = 
         raw_text: text,
         display_text: text,
         speech_text: text,
+        audio_base64: '',
+        mime_type: '',
         action,
         expression,
         fallbackMode: true,
         demoMode: true,
+        streamMode: false,
         is_auto_chat: autoChat
     };
 }
@@ -168,7 +171,7 @@ function buildDemoReply(latestUserMessage, isAutoChat) {
 
     if (/你好|hello|hi|嗨|哈喽/i.test(normalizedText)) {
         return createDemoPayload({
-            text: '你好呀，我现在在 GitHub Pages 的体验模式里陪着你。后端接上以后，我就能真的带着记忆和 ElevenLabs 声音和你聊天啦。',
+            text: '你好呀，我现在在 GitHub Pages 的体验模式里陪着你。后端接上以后，我就能真的带着记忆和本地语音能力和你聊天啦。',
             action: 'wave',
             expression: 'happy'
         });
@@ -211,7 +214,7 @@ function buildDemoReply(latestUserMessage, isAutoChat) {
             expression: 'relaxed'
         }),
         createDemoPayload({
-            text: `你刚刚提到“${previewText}”，我先用体验模式陪你回一句。等真实后端接上之后，我就能记住上下文，还能直接用 ElevenLabs 把整段回答说出来。`,
+            text: `你刚刚提到“${previewText}”，我先用体验模式陪你回一句。等真实后端接上之后，我就能记住上下文，还能直接用本地语音把整段回答说出来。`,
             action: 'wave',
             expression: 'happy'
         })
@@ -221,15 +224,57 @@ function buildDemoReply(latestUserMessage, isAutoChat) {
 
 export class BackendChatService {
     getWelcomeMessage() {
-        return 'AIGL到啦！现在会优先用流式文字回复你，这样会更快一点~';
+        return 'AIGL到啦！现在会按当前平台自动挑选最合适的语音路线和你聊天~';
     }
 
-    async fetchAssistantTurn({ sessionId, messageHistory, isAutoChat = false, onProgress }) {
+    async postJson(url, requestBody) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: requestBody
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData.detail || errorData.message || `请求失败，状态码：${response.status}`;
+            throw new Error(errorMessage);
+        }
+
+        return response.json();
+    }
+
+    async fetchAssistantTurn({
+        sessionId,
+        messageHistory,
+        isAutoChat = false,
+        replyMode = 'stream_text',
+        onProgress
+    }) {
         const requestBody = JSON.stringify({
             session_id: sessionId,
             messages: messageHistory,
             is_auto_chat: isAutoChat
         });
+
+        if (replyMode === 'server_tts') {
+            const payload = await this.postJson(CONFIG.BACKEND_TTS_API_URL, requestBody);
+            return {
+                ...payload,
+                fallbackMode: false,
+                streamMode: false,
+                demoMode: false
+            };
+        }
+
+        if (replyMode === 'text_only') {
+            const payload = await this.postJson(CONFIG.BACKEND_TEXT_API_URL, requestBody);
+            return {
+                ...payload,
+                fallbackMode: true,
+                streamMode: false,
+                demoMode: false
+            };
+        }
 
         const response = await fetch(CONFIG.BACKEND_STREAM_API_URL, {
             method: 'POST',
