@@ -17,13 +17,17 @@ That is the point where AIGril stops being only a character prototype and starts
 
 ## Download the desktop build
 
-This release now includes both a Windows installer and a portable build:
+The desktop release page now carries multi-platform packages:
 
-- [Download the Windows installer (EXE)](https://github.com/haowenGuo/AIGril/releases/download/v1.0.2/AIGril-Setup-1.0.2-win-x64.exe)
-- [Download the Windows portable build (EXE)](https://github.com/haowenGuo/AIGril/releases/download/v1.0.2/AIGril-Portable-1.0.2-win-x64.exe)
-- [Open the full release page](https://github.com/haowenGuo/AIGril/releases/tag/v1.0.2)
+- Windows: installer and portable build
+- macOS: Intel and Apple Silicon DMG / ZIP packages
+- Linux: AppImage, DEB, and tar.gz
 
-If you want the simplest setup, use the installer. If you prefer a self-contained build you can unpack and run directly, use the portable package.
+Unified download entry:
+
+- [Open the latest desktop release](https://github.com/haowenGuo/AIGril/releases/latest)
+
+If you want the simplest setup, use the installer for your platform. If you prefer something self-contained that you can unpack and run directly, choose the portable archive or ZIP build.
 
 ## How I handled speech in this version
 

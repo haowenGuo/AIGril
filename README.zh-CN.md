@@ -40,6 +40,7 @@ AIGril 现在已经有两条可以实际使用的产品形态：
 - 聊天窗与桌宠运行时同步
 - 语音输出支持服务端语音、本地简易语音和关闭语音三种模式
 - 桌面端聊天窗支持手动触发的本地语音识别
+- 已补齐 Windows、macOS、Linux 的打包路径
 
 ## 核心功能
 
@@ -84,6 +85,7 @@ pnpm desktop:start
 - 本地语音识别是 Electron 桌面端的可选能力
 - 当前桌面端 ASR 使用本地 Python worker + Whisper Small
 - 首次使用时会自动下载并缓存识别模型
+- Linux 桌宠默认强制走 X11，因为 Electron 在 Wayland 下对窗口定位和尺寸控制有限制
 
 ### 桌宠开发模式
 
@@ -99,17 +101,25 @@ LLM_API_KEY=your_llm_api_key
 
 ## 打包
 
-生成最新版 Windows 桌宠安装包与便携版：
+生成各平台桌宠安装包：
 
 ```bash
-pnpm desktop:package
+pnpm desktop:package:win
+pnpm desktop:package:linux
+pnpm desktop:package:mac:x64
+pnpm desktop:package:mac:arm64
 ```
 
 产物会输出到 [`release/`](release) 目录，包括：
 
 - `AIGril-Setup-<version>-win-x64.exe`
 - `AIGril-Portable-<version>-win-x64.exe`
-- `release/win-unpacked/AIGril.exe`
+- `AIGril-<version>-mac-x64.dmg`
+- `AIGril-<version>-mac-arm64.dmg`
+- `AIGril-<version>-linux-x64.AppImage`
+- `AIGril-<version>-linux-x64.deb`
+
+如果要稳定产出多平台安装包，直接使用 GitHub Actions 工作流 [`.github/workflows/build-desktop-packages.yml`](.github/workflows/build-desktop-packages.yml)。它会分别构建 Windows、macOS Intel、macOS Apple Silicon 和 Linux 包，并支持直接上传到 GitHub Release。
 
 ## 项目结构
 

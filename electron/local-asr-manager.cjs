@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const { spawn, spawnSync } = require('child_process');
+const IS_WINDOWS = process.platform === 'win32';
 
 function normalizeBinaryPayload(payload) {
     if (!payload) {
@@ -72,11 +73,21 @@ class DesktopASRManager {
             });
         }
 
-        candidates.push(
-            { command: 'python', args: [] },
-            { command: 'py', args: ['-3.12'] },
-            { command: 'py', args: [] }
-        );
+        if (IS_WINDOWS) {
+            candidates.push(
+                { command: 'python', args: [] },
+                { command: 'py', args: ['-3.12'] },
+                { command: 'py', args: ['-3.11'] },
+                { command: 'py', args: [] }
+            );
+        } else {
+            candidates.push(
+                { command: 'python3', args: [] },
+                { command: 'python', args: [] },
+                { command: 'python3.12', args: [] },
+                { command: 'python3.11', args: [] }
+            );
+        }
 
         for (const candidate of candidates) {
             try {
@@ -95,7 +106,7 @@ class DesktopASRManager {
             }
         }
 
-        throw new Error('未找到可用的 Python 运行时，请安装 Python 3.12 或设置 AIGRIL_PYTHON');
+        throw new Error('未找到可用的 Python 运行时，请安装 Python 3.11+ 或设置 AIGRIL_PYTHON');
     }
 
     ensureWorker() {

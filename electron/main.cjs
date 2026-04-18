@@ -39,6 +39,10 @@ const SPEECH_MODEL_REMOTE_HOSTS = {
     modelscope: 'https://www.modelscope.cn/models/',
     huggingface: 'https://huggingface.co/'
 };
+const IS_WINDOWS = process.platform === 'win32';
+const IS_MAC = process.platform === 'darwin';
+const IS_LINUX = process.platform === 'linux';
+const SHOULD_FORCE_LINUX_X11 = process.env.AIGRIL_LINUX_FORCE_X11 !== '0';
 
 let petWindow = null;
 let chatWindow = null;
@@ -48,6 +52,17 @@ let desktopState = null;
 let desktopASRManager = null;
 const windowPersistTimers = new Map();
 const speechModelDownloadTasks = new Map();
+
+if (
+    IS_LINUX &&
+    SHOULD_FORCE_LINUX_X11 &&
+    typeof app?.commandLine?.appendSwitch === 'function' &&
+    !app.commandLine.hasSwitch('ozone-platform')
+) {
+    // On Wayland, Electron cannot reliably introspect or move global window bounds.
+    // The desktop-pet workflow depends on controlled positioning, so default to X11.
+    app.commandLine.appendSwitch('ozone-platform', 'x11');
+}
 
 if (typeof protocol?.registerSchemesAsPrivileged === 'function') {
     protocol.registerSchemesAsPrivileged([
@@ -317,7 +332,26 @@ function clampBoundsToDisplay(bounds, minimumWidth = 320, minimumHeight = 320) {
 
 function persistDesktopState() {
     desktopState = saveDesktopState(app, desktopState);
+    syncPlatformPresence();
     refreshTrayMenu();
+}
+
+function syncPlatformPresence() {
+    if (!desktopState?.preferences) {
+        return;
+    }
+
+    if (petWindow && !petWindow.isDestroyed()) {
+        petWindow.setSkipTaskbar(Boolean(desktopState.preferences.petSkipTaskbar));
+    }
+
+    if (IS_MAC && app.dock) {
+        if (desktopState.preferences.petSkipTaskbar) {
+            app.dock.hide();
+        } else {
+            app.dock.show();
+        }
+    }
 }
 
 function getRendererPreferences() {
@@ -486,6 +520,10 @@ function getSpeechModeLabel(mode) {
     return 'AI语音（服务端）';
 }
 
+function getTaskbarToggleLabel() {
+    return IS_MAC ? '桌宠显示在 Dock' : '桌宠显示在任务栏';
+}
+
 function buildControlMenuTemplate({ includeTaskbarToggle = false } = {}) {
     const template = [
         {
@@ -511,14 +549,11 @@ function buildControlMenuTemplate({ includeTaskbarToggle = false } = {}) {
         template.push(
             { type: 'separator' },
             {
-                label: '桌宠显示在任务栏',
+                label: getTaskbarToggleLabel(),
                 type: 'checkbox',
                 checked: !desktopState.preferences.petSkipTaskbar,
                 click: (menuItem) => {
                     desktopState.preferences.petSkipTaskbar = !menuItem.checked;
-                    if (petWindow) {
-                        petWindow.setSkipTaskbar(desktopState.preferences.petSkipTaskbar);
-                    }
                     persistDesktopState();
                 }
             }
@@ -574,7 +609,9 @@ function createPetWindow() {
     });
 
     petWindow.setAlwaysOnTop(true, 'screen-saver');
-    petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    if (!IS_WINDOWS) {
+        petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    }
     openExternalLinks(petWindow);
     hookWindowPersistence('petWindow', petWindow);
 
@@ -592,6 +629,7 @@ function createPetWindow() {
     });
 
     void loadWindowContent(petWindow, 'pet.html');
+    syncPlatformPresence();
     if (!desktopState.petWindow.visible) {
         petWindow.hide();
     }
@@ -639,6 +677,7 @@ function createChatWindow() {
         if (desktopState.chatWindow.visible) {
             chatWindow.show();
         }
+        syncPlatformPresence();
     });
 }
 
@@ -797,6 +836,10 @@ app.whenReady().then(() => {
     desktopState = loadDesktopState(app);
     desktopState = saveDesktopState(app, desktopState);
     desktopASRManager = new DesktopASRManager({ app });
+    app.setName('AIGril');
+    if (IS_WINDOWS && typeof app.setAppUserModelId === 'function') {
+        app.setAppUserModelId('com.aigril.desktop');
+    }
     Menu.setApplicationMenu(null);
     registerMediaPermissionHandlers();
     protocol.handle(SPEECH_MODEL_PROTOCOL, handleSpeechModelProtocol);
@@ -804,6 +847,7 @@ app.whenReady().then(() => {
     createPetWindow();
     createChatWindow();
     createTray();
+    syncPlatformPresence();
 
     setTimeout(() => {
         desktopASRManager?.warmup?.().catch((error) => {

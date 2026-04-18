@@ -11,6 +11,10 @@ const DEFAULT_PET_SCALE = 0.85;
 const SPEECH_MODE_OPTIONS = ['local', 'server', 'off'];
 const RECOGNITION_MODE_OPTIONS = ['manual'];
 
+function getDefaultSkipTaskbarPreference() {
+    return process.platform === 'win32';
+}
+
 function normalizePreferredMicDeviceId(deviceId) {
     return String(deviceId || '').trim();
 }
@@ -91,7 +95,7 @@ function getDefaultState() {
             visible: false
         },
         preferences: {
-            petSkipTaskbar: true,
+            petSkipTaskbar: getDefaultSkipTaskbarPreference(),
             petScale,
             speechMode: 'server',
             recognitionMode: 'manual',

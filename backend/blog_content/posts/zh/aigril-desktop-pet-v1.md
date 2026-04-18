@@ -17,13 +17,17 @@
 
 ## 下载桌宠安装包
 
-这一版已经同步提供 Windows 桌面安装包和便携版：
+现在桌宠发布页已经开始同时提供多平台包：
 
-- [下载 Windows 安装版（EXE）](https://github.com/haowenGuo/AIGril/releases/download/v1.0.2/AIGril-Setup-1.0.2-win-x64.exe)
-- [下载 Windows 便携版（EXE）](https://github.com/haowenGuo/AIGril/releases/download/v1.0.2/AIGril-Portable-1.0.2-win-x64.exe)
-- [查看完整发布页面](https://github.com/haowenGuo/AIGril/releases/tag/v1.0.2)
+- Windows：安装版、便携版
+- macOS：Intel / Apple Silicon 的 DMG 和 ZIP
+- Linux：AppImage、DEB、tar.gz
 
-如果你只是想直接体验桌宠，安装版会更省事；如果你希望解压后直接运行，便携版更适合。
+统一下载入口：
+
+- [查看最新桌宠发布页](https://github.com/haowenGuo/AIGril/releases/latest)
+
+如果你只是想直接体验桌宠，优先下载对应平台的安装包；如果你更喜欢解压即用，再选便携版或压缩包。
 
 ## 我这次怎么处理语音
 

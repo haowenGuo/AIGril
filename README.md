@@ -1,6 +1,6 @@
 <div align="center">
   <h1>AIGril</h1>
-  <p><strong>AIGL virtual companion for both the browser and a desktop-pet style Electron app, with a 3D VRM avatar, streaming chat, expressive animation, and lightweight memory.</strong></p>
+  <p><strong>AIGL virtual companion for both the browser and a desktop-pet style Electron app across Windows, macOS, and Linux, with a 3D VRM avatar, streaming chat, expressive animation, and lightweight memory.</strong></p>
   <p>
     <a href="https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com"><img alt="Try AIGril" src="https://img.shields.io/badge/Try%20AIGril-Live%20Experience-2563eb?style=for-the-badge"></a>
     <a href="https://haowenGuo.github.io/AIGril/"><img alt="Frontend Demo" src="https://img.shields.io/badge/GitHub%20Pages-Frontend%20Demo-0f172a?style=for-the-badge"></a>
@@ -22,7 +22,7 @@
 AIGril now has two usable fronts built around the same AIGL runtime:
 
 - Web experience for browser-based conversation and demo access
-- Electron desktop pet for always-on-top companionship on Windows PC
+- Electron desktop pet for always-on-top companionship across Windows, macOS, and Linux
 
 The project keeps the same VRM avatar, motion system, chat flow, and backend integration, while packaging them differently for browser and desktop use.
 
@@ -42,6 +42,7 @@ The project keeps the same VRM avatar, motion system, chat flow, and backend int
 - Separate chat window synchronized with the pet runtime
 - Three speech output modes: server voice, local lightweight voice, or muted voice
 - Manual local speech recognition in the chat window on desktop
+- Cross-platform packaging path for Windows, macOS, and Linux
 
 ## Core Features
 
@@ -86,6 +87,7 @@ Notes:
 - Local speech recognition is optional and only used by the Electron build
 - The current desktop ASR path uses a local Python worker with Whisper Small
 - On first use, the ASR model is downloaded and cached locally
+- On Linux, the desktop pet defaults to X11 because Electron has Wayland limits for programmatic window positioning
 
 ### Desktop Development
 
@@ -101,17 +103,25 @@ LLM_API_KEY=your_llm_api_key
 
 ## Packaging
 
-Build the latest Windows desktop packages with:
+Build the latest desktop packages with:
 
 ```bash
-pnpm desktop:package
+pnpm desktop:package:win
+pnpm desktop:package:linux
+pnpm desktop:package:mac:x64
+pnpm desktop:package:mac:arm64
 ```
 
 Generated files are written to [`release/`](release), including:
 
 - `AIGril-Setup-<version>-win-x64.exe`
 - `AIGril-Portable-<version>-win-x64.exe`
-- `release/win-unpacked/AIGril.exe`
+- `AIGril-<version>-mac-x64.dmg`
+- `AIGril-<version>-mac-arm64.dmg`
+- `AIGril-<version>-linux-x64.AppImage`
+- `AIGril-<version>-linux-x64.deb`
+
+For repeatable multi-platform builds, use the GitHub Actions workflow [`.github/workflows/build-desktop-packages.yml`](.github/workflows/build-desktop-packages.yml). It builds Windows, macOS Intel, macOS Apple Silicon, and Linux artifacts and can upload them directly to a GitHub Release.
 
 ## Repository Layout
 
