@@ -10,15 +10,15 @@
     "preview": "vite preview --configLoader native --host 0.0.0.0 --port 4173",
     "desktop:dev": "concurrently -k -s first -n vite,electron -c cyan,magenta \"pnpm dev\" \"wait-on http://127.0.0.1:5173 && cross-env AIGRIL_DESKTOP_DEV_URL=http://127.0.0.1:5173 electron .\"",
     "desktop:start": "pnpm build && electron .",
-    "desktop:package": "pnpm build && pnpm exec electron-builder --config electron-builder.yml --win nsis portable",
-    "desktop:package:win": "pnpm build && pnpm exec electron-builder --config electron-builder.yml --win nsis portable",
-    "desktop:package:linux": "pnpm build && pnpm exec electron-builder --config electron-builder.yml --linux AppImage deb tar.gz",
-    "desktop:package:mac:x64": "pnpm build && pnpm exec electron-builder --config electron-builder.yml --mac dmg zip --x64",
-    "desktop:package:mac:arm64": "pnpm build && pnpm exec electron-builder --config electron-builder.yml --mac dmg zip --arm64",
-    "desktop:package:all": "pnpm build && pnpm exec electron-builder --config electron-builder.yml -mwl"
+    "desktop:package": "pnpm build && pnpm exec electron-builder --config electron-builder.yml --win nsis portable --publish never",
+    "desktop:package:win": "pnpm build && pnpm exec electron-builder --config electron-builder.yml --win nsis portable --publish never",
+    "desktop:package:linux": "pnpm build && pnpm exec electron-builder --config electron-builder.yml --linux AppImage deb tar.gz --publish never",
+    "desktop:package:mac:x64": "pnpm build && pnpm exec electron-builder --config electron-builder.yml --mac dmg zip --x64 --publish never",
+    "desktop:package:mac:arm64": "pnpm build && pnpm exec electron-builder --config electron-builder.yml --mac dmg zip --arm64 --publish never",
+    "desktop:package:all": "pnpm build && pnpm exec electron-builder --config electron-builder.yml -mwl --publish never"
   },
   "keywords": [],
-  "author": "",
+  "author": "HaoWen Guo <1910481404@qq.com>",
   "license": "ISC",
   "packageManager": "pnpm@10.33.0",
   "dependencies": {
