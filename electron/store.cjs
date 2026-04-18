@@ -3,11 +3,26 @@ const path = require('path');
 const { screen } = require('electron');
 
 const STATE_FILE_NAME = 'desktop-state.json';
-const STATE_VERSION = 2;
+const STATE_VERSION = 4;
 const PET_BASE_WIDTH = 360;
 const PET_BASE_HEIGHT = 560;
 const PET_SCALE_OPTIONS = [0.3, 0.4, 0.5, 0.6, 0.7, 0.85, 1, 1.15];
 const DEFAULT_PET_SCALE = 0.85;
+const SPEECH_MODE_OPTIONS = ['local', 'server', 'off'];
+const RECOGNITION_MODE_OPTIONS = ['manual'];
+
+function normalizePreferredMicDeviceId(deviceId) {
+    return String(deviceId || '').trim();
+}
+
+function normalizeSpeechMode(mode) {
+    const normalizedMode = String(mode || '').trim().toLowerCase();
+    return SPEECH_MODE_OPTIONS.includes(normalizedMode) ? normalizedMode : 'server';
+}
+
+function normalizeRecognitionMode(mode) {
+    return 'manual';
+}
 
 function normalizePetScale(scale) {
     const numericScale = Number(scale);
@@ -77,7 +92,10 @@ function getDefaultState() {
         },
         preferences: {
             petSkipTaskbar: true,
-            petScale
+            petScale,
+            speechMode: 'server',
+            recognitionMode: 'manual',
+            preferredMicDeviceId: ''
         }
     };
 }
@@ -116,6 +134,11 @@ function normalizeState(inputState) {
     };
 
     normalizedState.preferences.petScale = normalizePetScale(normalizedState.preferences.petScale);
+    normalizedState.preferences.speechMode = normalizeSpeechMode(normalizedState.preferences.speechMode);
+    normalizedState.preferences.recognitionMode = normalizeRecognitionMode(normalizedState.preferences.recognitionMode);
+    normalizedState.preferences.preferredMicDeviceId = normalizePreferredMicDeviceId(
+        normalizedState.preferences.preferredMicDeviceId
+    );
 
     if ((nextState.version || 0) < STATE_VERSION) {
         normalizedState.petWindow.bounds = resizePetBounds(
@@ -152,10 +175,15 @@ function saveDesktopState(app, nextState) {
 module.exports = {
     DEFAULT_PET_SCALE,
     PET_SCALE_OPTIONS,
+    RECOGNITION_MODE_OPTIONS,
+    SPEECH_MODE_OPTIONS,
     getDefaultState,
     getScaledPetSize,
     loadDesktopState,
     normalizePetScale,
+    normalizePreferredMicDeviceId,
+    normalizeRecognitionMode,
+    normalizeSpeechMode,
     normalizeState,
     resizePetBounds,
     saveDesktopState

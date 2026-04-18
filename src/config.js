@@ -5,30 +5,46 @@ function getRuntimeSettings() {
         return {
             backendBaseUrl: 'http://localhost:8000',
             demoModeEnabled: false,
-            isGitHubPages: false
+            isGitHubPages: false,
+            speechMode: 'server'
         };
     }
 
     const url = new URL(window.location.href);
     const queryBackend = url.searchParams.get('backend')?.trim();
     const forceDemo = url.searchParams.get('demo') === '1';
+    const querySpeechMode = url.searchParams.get('speechMode')?.trim().toLowerCase();
+    const desktopPreferenceSpeechMode = window.aigrilDesktop?.preferences?.speechMode;
 
     if (queryBackend) {
         window.localStorage.setItem('aigril_backend_base_url', queryBackend);
+    }
+    if (querySpeechMode) {
+        window.localStorage.setItem('aigril_speech_mode', querySpeechMode);
     }
 
     const storedBackend = (
         window.localStorage.getItem('aigril_backend_base_url') ||
         window.localStorage.getItem('airi_backend_base_url')
     )?.trim();
+    const storedSpeechMode = (
+        window.localStorage.getItem('aigril_speech_mode') ||
+        desktopPreferenceSpeechMode ||
+        'server'
+    ).trim().toLowerCase();
     const backendBaseUrl = queryBackend || storedBackend || 'http://localhost:8000';
     const isGitHubPages = window.location.hostname.endsWith('github.io');
     const demoModeEnabled = forceDemo || (isGitHubPages && !queryBackend && !storedBackend);
+    const requestedSpeechMode = querySpeechMode || storedSpeechMode || 'server';
+    const speechMode = ['server', 'local', 'off', 'auto'].includes(requestedSpeechMode)
+        ? requestedSpeechMode
+        : 'server';
 
     return {
         backendBaseUrl,
         demoModeEnabled,
-        isGitHubPages
+        isGitHubPages,
+        speechMode
     };
 }
 
@@ -100,6 +116,21 @@ export const CONFIG = {
     BACKEND_STREAM_API_URL: `${runtimeSettings.backendBaseUrl}/api/chat`,
     BACKEND_TTS_API_URL: `${runtimeSettings.backendBaseUrl}/api/chat/tts`,
     BACKEND_TEXT_API_URL: `${runtimeSettings.backendBaseUrl}/api/chat/text`,
+    SPEECH_MODE: runtimeSettings.speechMode,
+    ASR_SAMPLE_RATE: 16000,
+    ASR_MAX_RECORD_MS: 12000,
+    ASR_MIN_INPUT_LEVEL: 0.01,
+    ASR_CONTINUOUS_SPEECH_LEVEL: 0.02,
+    ASR_CONTINUOUS_SILENCE_MS: 1100,
+    ASR_CONTINUOUS_IDLE_MS: 6500,
+    ASR_CONTINUOUS_RESTART_MS: 450,
+    ASR_CONTINUOUS_MIN_SPEECH_MS: 380,
+    ASR_WAKE_WORD: '老婆',
+    ASR_WAKE_WORD_ALIASES: ['老婆', '老 婆', '我老婆'],
+    WEB_NATIVE_TTS_FALLBACK_ENABLED: true,
+    DESKTOP_NATIVE_TTS_RATE: 0.96,
+    DESKTOP_NATIVE_TTS_PITCH: 1.12,
+    DESKTOP_NATIVE_TTS_VOLUME: 1,
     AUTO_CHAT_MIN_INTERVAL: 60000,
     AUTO_CHAT_MAX_INTERVAL: 120000
 };

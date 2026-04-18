@@ -3,10 +3,11 @@ import { CONFIG } from './config.js';
 const CHAT_UI_EVENT_NAME = 'aigril-chat-ui-event';
 
 export class ChatTTSSystem {
-    constructor(vrmSystem, audioPlayer, chatService) {
+    constructor(vrmSystem, audioPlayer, chatService, { speechProvider = null } = {}) {
         this.vrmSystem = vrmSystem;
         this.audioPlayer = audioPlayer;
         this.chatService = chatService;
+        this.speechProvider = speechProvider;
 
         this.messageHistory = [];
         this.messageListEl = document.getElementById('message-list');
@@ -18,6 +19,7 @@ export class ChatTTSSystem {
         this.autoChatTimer = null;
         this.hasShownAutoplayHint = false;
         this.hasShownTextFallbackHint = false;
+        this.hasShownSpeechProviderHint = false;
         this.messageCounter = 0;
 
         this.inputEl.disabled = true;
@@ -191,6 +193,11 @@ export class ChatTTSSystem {
         return this.sendMessage(content);
     }
 
+    setSpeechProvider(nextProvider) {
+        this.speechProvider = nextProvider;
+        this.hasShownSpeechProviderHint = false;
+    }
+
     async triggerAutoChat() {
         if (this.isBusy) {
             console.log('🤫 当前正忙，跳过本次主动对话');
@@ -204,7 +211,7 @@ export class ChatTTSSystem {
         this.vrmSystem.startFallbackSpeech();
 
         try {
-            const payload = await this.fetchAssistantTurn(true, (partialPayload) => {
+            const payload = await this.fetchAssistantTurnWithFallback(true, (partialPayload) => {
                 this.renderStreamingAssistantReply(partialPayload, aiMessageDiv);
             });
             await this.renderAssistantReply(payload, aiMessageDiv);
@@ -243,7 +250,7 @@ export class ChatTTSSystem {
         this.vrmSystem.startFallbackSpeech();
 
         try {
-            const payload = await this.fetchAssistantTurn(false, (partialPayload) => {
+            const payload = await this.fetchAssistantTurnWithFallback(false, (partialPayload) => {
                 this.removeMessageElement(loadingEl);
                 this.renderStreamingAssistantReply(partialPayload, aiMessageDiv);
             });
@@ -268,8 +275,34 @@ export class ChatTTSSystem {
             messageHistory: this.messageHistory,
             is_auto_chat: isAutoChat,
             isAutoChat,
+            replyMode: 'stream_text',
             onProgress
         });
+    }
+
+    async fetchAssistantTurnWithFallback(isAutoChat = false, onProgress) {
+        const replyModes = this.speechProvider?.replyModeFallbackChain || ['stream_text'];
+        let lastError = null;
+
+        for (let index = 0; index < replyModes.length; index += 1) {
+            const replyMode = replyModes[index];
+
+            try {
+                return await this.chatService.fetchAssistantTurn({
+                    sessionId: this.sessionId,
+                    messageHistory: this.messageHistory,
+                    is_auto_chat: isAutoChat,
+                    isAutoChat,
+                    replyMode,
+                    onProgress: replyMode === 'stream_text' ? onProgress : null
+                });
+            } catch (error) {
+                lastError = error;
+                console.warn(`语音回复模式 ${replyMode} 失败：`, error);
+            }
+        }
+
+        throw lastError || new Error('获取回复失败');
     }
 
     async renderAssistantReply(payload, aiMessageDiv) {
@@ -280,12 +313,75 @@ export class ChatTTSSystem {
 
         if (payload.streamMode) {
             this.updateMessageContent(aiMessageDiv, displayText);
+            this.scrollToBottom();
+            await this.playPreferredSpeech({
+                payload,
+                displayText,
+                alignment,
+                aiMessageDiv
+            });
+            return;
+        }
+
+        await this.playPreferredSpeech({
+            payload,
+            displayText,
+            alignment,
+            aiMessageDiv
+        });
+    }
+
+    renderStreamingAssistantReply(payload, aiMessageDiv) {
+        const displayText = payload.display_text || payload.speech_text || '';
+
+        this.executeAvatarCue(payload, aiMessageDiv);
+        this.updateMessageContent(aiMessageDiv, displayText);
+        this.scrollToBottom();
+    }
+
+    executeAvatarCue(payload, aiMessageDiv) {
+        if (payload.action && aiMessageDiv?.dataset.actionCue !== payload.action) {
+            this.vrmSystem.playAction(payload.action);
+            aiMessageDiv.dataset.actionCue = payload.action;
+        }
+
+        if (payload.expression && aiMessageDiv?.dataset.expressionCue !== payload.expression) {
+            this.vrmSystem.applyExpressionPreset(payload.expression);
+            aiMessageDiv.dataset.expressionCue = payload.expression;
+        }
+    }
+
+    async playPreferredSpeech({ payload, displayText, alignment, aiMessageDiv }) {
+        if (this.speechProvider?.isSpeechDisabled) {
             this.vrmSystem.stopSpeaking();
+            this.updateMessageContent(aiMessageDiv, displayText);
             this.scrollToBottom();
             return;
         }
 
-        if (payload.fallbackMode) {
+        const speechResult = await this.speechProvider?.playSpeech?.({
+            payload,
+            displayText,
+            alignment,
+            audioPlayer: this.audioPlayer,
+            vrmSystem: this.vrmSystem,
+            updateMessageContent: (text) => this.updateMessageContent(aiMessageDiv, text),
+            scrollToBottom: () => this.scrollToBottom()
+        });
+
+        if (speechResult?.played) {
+            return;
+        }
+
+        if (this.speechProvider?.supportsTTS && !speechResult?.played) {
+            const failureMessage = this.speechProvider.getLastTTSFailureMessage();
+            if (failureMessage && !this.hasShownSpeechProviderHint) {
+                this.addSystemMessage(`语音播放暂时不可用：${failureMessage}`);
+                this.hasShownSpeechProviderHint = true;
+            }
+        }
+
+        if (payload.fallbackMode || !payload.audio_base64 || !this.speechProvider?.supportsTTS) {
             await this.playFallbackSpeech(displayText, aiMessageDiv);
             if (!this.hasShownTextFallbackHint) {
                 this.addSystemMessage('当前语音服务不可用，已自动切换为纯文本回复。');
@@ -323,26 +419,6 @@ export class ChatTTSSystem {
 
             this.showAutoplayHintOnce(error);
             console.error('音频播放失败：', error);
-        }
-    }
-
-    renderStreamingAssistantReply(payload, aiMessageDiv) {
-        const displayText = payload.display_text || payload.speech_text || '';
-
-        this.executeAvatarCue(payload, aiMessageDiv);
-        this.updateMessageContent(aiMessageDiv, displayText);
-        this.scrollToBottom();
-    }
-
-    executeAvatarCue(payload, aiMessageDiv) {
-        if (payload.action && aiMessageDiv?.dataset.actionCue !== payload.action) {
-            this.vrmSystem.playAction(payload.action);
-            aiMessageDiv.dataset.actionCue = payload.action;
-        }
-
-        if (payload.expression && aiMessageDiv?.dataset.expressionCue !== payload.expression) {
-            this.vrmSystem.applyExpressionPreset(payload.expression);
-            aiMessageDiv.dataset.expressionCue = payload.expression;
         }
     }
 

@@ -4,10 +4,17 @@
 
 如果你准备让其他 AI 来帮你发文，优先先看：
 
-- `PUBLISHING_GUIDE.md`
-- `templates/post_template_zh.md`
-- `templates/post_template_en.md`
-- `templates/posts_json_entry_template.json`
+- `authoring_kit/README.md`
+- `authoring_kit/PUBLISHING_GUIDE.md`
+- `authoring_kit/post_template_zh.md`
+- `authoring_kit/post_template_en.md`
+- `authoring_kit/posts_json_entry_template.json`
+
+为了方便以后反复发文，规范和模板已经额外整理进：
+
+- `backend/blog_content/authoring_kit/`
+
+你以后只要记住这一个文件夹就够了。
 
 ## 结构
 

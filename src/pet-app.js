@@ -2,6 +2,7 @@ import { VRMModelSystem } from './vrm-model-system.js';
 import { TTSAudioPlayer } from './tts-audio-player.js';
 import { ChatTTSSystem } from './chat-tts-system.js';
 import { createChatService } from './chat-service.js';
+import { createSpeechProvider } from './speech-provider.js';
 
 function emitDesktopChatEvent(payload) {
     window.aigrilDesktop?.emitChatEvent?.(payload);
@@ -70,7 +71,7 @@ function installPetInteractions(rootElement) {
     rootElement.addEventListener('contextmenu', async (event) => {
         event.preventDefault();
         resetDragState();
-        await window.aigrilDesktop?.showPetContextMenu?.();
+        await window.aigrilDesktop?.showControlMenu?.();
     });
 }
 
@@ -79,7 +80,14 @@ window.addEventListener('DOMContentLoaded', async () => {
     const vrmSystem = new VRMModelSystem();
     const audioPlayer = new TTSAudioPlayer(vrmSystem);
     const chatService = createChatService();
-    const chatSystem = new ChatTTSSystem(vrmSystem, audioPlayer, chatService);
+    const buildSpeechProvider = (speechMode = null) => createSpeechProvider({
+        enableTTS: true,
+        speechMode
+    });
+    let speechProvider = buildSpeechProvider(window.aigrilDesktop?.preferences?.speechMode);
+    const chatSystem = new ChatTTSSystem(vrmSystem, audioPlayer, chatService, {
+        speechProvider
+    });
 
     window.addEventListener('aigril-chat-ui-event', (event) => {
         emitDesktopChatEvent(event.detail);
@@ -95,6 +103,13 @@ window.addEventListener('DOMContentLoaded', async () => {
             messages: chatSystem.getTranscriptSnapshot(),
             isBusy: chatSystem.isBusy
         });
+    });
+
+    window.aigrilDesktop?.onPreferencesUpdated?.(({ preferences = {} } = {}) => {
+        speechProvider?.dispose?.();
+        speechProvider = buildSpeechProvider(preferences.speechMode);
+        chatSystem.setSpeechProvider(speechProvider);
+        window.speechProvider = speechProvider;
     });
 
     installPetInteractions(petShellEl);
@@ -123,4 +138,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     window.audioPlayer = audioPlayer;
     window.chatService = chatService;
     window.chatSystem = chatSystem;
+    window.speechProvider = speechProvider;
+
+    window.addEventListener('beforeunload', () => {
+        speechProvider?.dispose?.();
+    });
 });

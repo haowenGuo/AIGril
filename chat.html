@@ -63,6 +63,13 @@
             min-width: 0;
         }
 
+        #chat-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            -webkit-app-region: no-drag;
+        }
+
         #chat-title {
             color: var(--text-main);
             font-size: 16px;
@@ -180,6 +187,12 @@
             gap: 12px;
         }
 
+        #composer-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         #chat-status {
             min-width: 0;
             color: var(--text-muted);
@@ -191,13 +204,43 @@
             min-width: 86px;
             border: none;
             border-radius: 8px;
-            background: var(--primary);
-            color: #ffffff;
             padding: 10px 16px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             -webkit-app-region: no-drag;
+        }
+
+        #send-btn {
+            background: var(--primary);
+            color: #ffffff;
+        }
+
+        #voice-btn {
+            min-width: 72px;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-main);
+            background: rgba(115, 184, 229, 0.12);
+            -webkit-app-region: no-drag;
+        }
+
+        #voice-btn:hover:enabled {
+            background: rgba(115, 184, 229, 0.2);
+        }
+
+        #voice-btn[data-recording="true"] {
+            color: #ffffff;
+            background: #ef7474;
+        }
+
+        #voice-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         #send-btn:hover:enabled {
@@ -206,6 +249,7 @@
 
         #send-btn:disabled {
             background: #b6d9ef;
+            color: #ffffff;
             cursor: not-allowed;
         }
 
@@ -217,6 +261,7 @@
             background: rgba(115, 184, 229, 0.4);
             border-radius: 6px;
         }
+
     </style>
 </head>
 <body>
@@ -226,7 +271,9 @@
                 <div id="chat-title">AIGL 对话窗</div>
                 <div id="chat-subtitle">和桌宠说话，动作和表情会同步联动</div>
             </div>
-            <button id="close-btn" type="button" aria-label="关闭聊天窗">×</button>
+            <div id="chat-header-actions">
+                <button id="close-btn" type="button" aria-label="关闭聊天窗">×</button>
+            </div>
         </header>
 
         <div id="message-list"></div>
@@ -235,7 +282,10 @@
             <textarea id="message-input" placeholder="说点什么，让 AIGL 陪你聊聊"></textarea>
             <div id="composer-footer">
                 <div id="chat-status">已连接桌宠</div>
-                <button id="send-btn" type="button">发送</button>
+                <div id="composer-actions">
+                    <button id="voice-btn" type="button" hidden>语音</button>
+                    <button id="send-btn" type="button">发送</button>
+                </div>
             </div>
         </div>
     </div>

@@ -33,11 +33,13 @@ The project keeps the same VRM avatar, motion system, chat flow, and backend int
 ## Desktop Pet Features
 
 - Frameless transparent pet window
-- Always-on-top desktop presence with remembered size and position
+- Always-on-top desktop presence with remembered size, scale, position, and visibility
 - Click the pet to open chat
-- Right-click menu for `Chat`, `Scale`, and `Quit`
+- Right-click menu for `Chat`, `Speech Mode`, `Scale`, and `Quit`
 - System tray entry with visibility and taskbar options
 - Separate chat window synchronized with the pet runtime
+- Three speech output modes: server voice, local lightweight voice, or muted voice
+- Manual local speech recognition in the chat window on desktop
 
 ## Core Features
 
@@ -73,8 +75,15 @@ python -m uvicorn backend.main:app --reload
 
 ```bash
 pnpm install
+python -m pip install -r requirements-desktop-asr.txt
 pnpm desktop:start
 ```
+
+Notes:
+
+- Local speech recognition is optional and only used by the Electron build
+- The current desktop ASR path uses a local Python worker with Whisper Small
+- On first use, the ASR model is downloaded and cached locally
 
 ### Desktop Development
 

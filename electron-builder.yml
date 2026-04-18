@@ -10,6 +10,8 @@ files:
 extraMetadata:
   main: electron/main.cjs
 asar: true
+asarUnpack:
+  - electron/**/*.py
 npmRebuild: false
 win:
   executableName: AIGril

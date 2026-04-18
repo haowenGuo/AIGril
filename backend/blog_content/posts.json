@@ -36,5 +36,24 @@
         "body_file": "posts/en/why-build-in-public.md"
       }
     }
+  },
+  {
+    "slug": "aigril-desktop-pet-v1",
+    "published_at": "2026-04-18",
+    "reading_time": "5 min",
+    "featured": true,
+    "tags": ["electron", "desktop-pet", "vrm", "voice"],
+    "translations": {
+      "zh": {
+        "title": "AIGril 桌宠版 V1：从网页虚拟人到常驻桌面",
+        "summary": "这一版把 AIGril 正式做成了一个可常驻桌面的桌宠形态，并补齐了右键控制、托盘、语音模式切换和本地语音识别的基础链路。",
+        "body_file": "posts/zh/aigril-desktop-pet-v1.md"
+      },
+      "en": {
+        "title": "AIGril Desktop Pet V1: From Web Avatar to Resident Companion",
+        "summary": "This iteration turns AIGril into a real desktop pet with a transparent always-on-top shell, tray and context controls, speech mode switching, and a first working pass of local speech recognition.",
+        "body_file": "posts/en/aigril-desktop-pet-v1.md"
+      }
+    }
   }
 ]

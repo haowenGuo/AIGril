@@ -33,11 +33,13 @@ AIGril 现在已经有两条可以实际使用的产品形态：
 ## 桌宠版功能
 
 - 无边框透明桌宠窗口
-- 常驻置顶，并记住位置与大小
+- 常驻置顶，并记住位置、缩放、大小和显示状态
 - 点击人物弹出聊天窗
-- 右键菜单支持 `聊天`、`缩放`、`退出`
+- 右键菜单支持 `聊天`、`语音模式`、`缩放`、`退出`
 - 系统托盘支持显示隐藏和任务栏选项
 - 聊天窗与桌宠运行时同步
+- 语音输出支持服务端语音、本地简易语音和关闭语音三种模式
+- 桌面端聊天窗支持手动触发的本地语音识别
 
 ## 核心功能
 
@@ -73,8 +75,15 @@ python -m uvicorn backend.main:app --reload
 
 ```bash
 pnpm install
+python -m pip install -r requirements-desktop-asr.txt
 pnpm desktop:start
 ```
+
+补充说明：
+
+- 本地语音识别是 Electron 桌面端的可选能力
+- 当前桌面端 ASR 使用本地 Python worker + Whisper Small
+- 首次使用时会自动下载并缓存识别模型
 
 ### 桌宠开发模式
 
