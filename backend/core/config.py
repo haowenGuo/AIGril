@@ -23,6 +23,18 @@ class Settings(BaseSettings):
     DATABASE_URL: str = DEFAULT_DATABASE_URL
     CHROMA_PERSIST_DIR: str = DEFAULT_CHROMA_PERSIST_DIR
 
+    # ================= 教学子系统配置 =================
+    EDU_APP_NAME: str = "仿真教学平台"
+    EDU_SESSION_COOKIE_NAME: str = "simteach_session"
+    EDU_SESSION_TTL_DAYS: int = 14
+    EDU_TEACHER_INVITE_CODE: str = "teacher-demo"
+    EDU_PASSWORD_PEPPER: str = ""
+    EDU_HF_DATASET_VIEWER_URL: str = "https://datasets-server.huggingface.co"
+    EDU_HF_QUESTION_DATASET: str = "SeaLLMs/SeaExam"
+    EDU_HF_QUESTION_CONFIG: str = "m3exam-chinese"
+    EDU_HF_QUESTION_SPLIT: str = "test"
+    EDU_QUESTION_BANK_CACHE_TTL_SECONDS: int = 900
+
     # ================= 大模型配置 (核心) =================
     # 支持 OpenAI 兼容接口 (如 DeepSeek, 通义千问, 火山引擎等)
     LLM_API_BASE: str = "https://ark.cn-beijing.volces.com/api/v3"
