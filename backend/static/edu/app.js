@@ -703,64 +703,45 @@ function renderStudentClassroom() {
     const classroomSessions = overview.classrooms?.recent || [];
     const activeSession = overview.classrooms?.activeSession || classroomSessions[0] || null;
     const blackboardTitle = '基于EMBER-Agent安全增强的仿真课堂';
-    const blackboardTopic = activeSession
-        ? `${activeSession.subject} · ${activeSession.topic || '仿真互动课'}`
-        : '课堂主页';
-    const blackboardSummary = activeSession?.focusSummary
-        || '欢迎进入仿真课堂。黑板会显示当前知识库内容，AI教师会根据板书进行讲解，并通过对话系统回答你的问题。';
-    const latestTeacherEntry = [...(activeSession?.transcript || [])]
-        .reverse()
-        .find((entry) => entry.role === 'teacher');
-    const teacherScript = state.classroomTeacherReply?.speechText
-        || state.classroomTeacherReply?.content
-        || latestTeacherEntry?.text
-        || blackboardSummary;
-    const currentQuestionText = activeSession?.currentQuestion?.stem
-        || '开启课堂后，AI教师会在这里推送首个追问。';
+    const currentQuestion = activeSession?.status === 'active' ? activeSession.currentQuestion : null;
+    const currentChoices = currentQuestion?.choices || [];
+    const blackboardSummary = activeSession?.focusSummary || currentQuestion?.stem || '';
 
     return renderHeroPage({
         heroImage: heroImages.dashboard,
         eyebrow: '仿真课堂',
-        heading: '进入一间有黑板、有AI教师、有连续对话的仿真课堂',
-        subheading: '知识库内容会自动写入黑板，AI教师围绕板书进行语音讲解、追问和答疑。',
+        heading: '课堂黑板只保留题目、选项和实时作答',
+        subheading: '先开启课堂生成题目，系统会把当前问题直接写到木框黑板上。',
         content: `
             <section class="simulation-classroom">
                 <div class="classroom-ambient">
                     <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1400&q=80" alt="真实教室场景" />
                 </div>
-                <aside class="ai-teacher-podium">
-                    <img src="https://images.unsplash.com/photo-1607746882042-944635dfe10e?auto=format&fit=crop&w=480&q=80" alt="AI教师头像" />
-                    <div>
-                        <span class="eyebrow">AI 教师</span>
-                        <h3>EMBER AI 教师</h3>
-                        <p>基于大模型 API 的课堂智能体，围绕黑板知识库进行语音教学和追问。</p>
-                    </div>
-                    <button class="primary-button" type="button" data-action="voice-play">播放AI教师讲解</button>
-                    <button class="ghost-button" type="button" data-action="voice-stop">停止语音</button>
-                </aside>
-                <article class="knowledge-blackboard">
+                <article class="knowledge-blackboard classroom-board-only">
                     <span class="chalk-mark"></span>
                     <h2>${blackboardTitle}</h2>
-                    <p class="blackboard-source">知识库：自有教研知识库 / 后续可对接国家智慧教育平台授权资源</p>
-                    <h3>${escapeHtml(blackboardTopic)}</h3>
-                    <p data-teacher-script>${escapeHtml(teacherScript)}</p>
-                    <div class="blackboard-grid">
-                        <div>
-                            <strong>今日板书</strong>
-                            <ul>
-                                <li>先读取知识库主题，再生成课堂讲解路径。</li>
-                                <li>围绕学生学情画像调整讲解深度。</li>
-                                <li>对话必须遵循 EMBER-Agent 安全增强规则。</li>
-                            </ul>
+                    ${currentQuestion ? `
+                        <form class="blackboard-question-form" data-form="classroom-respond">
+                            <input type="hidden" name="sessionId" value="${escapeHtml(activeSession.id)}" />
+                            <input type="hidden" name="freeText" value="" />
+                            <h3>课堂问题</h3>
+                            <p class="blackboard-question">${escapeHtml(currentQuestion.stem || '')}</p>
+                            <div class="blackboard-choice-list">
+                                ${currentChoices.map((choice, index) => `
+                                    <label class="blackboard-choice">
+                                        <input type="radio" name="selectedChoiceIndex" value="${index}" />
+                                        <span><strong>${String.fromCharCode(65 + index)}.</strong> ${escapeHtml(choice)}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                            <button type="submit" class="blackboard-submit">提交答案</button>
+                        </form>
+                    ` : `
+                        <div class="blackboard-empty">
+                            <h3>尚未生成课堂问题</h3>
+                            <p>请先点击下方“开始仿真课堂”，题目和答案选项会显示在这块木框黑板上。</p>
                         </div>
-                        <div>
-                            <strong>当前互动</strong>
-                            <ul>
-                                <li>${escapeHtml(currentQuestionText)}</li>
-                                <li>学生可通过文字对话与AI教师继续互动。</li>
-                            </ul>
-                        </div>
-                    </div>
+                    `}
                 </article>
             </section>
             <section class="hero-band">
@@ -774,45 +755,6 @@ function renderStudentClassroom() {
                     <article><strong>${classroomSessions.filter((item) => item.status === 'active').length}</strong><span>进行中</span></article>
                     <article><strong>${classroomSessions.filter((item) => item.status === 'completed').length}</strong><span>已结束</span></article>
                 </div>
-            </section>
-            <section class="content-grid two-up">
-                <article class="panel">
-                    <div class="section-heading"><span class="eyebrow">AI 教师对话</span><h3>向 EMBER AI 教师提问</h3></div>
-                    <form class="stack-form" data-form="ai-teacher-dialogue">
-                        <input type="hidden" name="sessionId" value="${escapeHtml(activeSession?.id || '')}" />
-                        <input type="hidden" name="knowledgeTitle" value="${blackboardTitle}" />
-                        <input type="hidden" name="blackboardSummary" value="${escapeHtml(blackboardSummary)}" />
-                        <label>
-                            <span>学生问题</span>
-                            <textarea name="message" rows="5" placeholder="例如：老师，为什么移项的时候符号会变化？"></textarea>
-                        </label>
-                        <div class="button-row">
-                            <button type="submit" class="primary-button">发送给AI教师</button>
-                            <button type="button" class="ghost-button" data-action="preset-ai-question">示范提问</button>
-                        </div>
-                    </form>
-                    ${state.classroomTeacherReply ? `
-                        <div class="ai-teacher-reply">
-                            <span class="pill">${escapeHtml(state.classroomTeacherReply.safetyLabel || 'ember-agent-safe')}</span>
-                            <p>${escapeHtml(state.classroomTeacherReply.content || '')}</p>
-                        </div>
-                    ` : '<p class="muted-text">AI 教师会结合当前黑板、课堂记录和 EMBER-Agent 安全规则回答。</p>'}
-                </article>
-                <article class="panel">
-                    <div class="section-heading"><span class="eyebrow">知识库板书</span><h3>黑板数据来源</h3></div>
-                    <div class="card-grid two-up">
-                        <article class="feature-card">
-                            <span class="pill">黑板</span>
-                            <h4>当前标题</h4>
-                            <p>${blackboardTitle}</p>
-                        </article>
-                        <article class="feature-card">
-                            <span class="pill">AI核心</span>
-                            <h4>大模型教师</h4>
-                            <p>后端已接入 DeepSeek 兼容接口，未配置密钥时启用本地安全兜底讲解。</p>
-                        </article>
-                    </div>
-                </article>
             </section>
             <section class="content-grid two-up">
                 <article class="panel">
