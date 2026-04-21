@@ -55,5 +55,24 @@
         "body_file": "posts/en/aigril-desktop-pet-v1.md"
       }
     }
+  },
+  {
+    "slug": "aigril-render-github-pages-deployment",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["deployment", "render", "github-pages", "fastapi"],
+    "translations": {
+      "zh": {
+        "title": "AIGril 的上线方式：GitHub Pages 前端加 Render 后端",
+        "summary": "这篇文章记录 AIGril 如何从本地虚拟人项目变成可在线体验的前后端系统，并说明源码、体验地址和桌面包的整理方式。",
+        "body_file": "posts/zh/aigril-render-github-pages-deployment.md"
+      },
+      "en": {
+        "title": "How AIGril Is Deployed: GitHub Pages for the Frontend and Render for the Backend",
+        "summary": "This post explains how AIGril moved from a local virtual-character project to a live frontend-backend system, including source code, live links, and desktop packaging notes.",
+        "body_file": "posts/en/aigril-render-github-pages-deployment.md"
+      }
+    }
   }
 ]
