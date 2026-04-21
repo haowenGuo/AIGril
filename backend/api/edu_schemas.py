@@ -62,6 +62,14 @@ class ClassroomRespondRequest(BaseModel):
     freeText: str = Field(default="")
 
 
+class ClassroomTeacherDialogueRequest(BaseModel):
+    sessionId: Optional[int] = Field(default=None)
+    message: str = Field(..., min_length=1, max_length=2000)
+    knowledgeTitle: str = Field(default="基于EMBER-Agent安全增强的仿真课堂")
+    blackboardSummary: str = Field(default="")
+    history: list[dict] = Field(default_factory=list)
+
+
 class AssignmentCreateRequest(BaseModel):
     studentId: int = Field(..., ge=1)
     questionIds: list[str] = Field(default_factory=list)

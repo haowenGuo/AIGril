@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     EDU_HF_QUESTION_CONFIG: str = "m3exam-chinese"
     EDU_HF_QUESTION_SPLIT: str = "test"
     EDU_QUESTION_BANK_CACHE_TTL_SECONDS: int = 900
+    EDU_DEEPSEEK_API_BASE: str = "https://api.deepseek.com/v1"
+    EDU_DEEPSEEK_API_KEY: str = ""
+    EDU_DEEPSEEK_MODEL: str = "deepseek-chat"
 
     # ================= 大模型配置 (核心) =================
     # 支持 OpenAI 兼容接口 (如 DeepSeek, 通义千问, 火山引擎等)

@@ -6,6 +6,7 @@ const state = {
     teacherStudents: [],
     teacherClassrooms: null,
     questionBank: null,
+    classroomTeacherReply: null,
     currentPage: 'login',
 };
 
@@ -701,13 +702,67 @@ function renderStudentClassroom() {
     const diagnostics = overview.learning?.diagnostics || [];
     const classroomSessions = overview.classrooms?.recent || [];
     const activeSession = overview.classrooms?.activeSession || classroomSessions[0] || null;
+    const blackboardTitle = '基于EMBER-Agent安全增强的仿真课堂';
+    const blackboardTopic = activeSession
+        ? `${activeSession.subject} · ${activeSession.topic || '仿真互动课'}`
+        : '课堂主页';
+    const blackboardSummary = activeSession?.focusSummary
+        || '欢迎进入仿真课堂。黑板会显示当前知识库内容，AI教师会根据板书进行讲解，并通过对话系统回答你的问题。';
+    const latestTeacherEntry = [...(activeSession?.transcript || [])]
+        .reverse()
+        .find((entry) => entry.role === 'teacher');
+    const teacherScript = state.classroomTeacherReply?.speechText
+        || state.classroomTeacherReply?.content
+        || latestTeacherEntry?.text
+        || blackboardSummary;
+    const currentQuestionText = activeSession?.currentQuestion?.stem
+        || '开启课堂后，AI教师会在这里推送首个追问。';
 
     return renderHeroPage({
         heroImage: heroImages.dashboard,
         eyebrow: '仿真课堂',
-        heading: '按学情、真题和课堂追问组织一节可连续互动的仿真课',
-        subheading: '系统会先做点名，再用真实题目讲解、追问、判答和留存课堂记录。',
+        heading: '进入一间有黑板、有AI教师、有连续对话的仿真课堂',
+        subheading: '知识库内容会自动写入黑板，AI教师围绕板书进行语音讲解、追问和答疑。',
         content: `
+            <section class="simulation-classroom">
+                <div class="classroom-ambient">
+                    <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1400&q=80" alt="真实教室场景" />
+                </div>
+                <aside class="ai-teacher-podium">
+                    <img src="https://images.unsplash.com/photo-1607746882042-944635dfe10e?auto=format&fit=crop&w=480&q=80" alt="AI教师头像" />
+                    <div>
+                        <span class="eyebrow">AI 教师</span>
+                        <h3>EMBER AI 教师</h3>
+                        <p>基于大模型 API 的课堂智能体，围绕黑板知识库进行语音教学和追问。</p>
+                    </div>
+                    <button class="primary-button" type="button" data-action="voice-play">播放AI教师讲解</button>
+                    <button class="ghost-button" type="button" data-action="voice-stop">停止语音</button>
+                </aside>
+                <article class="knowledge-blackboard">
+                    <span class="chalk-mark"></span>
+                    <h2>${blackboardTitle}</h2>
+                    <p class="blackboard-source">知识库：自有教研知识库 / 后续可对接国家智慧教育平台授权资源</p>
+                    <h3>${escapeHtml(blackboardTopic)}</h3>
+                    <p data-teacher-script>${escapeHtml(teacherScript)}</p>
+                    <div class="blackboard-grid">
+                        <div>
+                            <strong>今日板书</strong>
+                            <ul>
+                                <li>先读取知识库主题，再生成课堂讲解路径。</li>
+                                <li>围绕学生学情画像调整讲解深度。</li>
+                                <li>对话必须遵循 EMBER-Agent 安全增强规则。</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <strong>当前互动</strong>
+                            <ul>
+                                <li>${escapeHtml(currentQuestionText)}</li>
+                                <li>学生可通过文字对话与AI教师继续互动。</li>
+                            </ul>
+                        </div>
+                    </div>
+                </article>
+            </section>
             <section class="hero-band">
                 <div>
                     <span class="eyebrow">当前课堂状态</span>
@@ -719,6 +774,45 @@ function renderStudentClassroom() {
                     <article><strong>${classroomSessions.filter((item) => item.status === 'active').length}</strong><span>进行中</span></article>
                     <article><strong>${classroomSessions.filter((item) => item.status === 'completed').length}</strong><span>已结束</span></article>
                 </div>
+            </section>
+            <section class="content-grid two-up">
+                <article class="panel">
+                    <div class="section-heading"><span class="eyebrow">AI 教师对话</span><h3>向 EMBER AI 教师提问</h3></div>
+                    <form class="stack-form" data-form="ai-teacher-dialogue">
+                        <input type="hidden" name="sessionId" value="${escapeHtml(activeSession?.id || '')}" />
+                        <input type="hidden" name="knowledgeTitle" value="${blackboardTitle}" />
+                        <input type="hidden" name="blackboardSummary" value="${escapeHtml(blackboardSummary)}" />
+                        <label>
+                            <span>学生问题</span>
+                            <textarea name="message" rows="5" placeholder="例如：老师，为什么移项的时候符号会变化？"></textarea>
+                        </label>
+                        <div class="button-row">
+                            <button type="submit" class="primary-button">发送给AI教师</button>
+                            <button type="button" class="ghost-button" data-action="preset-ai-question">示范提问</button>
+                        </div>
+                    </form>
+                    ${state.classroomTeacherReply ? `
+                        <div class="ai-teacher-reply">
+                            <span class="pill">${escapeHtml(state.classroomTeacherReply.safetyLabel || 'ember-agent-safe')}</span>
+                            <p>${escapeHtml(state.classroomTeacherReply.content || '')}</p>
+                        </div>
+                    ` : '<p class="muted-text">AI 教师会结合当前黑板、课堂记录和 EMBER-Agent 安全规则回答。</p>'}
+                </article>
+                <article class="panel">
+                    <div class="section-heading"><span class="eyebrow">知识库板书</span><h3>黑板数据来源</h3></div>
+                    <div class="card-grid two-up">
+                        <article class="feature-card">
+                            <span class="pill">黑板</span>
+                            <h4>当前标题</h4>
+                            <p>${blackboardTitle}</p>
+                        </article>
+                        <article class="feature-card">
+                            <span class="pill">AI核心</span>
+                            <h4>大模型教师</h4>
+                            <p>后端已接入 DeepSeek 兼容接口，未配置密钥时启用本地安全兜底讲解。</p>
+                        </article>
+                    </div>
+                </article>
             </section>
             <section class="content-grid two-up">
                 <article class="panel">
@@ -1398,6 +1492,30 @@ async function handleSubmit(event) {
                 },
             });
             await loadStudentData();
+        } else if (formName === 'ai-teacher-dialogue') {
+            const message = String(payload.message || '').trim();
+            if (!message) {
+                throw new Error('请先输入要问 AI 教师的问题。');
+            }
+            const activeSession = state.student?.classrooms?.activeSession || state.student?.classrooms?.recent?.[0] || null;
+            const history = (activeSession?.transcript || []).slice(-8).map((entry) => ({
+                role: entry.role === 'student' ? 'student' : 'teacher',
+                content: entry.text || '',
+            }));
+            const reply = await api('/api/edu/student/classroom-teacher/dialogue', {
+                method: 'POST',
+                body: {
+                    ...payload,
+                    sessionId: payload.sessionId ? Number(payload.sessionId) : null,
+                    message,
+                    history,
+                },
+            });
+            state.classroomTeacherReply = reply;
+            if (reply.session) {
+                await loadStudentData();
+            }
+            speakText(reply.speechText || reply.content || '');
         } else if (formName === 'question-search') {
             state.questionBank = await api(`/api/edu/teacher/question-bank?subject=${encodeURIComponent(payload.subject || '')}&query=${encodeURIComponent(payload.query || '')}&limit=${encodeURIComponent(payload.limit || 12)}`);
         } else if (formName === 'assignment-create') {
@@ -1421,6 +1539,29 @@ async function handleSubmit(event) {
         showToast('操作已完成。');
     } catch (error) {
         showToast(error.message || '操作失败', true);
+    }
+}
+
+function speakText(text) {
+    const cleanText = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!cleanText) {
+        return;
+    }
+    if (!('speechSynthesis' in window)) {
+        showToast('当前浏览器不支持语音播放。', true);
+        return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = 'zh-CN';
+    utterance.rate = 0.92;
+    utterance.pitch = 1.02;
+    window.speechSynthesis.speak(utterance);
+}
+
+function stopSpeech() {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
     }
 }
 
@@ -1465,6 +1606,27 @@ async function handleClick(event) {
             await loadStudentData();
             render();
             showToast('课堂已结束。');
+            return;
+        }
+
+        if (action === 'voice-play') {
+            const script = document.querySelector('[data-teacher-script]')?.textContent || '';
+            speakText(script);
+            return;
+        }
+
+        if (action === 'voice-stop') {
+            stopSpeech();
+            showToast('已停止语音播放。');
+            return;
+        }
+
+        if (action === 'preset-ai-question') {
+            const input = document.querySelector('[data-form="ai-teacher-dialogue"] textarea[name="message"]');
+            if (input) {
+                input.value = '老师，为什么移项的时候符号会变化？能不能用一个生活例子讲一下？';
+                input.focus();
+            }
             return;
         }
 

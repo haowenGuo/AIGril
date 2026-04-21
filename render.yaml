@@ -43,6 +43,12 @@ services:
         value: test
       - key: EDU_QUESTION_BANK_CACHE_TTL_SECONDS
         value: "900"
+      - key: EDU_DEEPSEEK_API_BASE
+        value: https://api.deepseek.com/v1
+      - key: EDU_DEEPSEEK_API_KEY
+        sync: false
+      - key: EDU_DEEPSEEK_MODEL
+        value: deepseek-chat
       - key: LLM_API_BASE
         value: https://ark.cn-beijing.volces.com/api/v3
       - key: LLM_API_KEY
