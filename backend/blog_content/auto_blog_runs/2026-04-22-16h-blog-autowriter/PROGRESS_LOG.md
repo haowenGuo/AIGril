@@ -11,27 +11,25 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：0
+- 已研究本机项目：1
 - 已调研外部资料：0
-- 已完成文章：0
-- 已发布文章：0
+- 已完成文章：1
+- 已发布文章：1
 - 已生成最终报告：否
 
 ## 文章清单
 
-暂无。
+- `aigril-render-github-pages-deployment`
+  - 中文标题：AIGril 的上线方式：GitHub Pages 前端加 Render 后端
+  - 英文标题：How AIGril Is Deployed: GitHub Pages for the Frontend and Render for the Backend
+  - 内容概要：记录 AIGril 的前后端部署结构，说明 GitHub Pages 前端、Render FastAPI 后端、在线体验入口、源码地址和桌面端打包方式。
 
 ## 下一步
 
-从 `F:\AIGril` 开始，整理第一篇文章，主题建议为：
+继续从 `F:\AIGril` 或下一个本机项目中选择主题。建议候选：
 
-- AIGril：从虚拟角色对话系统到可部署个人 AI 项目
-
-文章应覆盖：
-
-- 项目定位
-- 前端虚拟角色交互
-- FastAPI 后端
-- LLM/RAG/记忆/内容安全能力
-- Render + GitHub Pages 部署路径
-- 当前博客系统如何接入项目展示
+- AIGril 记忆压缩与长期会话设计
+- AIGril 内容安全 API 的工程化封装
+- AutoResearch 的自动研究循环
+- HaoRender 的 GPU 渲染方向
+- SHE 引擎的模块化迭代
