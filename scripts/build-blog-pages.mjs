@@ -528,9 +528,9 @@ a:hover { color: var(--accent); }
 .hero h1, .page-heading h1, .article h1 {
     max-width: 860px;
     margin: 10px 0 18px;
-    font-size: clamp(2.4rem, 6vw, 5.6rem);
-    line-height: 0.96;
-    letter-spacing: -0.06em;
+    font-size: clamp(1.82rem, 3vw, 2.18rem);
+    line-height: 1.18;
+    letter-spacing: -0.025em;
 }
 .hero-intro, .page-heading p, .article-header p {
     max-width: 760px;
@@ -581,7 +581,7 @@ a:hover { color: var(--accent); }
     border: 1px solid var(--line);
     background: rgba(255, 252, 245, 0.78);
 }
-.article-body h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -0.04em; }
+.article-body h1 { font-size: clamp(1.72rem, 2.8vw, 2.05rem); line-height: 1.22; letter-spacing: -0.02em; }
 .article-body h2 { margin-top: 2.2em; font-size: 1.75rem; }
 .article-body h3 { margin-top: 1.8em; font-size: 1.28rem; }
 .article-body p, .article-body li, .article-body blockquote { color: #3f382f; font-size: 1.05rem; line-height: 1.95; }
