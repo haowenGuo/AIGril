@@ -188,5 +188,24 @@
         "body_file": "posts/en/she-ai-native-2d-engine-bootstrap.md"
       }
     }
+  },
+  {
+    "slug": "humanoid-teaching-classroom-simclass-template",
+    "published_at": "2026-04-22",
+    "reading_time": "7 min",
+    "featured": false,
+    "tags": ["education", "node", "serverless", "testing"],
+    "translations": {
+      "zh": {
+        "title": "仿真人教学：从 Render 演示版走向多端教学平台模板",
+        "summary": "这篇文章基于仿真人教学的 README、package.json 和公开 docs，介绍它如何把学生端、教师端、仿真课堂、自动回归、生产自检和多端迁移路线整理成可验证的教学软件模板。",
+        "body_file": "posts/zh/humanoid-teaching-classroom-simclass-template.md"
+      },
+      "en": {
+        "title": "Humanoid Teaching Classroom: From a Render Demo to a Multi-Platform Education Template",
+        "summary": "This post uses the project's README, package metadata, and public docs to explain how it organizes student and teacher flows, simulated classrooms, regression checks, production readiness, and a multi-platform migration path.",
+        "body_file": "posts/en/humanoid-teaching-classroom-simclass-template.md"
+      }
+    }
   }
 ]

@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：7
+- 已研究本机项目：8
 - 已调研外部资料：0
-- 已完成文章：7
-- 已写入 posts.json 文章：7
+- 已完成文章：8
+- 已写入 posts.json 文章：8
 - 已推送文章：4
-- 待提交/推送文章：3
+- 待提交/推送文章：4
 - 已生成最终报告：否
 
 ## 文章清单
@@ -55,6 +55,11 @@
   - 中文标题：SHE：先把 2D 引擎做成 AI 可理解的骨架
   - 英文标题：SHE: Building an AI-Readable Bootstrap for a 2D Engine
   - 内容概要：基于 SHE 的 README、CMakeLists 和公开 docs，介绍 C++20/CMake 2D 引擎骨架、runtime service contracts、schema-first gameplay data、diagnostics、AI context export、模块优先级和多 Codex 协作流程。
+
+- `humanoid-teaching-classroom-simclass-template`
+  - 中文标题：仿真人教学：从 Render 演示版走向多端教学平台模板
+  - 英文标题：Humanoid Teaching Classroom: From a Render Demo to a Multi-Platform Education Template
+  - 内容概要：基于仿真人教学的 README、package.json 和公开 docs，介绍 Node/Express/EJS/Postgres 教学模板、仿真课堂 API 契约、黑板与课堂流程自动回归、生产上线自检、本地 runner 和 uni-app + 阿里云 Serverless 迁移路线。
 
 ## 2026-04-22 09:09 心跳
 
@@ -120,6 +125,14 @@
 - 校验状态：待本地 runner 在本轮退出后执行 JSON 校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件或不在允许范围内的工程材料
 
+## 2026-04-22 11:05 本地 runner 写作迭代
+
+- 研究项目：`F:\仿真人教学`
+- 阅读材料：README.md、package.json、docs/simclass-api-contract.md、docs/simclass-production-readiness.md、docs/simclass-local-runner.md、docs/uniapp-aliyun-serverless-blueprint.md、docs/simclass-delivery-report.md、docs/simclass-iteration-log.md
+- 新增文章：`humanoid-teaching-classroom-simclass-template`
+- 校验状态：待本地 runner 在本轮退出后执行 JSON 校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、私有仓库细节或不在允许范围内的工程材料
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
@@ -127,4 +140,4 @@
 - AIGril 记忆压缩与长期会话设计
 - AIGril 内容安全 API 的工程化封装
 - SHE workspace 分支的模块化迭代
-- 仿真人教学的前端与教学场景组织方式
+- AutoResearch 报告生成和证据链设计
