@@ -454,5 +454,24 @@
         "body_file": "posts/en/humanoid-teaching-aliyun-serverless-backend.md"
       }
     }
+  },
+  {
+    "slug": "humanoid-teaching-uniapp-multi-end-frontend",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["education", "uniapp", "frontend", "vue"],
+    "translations": {
+      "zh": {
+        "title": "仿真人教学 uni-app：把课堂产品做成多端前端模板",
+        "summary": "这篇文章基于仿真人教学 uniapp 子项目的 README 和 package.json，介绍它如何把登录、资源、仿真课堂、智能备课、答疑、错题复盘和家校协同整理成多端前端模板。",
+        "body_file": "posts/zh/humanoid-teaching-uniapp-multi-end-frontend.md"
+      },
+      "en": {
+        "title": "Humanoid Teaching uni-app: Turning the Classroom Product into a Multi-End Frontend Template",
+        "summary": "This post uses the uniapp subproject README and package metadata to explain how it organizes login, resources, simulated classrooms, lesson prep, Q&A, wrong-question review, and parent collaboration into a multi-end frontend template.",
+        "body_file": "posts/en/humanoid-teaching-uniapp-multi-end-frontend.md"
+      }
+    }
   }
 ]
