@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：8
+- 已研究本机项目：9
 - 已调研外部资料：0
-- 已完成文章：8
-- 已写入 posts.json 文章：8
+- 已完成文章：9
+- 已写入 posts.json 文章：9
 - 已推送文章：4
-- 待提交/推送文章：4
+- 待提交/推送文章：5
 - 已生成最终报告：否
 
 ## 文章清单
@@ -60,6 +60,11 @@
   - 中文标题：仿真人教学：从 Render 演示版走向多端教学平台模板
   - 英文标题：Humanoid Teaching Classroom: From a Render Demo to a Multi-Platform Education Template
   - 内容概要：基于仿真人教学的 README、package.json 和公开 docs，介绍 Node/Express/EJS/Postgres 教学模板、仿真课堂 API 契约、黑板与课堂流程自动回归、生产上线自检、本地 runner 和 uni-app + 阿里云 Serverless 迁移路线。
+
+- `she-w01-gameplay-core-contracts`
+  - 中文标题：SHE W01：把玩法核心先做成命令、事件和计时器契约
+  - 英文标题：SHE W01: Turning Gameplay Core into Command, Event, and Timer Contracts
+  - 内容概要：基于 SHE-w01-gameplay 的 README、CMakeLists 和公开 docs，介绍 W01 Gameplay Core 如何把命令、事件、计时器、contract tests、diagnostics 和 AI-visible feature boundary 作为后续玩法系统的共同契约。
 
 ## 2026-04-22 09:09 心跳
 
@@ -133,11 +138,19 @@
 - 校验状态：待本地 runner 在本轮退出后执行 JSON 校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、私有仓库细节或不在允许范围内的工程材料
 
+## 2026-04-22 11:16 本地 runner 写作迭代
+
+- 研究项目：`F:\SHE-workspace\SHE-w01-gameplay`
+- 阅读材料：README.md、CMakeLists.txt、docs/ARCHITECTURE.md、docs/MODULE_PRIORITY.md、docs/AI_CONTEXT.md、docs/MILESTONES.md、docs/TECH_STACK.md、docs/ACCEPTANCE_CHECKLIST.md、docs/ARCHITECTURE_DECISIONS.md、docs/MULTI_CODEX_LAUNCH_PLAN.md 相关 W01 段落、docs/AI_NATIVE_REFACTOR.md 相关 service/feature 段落、docs/DEVELOPMENT_WORKFLOW.md 相关 gameplay 段落
+- 新增文章：`she-w01-gameplay-core-contracts`
+- 校验状态：待本地 runner 在本轮退出后执行 JSON 校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、coordination 目录或不在允许范围内的工程材料
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
 
 - AIGril 记忆压缩与长期会话设计
 - AIGril 内容安全 API 的工程化封装
-- SHE workspace 分支的模块化迭代
+- SHE W02 Data Core 的 schema-first 玩法数据契约
 - AutoResearch 报告生成和证据链设计

@@ -207,5 +207,24 @@
         "body_file": "posts/en/humanoid-teaching-classroom-simclass-template.md"
       }
     }
+  },
+  {
+    "slug": "she-w01-gameplay-core-contracts",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["engine", "gamedev", "cpp", "agents"],
+    "translations": {
+      "zh": {
+        "title": "SHE W01：把玩法核心先做成命令、事件和计时器契约",
+        "summary": "这篇文章基于 SHE-w01-gameplay 的 README、CMake 配置和公开 docs，介绍 W01 Gameplay Core 如何先稳定命令、事件、计时器和 AI 可见的玩法契约。",
+        "body_file": "posts/zh/she-w01-gameplay-core-contracts.md"
+      },
+      "en": {
+        "title": "SHE W01: Turning Gameplay Core into Command, Event, and Timer Contracts",
+        "summary": "This post uses SHE-w01-gameplay's README, CMake setup, and public docs to explain how W01 Gameplay Core stabilizes commands, events, timers, and AI-visible gameplay contracts.",
+        "body_file": "posts/en/she-w01-gameplay-core-contracts.md"
+      }
+    }
   }
 ]
