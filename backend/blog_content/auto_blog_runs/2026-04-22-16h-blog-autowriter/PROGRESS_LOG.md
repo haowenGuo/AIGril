@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：34
+- 已研究本机项目：35
 - 已调研外部资料：0
-- 已完成文章：34
-- 已写入 posts.json 文章：34
+- 已完成文章：35
+- 已写入 posts.json 文章：35
 - 已推送文章：4
-- 待提交/推送文章：30
+- 待提交/推送文章：31
 - 已生成最终报告：否
 
 ## 文章清单
@@ -190,6 +190,11 @@
   - 中文标题：Jupyter Notebook：把本地实验入口整理成可控工作台
   - 英文标题：Jupyter Notebook: Turning a Local Research Entry Point into a Controlled Workbench
   - 内容概要：基于 JupyterNotebook 本地 README，介绍如何把 Miniconda、Notebook 工作目录和启动入口记录成可复用的本地研究工作台，并强调不发布本机绝对路径、Notebook 内容、数据文件或个人环境细节。
+
+- `mysql-workbench-visual-database-workbench`
+  - 中文标题：MySQL Workbench：把数据库连接、建模和运维放进一个可视化工作台
+  - 英文标题：MySQL Workbench: Bringing SQL, Modeling, and Administration into One Visual Workbench
+  - 内容概要：基于 MySQL Workbench 本地 README，介绍它如何把 SQL 开发、数据建模、服务器管理、数据迁移和企业支持整理成一个可视化数据库工作台，并强调不发布连接配置、数据库文件、备份、迁移数据、账号凭据、安装包或二进制内容。
 
 ## 2026-04-22 09:09 心跳
 
@@ -470,6 +475,14 @@
 - 新增文章：`jupyter-notebook-local-lab-entrypoint`
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有发布本机绝对安装路径、Notebook 内容、数据文件、启动脚本内容、安装包、本地二进制文件、私钥、数据库或不在允许范围内的工程材料
+
+## 2026-04-22 19:31 本地 runner 写作迭代
+
+- 研究项目：`F:\MySQL\MySQL Workbench 8.0`
+- 阅读材料：README.md
+- 新增文章：`mysql-workbench-visual-database-workbench`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取连接配置、数据库文件、备份、迁移数据、账号凭据、安装包、本地二进制文件、许可证全文或不在允许范围内的工程材料
 
 ## 下一步
 
