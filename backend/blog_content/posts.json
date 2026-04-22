@@ -378,5 +378,24 @@
         "body_file": "posts/en/she-w09-physics2d-fixed-step-collisions.md"
       }
     }
+  },
+  {
+    "slug": "she-w10-audio-runtime-playback-events",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["engine", "audio", "gamedev", "cpp"],
+    "translations": {
+      "zh": {
+        "title": "SHE W10：把 Audio Runtime 做成播放契约和玩法反馈边界",
+        "summary": "这篇文章基于 SHE-w10-audio 的 README、CMake 配置和公开 docs，介绍 W10 如何把 miniaudio 播放路径、sound/music asset contract、channel ownership 和 gameplay-triggered audio events 放进统一运行时边界。",
+        "body_file": "posts/zh/she-w10-audio-runtime-playback-events.md"
+      },
+      "en": {
+        "title": "SHE W10: Turning Audio Runtime into Playback Contracts and Gameplay Feedback",
+        "summary": "This post uses SHE-w10-audio's README, CMake setup, and public docs to explain how W10 fits miniaudio playback, sound and music asset contracts, channel ownership, and gameplay-triggered audio events into one runtime boundary.",
+        "body_file": "posts/en/she-w10-audio-runtime-playback-events.md"
+      }
+    }
   }
 ]

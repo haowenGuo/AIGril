@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：17
+- 已研究本机项目：18
 - 已调研外部资料：0
-- 已完成文章：17
-- 已写入 posts.json 文章：17
+- 已完成文章：18
+- 已写入 posts.json 文章：18
 - 已推送文章：4
-- 待提交/推送文章：13
+- 待提交/推送文章：14
 - 已生成最终报告：否
 
 ## 文章清单
@@ -105,6 +105,11 @@
   - 中文标题：SHE W09：把 Physics2D 做成固定步长与碰撞事件边界
   - 英文标题：SHE W09: Turning Physics2D into a Fixed-Step and Collision Event Boundary
   - 内容概要：基于 SHE-w09-physics 的 README、CMakeLists 和公开 docs，介绍 W09 Physics2D 为什么要先稳定 Box2D runtime boundary、body/collider lifetime、fixed-step simulation integration 和 collision callbacks into gameplay events，作为 playable runtime、diagnostics 与 AI context 共同依赖的物理边界。
+
+- `she-w10-audio-runtime-playback-events`
+  - 中文标题：SHE W10：把 Audio Runtime 做成播放契约和玩法反馈边界
+  - 英文标题：SHE W10: Turning Audio Runtime into Playback Contracts and Gameplay Feedback
+  - 内容概要：基于 SHE-w10-audio 的 README、CMakeLists 和公开 docs，介绍 W10 Audio Runtime 为什么要先稳定 IAudioService frame ownership、miniaudio-backed playback path、sound/music asset contract、channel/group ownership 和 gameplay-triggered audio events，作为 playable runtime、asset pipeline、diagnostics 与 AI context 共同依赖的音频反馈边界。
 
 ## 2026-04-22 09:09 心跳
 
@@ -250,12 +255,19 @@
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、coordination 目录或不在允许范围内的工程材料
 
+## 2026-04-22 16:05 本地 runner 写作迭代
+
+- 研究项目：`F:\SHE-workspace\SHE-w10-audio`
+- 阅读材料：README.md、CMakeLists.txt、docs/ARCHITECTURE.md 相关 runtime service/frame flow 段落、docs/AI_NATIVE_REFACTOR.md 相关 IAudioService/Audio.Update 段落、docs/MODULE_PRIORITY.md 相关 W10 Audio Runtime 段落、docs/MULTI_CODEX_LAUNCH_PLAN.md 相关 W10 启动任务段落、docs/TECH_STACK.md 相关 miniaudio/audio 段落、docs/ARCHITECTURE_DECISIONS.md 相关 gameplay command/event contract 段落
+- 新增文章：`she-w10-audio-runtime-playback-events`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、coordination 目录或不在允许范围内的工程材料
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
 
 - AIGril 记忆压缩与长期会话设计
 - AIGril 内容安全 API 的工程化封装
-- SHE W10 Audio Runtime 的播放契约与事件触发边界
 - SHE W11 UI + Debug Tools 的运行时检查与调试面板边界
 - AutoResearch 报告生成和证据链设计
