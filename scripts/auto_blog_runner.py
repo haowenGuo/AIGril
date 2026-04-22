@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import shlex
 import subprocess
 import sys
@@ -21,12 +22,30 @@ LOCK_FILE = RUN_DIR / "runner.lock"
 
 DEFAULT_MAIN_WORKTREE = Path("F:/AIGril_tmp_main")
 
-ALLOWED_PREFIXES = (
+ALLOWED_EXACT_PATHS = {
     "backend/blog_content/posts.json",
+    "backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/STATUS.md",
+    "backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/PROGRESS_LOG.md",
+    "backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/final_100_page_report.md",
+}
+
+ALLOWED_PREFIXES = (
     "backend/blog_content/posts/zh/",
     "backend/blog_content/posts/en/",
-    "backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/",
 )
+
+IGNORED_RUNTIME_PATHS = {
+    "backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/RUNNER_LOG.md",
+    "backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/RUNNER_STATUS.json",
+    "backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/last_runner_message.md",
+}
+
+
+def is_allowed_publish_path(path: str) -> bool:
+    normalized = path.replace("\\", "/")
+    if normalized in IGNORED_RUNTIME_PATHS:
+        return False
+    return normalized in ALLOWED_EXACT_PATHS or normalized.startswith(ALLOWED_PREFIXES)
 
 
 def now_iso() -> str:
@@ -73,6 +92,17 @@ def run_cmd(
     )
 
 
+def resolve_codex_command() -> str:
+    """Use the Windows npm command shim; bare `codex` can resolve to a non-executable shim."""
+    if os.name == "nt":
+        for candidate in ("codex.cmd", "codex.bat"):
+            path = shutil.which(candidate)
+            if path:
+                return path
+    path = shutil.which("codex")
+    return path or "codex"
+
+
 def acquire_lock() -> None:
     RUN_DIR.mkdir(parents=True, exist_ok=True)
     try:
@@ -104,8 +134,9 @@ def build_codex_prompt() -> str:
 def run_codex_iteration(model: str, codex_timeout: int) -> int:
     prompt = build_codex_prompt()
     LAST_MESSAGE.write_text("", encoding="utf-8")
+    codex_cmd = resolve_codex_command()
     args = [
-        "codex",
+        codex_cmd,
         "exec",
         "--cd",
         str(ROOT),
@@ -162,8 +193,7 @@ def changed_allowed_paths() -> list[str]:
         raw_path = line[3:]
         if " -> " in raw_path:
             raw_path = raw_path.split(" -> ", 1)[1]
-        normalized = raw_path.replace("\\", "/")
-        if normalized.startswith(ALLOWED_PREFIXES):
+        if is_allowed_publish_path(raw_path):
             paths.append(raw_path)
     return sorted(set(paths))
 
@@ -175,7 +205,7 @@ def commit_allowed_changes() -> str | None:
     staged_unrelated = [
         path
         for path in cached.stdout.splitlines()
-        if path and not path.replace("\\", "/").startswith(ALLOWED_PREFIXES)
+        if path and not is_allowed_publish_path(path)
     ]
     if staged_unrelated:
         raise RuntimeError(
