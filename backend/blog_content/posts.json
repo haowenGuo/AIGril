@@ -492,5 +492,24 @@
         "body_file": "posts/en/aclpubcheck-camera-ready-format-checks.md"
       }
     }
+  },
+  {
+    "slug": "mediacrawler-playwright-social-data-boundaries",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["crawler", "playwright", "data", "compliance"],
+    "translations": {
+      "zh": {
+        "title": "MediaCrawler：把自媒体数据采集放进可控的学习边界",
+        "summary": "这篇文章基于 MediaCrawler 的 README、依赖清单和公开 docs，介绍它如何用 Playwright、登录态、多平台模块、结构化存储和词云分析组织自媒体数据采集，同时强调学习研究和合规边界。",
+        "body_file": "posts/zh/mediacrawler-playwright-social-data-boundaries.md"
+      },
+      "en": {
+        "title": "MediaCrawler: Keeping Social Platform Data Collection Inside a Controlled Learning Boundary",
+        "summary": "This post uses MediaCrawler's README, dependency metadata, and public docs to explain how it organizes Playwright login state, platform modules, structured storage, and word-cloud analysis while keeping compliance boundaries explicit.",
+        "body_file": "posts/en/mediacrawler-playwright-social-data-boundaries.md"
+      }
+    }
   }
 ]

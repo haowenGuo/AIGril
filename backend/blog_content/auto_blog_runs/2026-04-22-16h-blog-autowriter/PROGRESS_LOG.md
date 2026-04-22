@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：23
+- 已研究本机项目：24
 - 已调研外部资料：0
-- 已完成文章：23
-- 已写入 posts.json 文章：23
+- 已完成文章：24
+- 已写入 posts.json 文章：24
 - 已推送文章：4
-- 待提交/推送文章：19
+- 待提交/推送文章：20
 - 已生成最终报告：否
 
 ## 文章清单
@@ -135,6 +135,11 @@
   - 中文标题：ACL pubcheck：把论文格式检查提前到 camera-ready 之前
   - 英文标题：ACL pubcheck: Moving Paper Format Checks Before Camera Ready
   - 内容概要：基于 ACL pubcheck 的 README，介绍它如何把字体、作者格式、页边距、页底空间和引用姓名检查前移到作者自己的 camera-ready 论文交付流程中，并说明在线版本与本地 CLI 的使用边界。
+
+- `mediacrawler-playwright-social-data-boundaries`
+  - 中文标题：MediaCrawler：把自媒体数据采集放进可控的学习边界
+  - 英文标题：MediaCrawler: Keeping Social Platform Data Collection Inside a Controlled Learning Boundary
+  - 内容概要：基于 MediaCrawler 的 README、package.json、pyproject.toml、requirements.txt 和公开 docs，介绍它如何用 Playwright 登录态、可选 CDP 模式、多平台模块、结构化存储和词云分析组织自媒体数据采集，同时强调学习研究、数据最小化和合规边界。
 
 ## 2026-04-22 09:09 心跳
 
@@ -327,6 +332,14 @@
 - 新增文章：`aclpubcheck-camera-ready-format-checks`
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、Notebook、示例 PDF、截图、生成的错误 JSON、package internals 或不在允许范围内的工程材料
+
+## 2026-04-22 17:15 本地 runner 写作迭代
+
+- 研究项目：`F:\lab\MediaCrawler-main`
+- 阅读材料：README.md、package.json、pyproject.toml、requirements.txt、docs/index.md、docs/CDP模式使用指南.md、docs/项目代码结构.md、docs/词云图使用配置.md、docs/原生环境管理文档.md、docs/常见问题.md
+- 新增文章：`mediacrawler-playwright-social-data-boundaries`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、账号配置、浏览器数据、数据库、采集结果、二维码图片、字体文件、安装包、本地二进制文件、docs/.vitepress 主题源码或不在允许范围内的工程材料
 
 ## 下一步
 
