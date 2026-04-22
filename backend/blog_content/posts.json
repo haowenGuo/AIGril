@@ -131,5 +131,24 @@
         "body_file": "posts/en/multi-codex-orchestrator-patch-first-parallel-agents.md"
       }
     }
+  },
+  {
+    "slug": "haorender-cpu-rendering-workbench",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["rendering", "cpp", "qt", "cpu"],
+    "translations": {
+      "zh": {
+        "title": "haorender：把 CPU 光栅化做成可调试的桌面渲染工作台",
+        "summary": "这篇文章基于 haorender 的 README 和 CMake 配置，介绍它如何从 CPU 光栅化项目发展成带 Qt UI、材质调试、阴影控制、profiling 和便携分发思路的桌面渲染工作台。",
+        "body_file": "posts/zh/haorender-cpu-rendering-workbench.md"
+      },
+      "en": {
+        "title": "haorender: Turning CPU Rasterization into a Debuggable Desktop Rendering Workbench",
+        "summary": "This post uses haorender's README and CMake configuration to explain how the project frames CPU rasterization as a Qt-based desktop rendering workbench with material inspection, shadows, profiling, and portable packaging.",
+        "body_file": "posts/en/haorender-cpu-rendering-workbench.md"
+      }
+    }
   }
 ]
