@@ -74,5 +74,62 @@
         "body_file": "posts/en/aigril-render-github-pages-deployment.md"
       }
     }
+  },
+  {
+    "slug": "autoresearch-evidence-first-agentic-research",
+    "published_at": "2026-04-22",
+    "reading_time": "7 min",
+    "featured": false,
+    "tags": ["autoresearch", "agents", "research", "rag"],
+    "translations": {
+      "zh": {
+        "title": "AutoResearch：把自动调研做成可追踪的研究流水线",
+        "summary": "这篇文章介绍 AutoResearch 的 Phase 1 思路：用规划、检索、证据抽取、记忆和报告引擎，把自动调研从一次性总结变成可追踪的工程流水线。",
+        "body_file": "posts/zh/autoresearch-evidence-first-agentic-research.md"
+      },
+      "en": {
+        "title": "AutoResearch: Turning Agentic Research into a Traceable Pipeline",
+        "summary": "This post introduces AutoResearch as an evidence-first research pipeline built around planning, retrieval, memory, evidence extraction, and report generation.",
+        "body_file": "posts/en/autoresearch-evidence-first-agentic-research.md"
+      }
+    }
+  },
+  {
+    "slug": "haorender-gpu-modern-rhi-roadmap",
+    "published_at": "2026-04-22",
+    "reading_time": "7 min",
+    "featured": false,
+    "tags": ["rendering", "gpu", "rhi", "cpp"],
+    "translations": {
+      "zh": {
+        "title": "HaoRender-GPU：从 CPU 渲染经验走向现代 RHI 架构",
+        "summary": "这篇文章介绍 HaoRender-GPU 如何从独立工程起步，以 OpenGL triangle 为最小闭环，逐步走向 D3D12/Vulkan 风格的现代 RHI 架构。",
+        "body_file": "posts/zh/haorender-gpu-modern-rhi-roadmap.md"
+      },
+      "en": {
+        "title": "HaoRender-GPU: From CPU Rendering Experience to a Modern RHI Roadmap",
+        "summary": "This post introduces HaoRender-GPU as a separate modern rendering track that starts with OpenGL samples and moves toward a D3D12/Vulkan-shaped RHI architecture.",
+        "body_file": "posts/en/haorender-gpu-modern-rhi-roadmap.md"
+      }
+    }
+  },
+  {
+    "slug": "multi-codex-orchestrator-patch-first-parallel-agents",
+    "published_at": "2026-04-22",
+    "reading_time": "7 min",
+    "featured": false,
+    "tags": ["agents", "codex", "orchestration", "testing"],
+    "translations": {
+      "zh": {
+        "title": "Multi-Codex Orchestrator：把多 Agent 协作变成可验证的 Patch 流水线",
+        "summary": "这篇文章介绍 Multi-Codex Orchestrator 如何用 Manager/Worker/Repair/Conflict Resolver、git worktree 和结构化工件，把多 Agent 编程变成可验证的 patch 流水线。",
+        "body_file": "posts/zh/multi-codex-orchestrator-patch-first-parallel-agents.md"
+      },
+      "en": {
+        "title": "Multi-Codex Orchestrator: Turning Multi-Agent Coding into a Verifiable Patch Pipeline",
+        "summary": "This post explains how Multi-Codex Orchestrator uses manager-worker roles, git worktrees, structured artifacts, repair loops, and deterministic validation to coordinate parallel coding agents.",
+        "body_file": "posts/en/multi-codex-orchestrator-patch-first-parallel-agents.md"
+      }
+    }
   }
 ]
