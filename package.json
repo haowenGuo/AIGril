@@ -6,7 +6,7 @@
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite --configLoader native --host 0.0.0.0 --port 5173",
-    "build": "vite build --configLoader native --base ./ && node scripts/copy-static-assets.mjs",
+    "build": "vite build --configLoader native --base ./ && node scripts/copy-static-assets.mjs && node scripts/build-blog-pages.mjs",
     "preview": "vite preview --configLoader native --host 0.0.0.0 --port 4173",
     "desktop:dev": "concurrently -k -s first -n vite,electron -c cyan,magenta \"pnpm dev\" \"wait-on http://127.0.0.1:5173 && cross-env AIGRIL_DESKTOP_DEV_URL=http://127.0.0.1:5173 electron .\"",
     "desktop:start": "pnpm build && electron .",
