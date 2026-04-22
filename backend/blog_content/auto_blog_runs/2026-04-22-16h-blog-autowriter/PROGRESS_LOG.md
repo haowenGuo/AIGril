@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：6
+- 已研究本机项目：7
 - 已调研外部资料：0
-- 已完成文章：6
-- 已写入 posts.json 文章：6
+- 已完成文章：7
+- 已写入 posts.json 文章：7
 - 已推送文章：4
-- 待提交/推送文章：2
+- 待提交/推送文章：3
 - 已生成最终报告：否
 
 ## 文章清单
@@ -50,6 +50,11 @@
   - 中文标题：HumanClaw：把桌宠界面和 OpenClaw 运行时分清楚
   - 英文标题：HumanClaw: Separating the Desktop Pet from the OpenClaw Runtime
   - 内容概要：基于 HumanClaw 的 README、package.json 和 requirements.txt，介绍 Electron/Vite/Three.js 桌宠界面、Python companion backend、本地语音链路和 OpenClaw Gateway runtime 之间的清晰边界。
+
+- `she-ai-native-2d-engine-bootstrap`
+  - 中文标题：SHE：先把 2D 引擎做成 AI 可理解的骨架
+  - 英文标题：SHE: Building an AI-Readable Bootstrap for a 2D Engine
+  - 内容概要：基于 SHE 的 README、CMakeLists 和公开 docs，介绍 C++20/CMake 2D 引擎骨架、runtime service contracts、schema-first gameplay data、diagnostics、AI context export、模块优先级和多 Codex 协作流程。
 
 ## 2026-04-22 09:09 心跳
 
@@ -107,11 +112,19 @@
 - 校验状态：待本地 runner 在本轮退出后执行 JSON 校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、示例子目录或本地二进制文件
 
+## 2026-04-22 10:53 本地 runner 写作迭代
+
+- 研究项目：`F:\SHE`
+- 阅读材料：README.md、CMakeLists.txt、docs/ARCHITECTURE.md、docs/TECH_STACK.md、docs/MILESTONES.md、docs/MODULE_PRIORITY.md、docs/AI_NATIVE_REFACTOR.md、docs/DEVELOPMENT_WORKFLOW.md、docs/MULTI_CODEX_WORKFLOW.md、docs/ACCEPTANCE_CHECKLIST.md、docs/AI_CONTEXT.md、docs/SCHEMAS/README.md
+- 新增文章：`she-ai-native-2d-engine-bootstrap`
+- 校验状态：待本地 runner 在本轮退出后执行 JSON 校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件或不在允许范围内的工程材料
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
 
 - AIGril 记忆压缩与长期会话设计
 - AIGril 内容安全 API 的工程化封装
-- SHE 引擎的模块化迭代
+- SHE workspace 分支的模块化迭代
 - 仿真人教学的前端与教学场景组织方式

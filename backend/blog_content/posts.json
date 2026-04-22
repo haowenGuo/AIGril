@@ -169,5 +169,24 @@
         "body_file": "posts/en/humanclaw-desktop-pet-openclaw-bridge.md"
       }
     }
+  },
+  {
+    "slug": "she-ai-native-2d-engine-bootstrap",
+    "published_at": "2026-04-22",
+    "reading_time": "7 min",
+    "featured": false,
+    "tags": ["engine", "cpp", "gamedev", "ai"],
+    "translations": {
+      "zh": {
+        "title": "SHE：先把 2D 引擎做成 AI 可理解的骨架",
+        "summary": "这篇文章基于 SHE 的 README、CMake 配置和公开 docs，介绍它如何先用 runtime services、schema、diagnostics 和 AI context export 搭出可协作的 2D 引擎骨架。",
+        "body_file": "posts/zh/she-ai-native-2d-engine-bootstrap.md"
+      },
+      "en": {
+        "title": "SHE: Building an AI-Readable Bootstrap for a 2D Engine",
+        "summary": "This post uses SHE's README, CMake setup, and public docs to explain how the project starts with runtime services, schemas, diagnostics, and AI context export before building the full 2D engine stack.",
+        "body_file": "posts/en/she-ai-native-2d-engine-bootstrap.md"
+      }
+    }
   }
 ]
