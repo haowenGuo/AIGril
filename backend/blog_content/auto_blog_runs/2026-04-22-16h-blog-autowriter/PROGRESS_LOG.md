@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：21
+- 已研究本机项目：22
 - 已调研外部资料：0
-- 已完成文章：21
-- 已写入 posts.json 文章：21
+- 已完成文章：22
+- 已写入 posts.json 文章：22
 - 已推送文章：4
-- 待提交/推送文章：17
+- 待提交/推送文章：18
 - 已生成最终报告：否
 
 ## 文章清单
@@ -65,6 +65,11 @@
   - 中文标题：仿真人教学 Aliyun Serverless：把正式后端模板先立住
   - 英文标题：Humanoid Teaching Aliyun Serverless: Establishing the Formal Backend Template
   - 内容概要：基于仿真人教学 aliyun-serverless 子项目的 README 和 package.json，介绍阿里云函数计算 + MySQL 后端模板如何组织身份、资源、AI 教案/问答、错题复盘、学情分析、仿真课堂、统计和家长端接口，并强调密钥、国家平台资源和数据保存边界应留在服务端。
+
+- `humanoid-teaching-uniapp-multi-end-frontend`
+  - 中文标题：仿真人教学 uni-app：把课堂产品做成多端前端模板
+  - 英文标题：Humanoid Teaching uni-app: Turning the Classroom Product into a Multi-End Frontend Template
+  - 内容概要：基于仿真人教学 uniapp 子项目的 README 和 package.json，介绍 uni-app 多端前端模板如何组织登录、资源筛选、仿真课堂、智能备课、在线答疑、错题复盘、家校协同、H5 语音播报和 Serverless 后端接入边界。
 
 - `she-w01-gameplay-core-contracts`
   - 中文标题：SHE W01：把玩法核心先做成命令、事件和计时器契约
@@ -302,11 +307,18 @@
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、`.env.example`、`s.yaml`、`database/`、`src/` 或不在允许范围内的工程材料
 
+## 2026-04-22 16:49 本地 runner 写作迭代
+
+- 研究项目：`F:\仿真人教学\uniapp`
+- 阅读材料：README.md、package.json
+- 新增文章：`humanoid-teaching-uniapp-multi-end-frontend`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、`.env.example`、页面源码、构建产物或不在允许范围内的工程材料
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
 
-- `F:\仿真人教学\uniapp`
 - AIGril 记忆压缩与长期会话设计
 - AIGril 内容安全 API 的工程化封装
 - AutoResearch 报告生成和证据链设计
