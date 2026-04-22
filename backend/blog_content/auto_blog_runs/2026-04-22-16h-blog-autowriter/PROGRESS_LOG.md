@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：25
+- 已研究本机项目：26
 - 已调研外部资料：0
-- 已完成文章：25
-- 已写入 posts.json 文章：25
+- 已完成文章：26
+- 已写入 posts.json 文章：26
 - 已推送文章：4
-- 待提交/推送文章：21
+- 待提交/推送文章：22
 - 已生成最终报告：否
 
 ## 文章清单
@@ -145,6 +145,11 @@
   - 中文标题：SHE Workspace：把多 Codex 引擎开发收束到 W00 主线
   - 英文标题：SHE Workspace: Using W00 as the Integration Spine for Multi-Codex Engine Work
   - 内容概要：基于 SHE-workspace 主仓库的 README、CMakeLists 和公开 docs，介绍 W00 主线如何承担多 Codex 引擎开发中的架构维护、workstream 切分、handoff 记录、service contract 集成、AI context 可解释性和 open-world blueprint 长期目标。
+
+- `baidutieba-python-csv-research-crawler`
+  - 中文标题：BaiduTieba-main：把贴吧关键词采集收进 CSV 研究边界
+  - 英文标题：BaiduTieba-main: Keeping Tieba Keyword Collection Inside a CSV Research Boundary
+  - 内容概要：基于 BaiduTieba-main 的 README 和 requirements 文件，介绍这个轻量 Python 贴吧采集项目如何用关键词配置、页码范围、requests、fake_useragent、rich、CSV 输出和日志形成小范围研究闭环，并强调 cookie、账号材料、采集结果和数据发布的安全边界。
 
 ## 2026-04-22 09:09 心跳
 
@@ -354,10 +359,17 @@
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、coordination 文件内容、workstream handoff 内容或不在允许范围内的工程材料
 
+## 2026-04-22 17:48 本地 runner 写作迭代
+
+- 研究项目：`F:\lab\BaiduTieba-main`
+- 阅读材料：README.md、requirements.txt
+- 新增文章：`baidutieba-python-csv-research-crawler`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、配置文件、账号 cookie、日志、CSV 数据、数据库、安装包、本地二进制文件或不在允许范围内的工程材料
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
 
 - `F:\SHE\coordination`
-- `F:\lab\BaiduTieba-main`
 - `F:\third_party\glTF-Sample-Models`
