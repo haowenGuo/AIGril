@@ -80,9 +80,17 @@
 - 可以在文章或报告中记录“可发布附件候选”
 - 只有项目明确是公开项目，或者用户后续确认可以发布时，才整理下载附件
 
-## 提交规则
+## Git 提交规则
 
-每次提交只允许包含：
+heartbeat 自动任务默认不要执行 `git add` / `git commit` / `git push`。
+
+原因：
+
+- heartbeat 运行在受限沙箱身份中，可能无法写入 `.git/index.lock`
+- 自动写作任务的主要职责是持续产出文章与运行日志
+- Git 提交和推送由普通 Codex 会话定期补偿执行，更稳定，也更容易避免误提交用户其他改动
+
+普通会话补偿提交时，只允许包含：
 
 - `backend/blog_content/posts.json`
 - `backend/blog_content/posts/zh/*.md`
@@ -90,6 +98,14 @@
 - `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/*.md`
 
 不要提交前端、后端业务、Electron、配置密钥或其他用户改动。
+
+heartbeat 每轮完成文章后，只需要：
+
+1. 更新文章 Markdown
+2. 更新 `posts.json`
+3. 更新 `STATUS.md`
+4. 更新 `PROGRESS_LOG.md`
+5. 在日志里标记“待普通会话提交”
 
 ## 完成条件
 
