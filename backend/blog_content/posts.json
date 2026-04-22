@@ -283,5 +283,24 @@
         "body_file": "posts/en/she-w04-scripting-host-boundary.md"
       }
     }
+  },
+  {
+    "slug": "she-w05-scene-ecs-world-model",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["engine", "ecs", "gamedev", "cpp"],
+    "translations": {
+      "zh": {
+        "title": "SHE W05：把 Scene + ECS 做成稳定世界模型",
+        "summary": "这篇文章基于 SHE-w05-scene 的 README、CMake 配置和公开 docs，介绍 W05 为什么要先稳定 entity identity、component query、transform ownership 和 scene lifetime，再承接 renderer、physics 与 asset pipeline。",
+        "body_file": "posts/zh/she-w05-scene-ecs-world-model.md"
+      },
+      "en": {
+        "title": "SHE W05: Turning Scene + ECS into a Stable World Model",
+        "summary": "This post uses SHE-w05-scene's README, CMake setup, and public docs to explain why W05 stabilizes entity identity, component queries, transform ownership, and scene lifetime before renderer, physics, and asset pipeline work build on it.",
+        "body_file": "posts/en/she-w05-scene-ecs-world-model.md"
+      }
+    }
   }
 ]
