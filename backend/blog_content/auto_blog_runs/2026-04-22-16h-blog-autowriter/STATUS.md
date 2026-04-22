@@ -12,24 +12,23 @@
 
 - 状态：已切换为本地 runner 执行
 - 已发现候选本机项目：47 个
-- 已研究项目：6 个
+- 已研究项目：7 个
 - 已调研外部资料：0 项
-- 已完成文章：6 篇
-- 已写入 posts.json 文章：6 篇
+- 已完成文章：7 篇
+- 已写入 posts.json 文章：7 篇
 - 已推送文章：4 篇
-- 待提交/推送文章：2 篇
+- 待提交/推送文章：3 篇
 - 最终报告：未生成
 
 ## 下次醒来建议
 
 1. 优先从 `PROJECT_INVENTORY.md` 中选择当前用户明确相关的项目。
-2. `F:\AIGril` 已完成部署架构文章，`F:\AutoResearch` 已完成总览文章，`F:\HaoRender-GPU` 已完成现代 RHI 路线文章，`F:\CodeAgents\multi-codex-orchestrator` 已完成多 Agent patch 流水线文章，`F:\haorender-main` 已完成 CPU 渲染工作台文章，`F:\HumanClaw\HumanClaw` 已完成桌宠与 OpenClaw runtime 边界文章。
+2. `F:\AIGril` 已完成部署架构文章，`F:\AutoResearch` 已完成总览文章，`F:\HaoRender-GPU` 已完成现代 RHI 路线文章，`F:\CodeAgents\multi-codex-orchestrator` 已完成多 Agent patch 流水线文章，`F:\haorender-main` 已完成 CPU 渲染工作台文章，`F:\HumanClaw\HumanClaw` 已完成桌宠与 OpenClaw runtime 边界文章，`F:\SHE` 已完成 AI-native 2D 引擎骨架文章。
 3. 推荐后续项目：
    - `F:\AIGril`
    - `F:\AutoResearch`
    - `F:\CodeAgents\multi-codex-orchestrator`
    - `F:\HaoRender-GPU`
-   - `F:\SHE`
    - `F:\SHE-workspace\SHE`
    - `F:\仿真人教学`
 4. 每次只推进一个项目，避免写散。
