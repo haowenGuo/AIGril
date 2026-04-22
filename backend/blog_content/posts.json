@@ -302,5 +302,24 @@
         "body_file": "posts/en/she-w05-scene-ecs-world-model.md"
       }
     }
+  },
+  {
+    "slug": "she-w06-asset-pipeline-contracts",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["engine", "assets", "gamedev", "cpp"],
+    "translations": {
+      "zh": {
+        "title": "SHE W06：让资产管线先稳定身份、元数据和加载边界",
+        "summary": "这篇文章基于 SHE-w06-assets 的 README、CMake 配置和公开 docs，介绍 W06 为什么要先稳定 asset ID、metadata、loader registration 和 handle lifetime，再承接 renderer、audio 与 scene/prefab authoring。",
+        "body_file": "posts/zh/she-w06-asset-pipeline-contracts.md"
+      },
+      "en": {
+        "title": "SHE W06: Stabilizing Asset Identity, Metadata, and Loader Boundaries",
+        "summary": "This post uses SHE-w06-assets' README, CMake setup, and public docs to explain why W06 stabilizes asset IDs, metadata, loader registration, and handle lifetime before renderer, audio, and scene or prefab authoring depend on it.",
+        "body_file": "posts/en/she-w06-asset-pipeline-contracts.md"
+      }
+    }
   }
 ]

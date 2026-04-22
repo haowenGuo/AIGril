@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：13
+- 已研究本机项目：14
 - 已调研外部资料：0
-- 已完成文章：13
-- 已写入 posts.json 文章：13
+- 已完成文章：14
+- 已写入 posts.json 文章：14
 - 已推送文章：4
-- 待提交/推送文章：9
+- 待提交/推送文章：10
 - 已生成最终报告：否
 
 ## 文章清单
@@ -85,6 +85,11 @@
   - 中文标题：SHE W05：把 Scene + ECS 做成稳定世界模型
   - 英文标题：SHE W05: Turning Scene + ECS into a Stable World Model
   - 内容概要：基于 SHE-w05-scene 的 README、CMakeLists 和公开 docs，介绍 W05 Scene + ECS 为什么要先稳定 entity identity、component storage/query conventions、transform ownership 和 scene lifetime，作为 renderer、physics、asset pipeline 与 AI Context 共同依赖的世界模型。
+
+- `she-w06-asset-pipeline-contracts`
+  - 中文标题：SHE W06：让资产管线先稳定身份、元数据和加载边界
+  - 英文标题：SHE W06: Stabilizing Asset Identity, Metadata, and Loader Boundaries
+  - 内容概要：基于 SHE-w06-assets 的 README、CMakeLists 和公开 docs，介绍 W06 Asset Pipeline 为什么要先稳定 asset IDs、metadata model、loader registration、handle lifetime 和 renderer/audio-friendly resource contracts，再承接 scene/prefab authoring 与后续 runtime 模块。
 
 ## 2026-04-22 09:09 心跳
 
@@ -198,11 +203,19 @@
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、coordination 目录或不在允许范围内的工程材料
 
+## 2026-04-22 14:18 本地 runner 写作迭代
+
+- 研究项目：`F:\SHE-workspace\SHE-w06-assets`
+- 阅读材料：README.md、CMakeLists.txt、docs/ACCEPTANCE_CHECKLIST.md、docs/AI_CONTEXT.md、docs/AI_NATIVE_REFACTOR.md、docs/ARCHITECTURE.md、docs/ARCHITECTURE_DECISIONS.md、docs/DEVELOPMENT_WORKFLOW.md、docs/MILESTONES.md、docs/MODULE_PRIORITY.md、docs/MULTI_CODEX_LAUNCH_PLAN.md 相关 W06/Asset Pipeline 段落、docs/MULTI_CODEX_WORKFLOW.md、docs/TECH_STACK.md、docs/SCHEMAS/README.md
+- 新增文章：`she-w06-asset-pipeline-contracts`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、coordination 目录或不在允许范围内的工程材料
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
 
 - AIGril 记忆压缩与长期会话设计
 - AIGril 内容安全 API 的工程化封装
-- SHE W06 Asset Pipeline 的资源身份与加载边界
+- SHE W07 Platform + Input 的窗口、输入和 frame timing 边界
 - AutoResearch 报告生成和证据链设计
