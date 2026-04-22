@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：30
+- 已研究本机项目：31
 - 已调研外部资料：0
-- 已完成文章：30
-- 已写入 posts.json 文章：30
+- 已完成文章：31
+- 已写入 posts.json 文章：31
 - 已推送文章：4
-- 待提交/推送文章：26
+- 待提交/推送文章：27
 - 已生成最终报告：否
 
 ## 文章清单
@@ -170,6 +170,11 @@
   - 中文标题：ACL Style Files：把论文模板当成投稿契约
   - 英文标题：ACL Style Files: Treating the Paper Template as a Submission Contract
   - 内容概要：基于 ACL style files 的 README，介绍官方 LaTeX 模板如何把作者写作、style files 不可随意修改的边界、publication chair 的 fork/同步流程和后续格式预检连接成一条可维护的投稿契约。
+
+- `apache-maven-pom-build-documentation-contract`
+  - 中文标题：Apache Maven：用 POM 把 Java 构建、报告和文档收进同一个入口
+  - 英文标题：Apache Maven: Using the POM as a Build, Reporting, and Documentation Contract
+  - 内容概要：基于 Apache Maven 本地分发目录的 README，介绍 Maven 如何用 Project Object Model 把构建、报告、文档和插件生态整理成可被人、CI 和自动化工具共同理解的工程契约，并强调不发布本地分发包或安装内容。
 
 ## 2026-04-22 09:09 心跳
 
@@ -418,6 +423,14 @@
 - 新增文章：`acl-style-files-latex-submission-contract`
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取 style/source 文件全文、论文草稿、私钥、数据库、安装包、本地二进制文件、压缩包或不在允许范围内的工程材料
+
+## 2026-04-22 18:41 本地 runner 写作迭代
+
+- 研究项目：`F:\apache-maven-3.9.9`
+- 阅读材料：README.txt
+- 新增文章：`apache-maven-pom-build-documentation-contract`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、插件目录、安装包、本地二进制文件、私钥、数据库、许可证全文或不在允许范围内的工程材料
 
 ## 下一步
 

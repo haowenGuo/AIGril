@@ -625,5 +625,24 @@
         "body_file": "posts/en/acl-style-files-latex-submission-contract.md"
       }
     }
+  },
+  {
+    "slug": "apache-maven-pom-build-documentation-contract",
+    "published_at": "2026-04-22",
+    "reading_time": "5 min",
+    "featured": false,
+    "tags": ["java", "maven", "build", "docs"],
+    "translations": {
+      "zh": {
+        "title": "Apache Maven：用 POM 把 Java 构建、报告和文档收进同一个入口",
+        "summary": "这篇文章基于 Apache Maven 本地分发目录的 README，介绍 Maven 如何用 POM 把构建、报告和文档整理成可被人、CI 和自动化工具共同理解的工程契约。",
+        "body_file": "posts/zh/apache-maven-pom-build-documentation-contract.md"
+      },
+      "en": {
+        "title": "Apache Maven: Using the POM as a Build, Reporting, and Documentation Contract",
+        "summary": "This post uses the Apache Maven README to explain how Maven uses the POM to turn builds, reporting, and documentation into a contract that humans, CI systems, and automation tools can inspect.",
+        "body_file": "posts/en/apache-maven-pom-build-documentation-contract.md"
+      }
+    }
   }
 ]
