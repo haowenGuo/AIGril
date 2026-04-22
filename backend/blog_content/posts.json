@@ -701,5 +701,24 @@
         "body_file": "posts/en/jupyter-notebook-local-lab-entrypoint.md"
       }
     }
+  },
+  {
+    "slug": "mysql-workbench-visual-database-workbench",
+    "published_at": "2026-04-22",
+    "reading_time": "5 min",
+    "featured": false,
+    "tags": ["database", "mysql", "tools", "workflow"],
+    "translations": {
+      "zh": {
+        "title": "MySQL Workbench：把数据库连接、建模和运维放进一个可视化工作台",
+        "summary": "这篇文章基于 MySQL Workbench 本地 README，介绍它如何把 SQL 开发、数据建模、服务器管理、数据迁移和企业能力整理成一个可视化数据库工作台。",
+        "body_file": "posts/zh/mysql-workbench-visual-database-workbench.md"
+      },
+      "en": {
+        "title": "MySQL Workbench: Bringing SQL, Modeling, and Administration into One Visual Workbench",
+        "summary": "This post uses the local MySQL Workbench README to explain how it brings SQL development, data modeling, server administration, migration, and enterprise support into one visual database workbench.",
+        "body_file": "posts/en/mysql-workbench-visual-database-workbench.md"
+      }
+    }
   }
 ]
