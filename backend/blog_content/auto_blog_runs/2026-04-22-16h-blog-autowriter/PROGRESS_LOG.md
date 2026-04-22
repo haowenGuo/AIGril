@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：26
+- 已研究本机项目：27
 - 已调研外部资料：0
-- 已完成文章：26
-- 已写入 posts.json 文章：26
+- 已完成文章：27
+- 已写入 posts.json 文章：27
 - 已推送文章：4
-- 待提交/推送文章：22
+- 待提交/推送文章：23
 - 已生成最终报告：否
 
 ## 文章清单
@@ -150,6 +150,11 @@
   - 中文标题：BaiduTieba-main：把贴吧关键词采集收进 CSV 研究边界
   - 英文标题：BaiduTieba-main: Keeping Tieba Keyword Collection Inside a CSV Research Boundary
   - 内容概要：基于 BaiduTieba-main 的 README 和 requirements 文件，介绍这个轻量 Python 贴吧采集项目如何用关键词配置、页码范围、requests、fake_useragent、rich、CSV 输出和日志形成小范围研究闭环，并强调 cookie、账号材料、采集结果和数据发布的安全边界。
+
+- `she-coordination-multicodex-operational-memory`
+  - 中文标题：SHE Coordination：把多 Codex 协作做成共享运行记忆
+  - 英文标题：SHE Coordination: Turning Multi-Codex Work into Shared Operational Memory
+  - 内容概要：基于 SHE coordination 目录的根 README、WORKSTREAMS README 和 HANDOFFS README，介绍它如何用任务板、状态台账、bounded workstream、handoff 命名规则和 integration impact 记录，把多 Codex 并行开发整理成可追溯的运行系统。
 
 ## 2026-04-22 09:09 心跳
 
@@ -367,9 +372,16 @@
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、配置文件、账号 cookie、日志、CSV 数据、数据库、安装包、本地二进制文件或不在允许范围内的工程材料
 
+## 2026-04-22 18:05 本地 runner 写作迭代
+
+- 研究项目：`F:\SHE\coordination`
+- 阅读材料：README.md、HANDOFFS/README.md、WORKSTREAMS/README.md
+- 新增文章：`she-coordination-multicodex-operational-memory`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、任务板、状态台账、具体 handoff 文件、集成报告、私钥、数据库、安装包、本地二进制文件或不在允许范围内的工程材料
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
 
-- `F:\SHE\coordination`
 - `F:\third_party\glTF-Sample-Models`

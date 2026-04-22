@@ -549,5 +549,24 @@
         "body_file": "posts/en/baidutieba-python-csv-research-crawler.md"
       }
     }
+  },
+  {
+    "slug": "she-coordination-multicodex-operational-memory",
+    "published_at": "2026-04-22",
+    "reading_time": "5 min",
+    "featured": false,
+    "tags": ["engine", "codex", "workflow", "coordination"],
+    "translations": {
+      "zh": {
+        "title": "SHE Coordination：把多 Codex 协作做成共享运行记忆",
+        "summary": "这篇文章基于 SHE coordination 目录下的 README 文件，介绍它如何用任务板、状态台账、workstream、handoff 和集成影响记录支撑多 Codex 并行开发。",
+        "body_file": "posts/zh/she-coordination-multicodex-operational-memory.md"
+      },
+      "en": {
+        "title": "SHE Coordination: Turning Multi-Codex Work into Shared Operational Memory",
+        "summary": "This post uses the README files in SHE coordination to explain how task boards, status ledgers, workstreams, handoffs, and integration-impact notes support parallel Codex development.",
+        "body_file": "posts/en/she-coordination-multicodex-operational-memory.md"
+      }
+    }
   }
 ]
