@@ -587,5 +587,24 @@
         "body_file": "posts/en/gltf-sample-models-rendering-test-suite.md"
       }
     }
+  },
+  {
+    "slug": "dify-llm-app-platform-workflow-rag-llmops",
+    "published_at": "2026-04-22",
+    "reading_time": "5 min",
+    "featured": false,
+    "tags": ["llm", "workflow", "rag", "llmops"],
+    "translations": {
+      "zh": {
+        "title": "Dify：把 LLM 应用开发收进工作流、RAG 和 LLMOps 平台",
+        "summary": "这篇文章基于 Dify 的 README，介绍它如何把可视化工作流、RAG、Agent、模型管理、可观测性和 API 集成整理成面向生产的 LLM 应用平台。",
+        "body_file": "posts/zh/dify-llm-app-platform-workflow-rag-llmops.md"
+      },
+      "en": {
+        "title": "Dify: Turning LLM App Development into Workflow, RAG, and LLMOps",
+        "summary": "This post uses Dify's README to explain how the platform combines visual workflows, RAG, agents, model management, observability, and APIs into a production-oriented LLM app platform.",
+        "body_file": "posts/en/dify-llm-app-platform-workflow-rag-llmops.md"
+      }
+    }
   }
 ]
