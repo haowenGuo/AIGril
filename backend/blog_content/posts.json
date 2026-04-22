@@ -340,5 +340,24 @@
         "body_file": "posts/en/she-w07-platform-input-frame-boundary.md"
       }
     }
+  },
+  {
+    "slug": "she-w08-renderer2d-frame-submission",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["engine", "rendering", "gamedev", "cpp"],
+    "translations": {
+      "zh": {
+        "title": "SHE W08：把 Renderer2D 做成清晰的提交与帧所有权边界",
+        "summary": "这篇文章基于 SHE-w08-renderer 的 README、CMake 配置和公开 docs，介绍 W08 如何把 camera、sprite submission、texture/material handle 和 frame begin/end ownership 做成可解释的渲染边界。",
+        "body_file": "posts/zh/she-w08-renderer2d-frame-submission.md"
+      },
+      "en": {
+        "title": "SHE W08: Turning Renderer2D into a Clear Submission and Frame Ownership Boundary",
+        "summary": "This post uses SHE-w08-renderer's README, CMake setup, and public docs to explain how W08 turns camera state, sprite submission, texture/material handles, and frame begin/end ownership into a clear rendering boundary.",
+        "body_file": "posts/en/she-w08-renderer2d-frame-submission.md"
+      }
+    }
   }
 ]
