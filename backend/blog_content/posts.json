@@ -397,5 +397,24 @@
         "body_file": "posts/en/she-w10-audio-runtime-playback-events.md"
       }
     }
+  },
+  {
+    "slug": "she-w11-ui-debug-runtime-inspection",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["engine", "debugging", "gamedev", "cpp"],
+    "translations": {
+      "zh": {
+        "title": "SHE W11：把 UI + Debug Tools 做成运行时检查界面",
+        "summary": "这篇文章基于 SHE-w11-ui-debug 的 README、CMake 配置和公开 docs，介绍 W11 如何用 IUiService、Dear ImGui 方向、sandbox debug integration 和 runtime inspection panels 把运行时状态变成可扫描的调试表面。",
+        "body_file": "posts/zh/she-w11-ui-debug-runtime-inspection.md"
+      },
+      "en": {
+        "title": "SHE W11: Turning UI + Debug Tools into a Runtime Inspection Surface",
+        "summary": "This post uses SHE-w11-ui-debug's README, CMake setup, and public docs to explain how W11 turns runtime counters, traces, inspection hooks, sandbox integration, and AI context previews into a scannable debug surface.",
+        "body_file": "posts/en/she-w11-ui-debug-runtime-inspection.md"
+      }
+    }
   }
 ]

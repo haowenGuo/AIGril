@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：18
+- 已研究本机项目：19
 - 已调研外部资料：0
-- 已完成文章：18
-- 已写入 posts.json 文章：18
+- 已完成文章：19
+- 已写入 posts.json 文章：19
 - 已推送文章：4
-- 待提交/推送文章：14
+- 待提交/推送文章：15
 - 已生成最终报告：否
 
 ## 文章清单
@@ -110,6 +110,11 @@
   - 中文标题：SHE W10：把 Audio Runtime 做成播放契约和玩法反馈边界
   - 英文标题：SHE W10: Turning Audio Runtime into Playback Contracts and Gameplay Feedback
   - 内容概要：基于 SHE-w10-audio 的 README、CMakeLists 和公开 docs，介绍 W10 Audio Runtime 为什么要先稳定 IAudioService frame ownership、miniaudio-backed playback path、sound/music asset contract、channel/group ownership 和 gameplay-triggered audio events，作为 playable runtime、asset pipeline、diagnostics 与 AI context 共同依赖的音频反馈边界。
+
+- `she-w11-ui-debug-runtime-inspection`
+  - 中文标题：SHE W11：把 UI + Debug Tools 做成运行时检查界面
+  - 英文标题：SHE W11: Turning UI + Debug Tools into a Runtime Inspection Surface
+  - 内容概要：基于 SHE-w11-ui-debug 的 README、CMakeLists 和公开 docs，介绍 W11 UI + Debug Tools 为什么要先稳定 IUiService frame ownership、Dear ImGui/runtime HUD 方向、runtime counters、diagnostics/scene/physics/render inspection hooks 和 sandbox debug integration，作为开发者与 Codex 共同依赖的运行时检查界面。
 
 ## 2026-04-22 09:09 心跳
 
@@ -263,11 +268,19 @@
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、coordination 目录或不在允许范围内的工程材料
 
+## 2026-04-22 16:16 本地 runner 写作迭代
+
+- 研究项目：`F:\SHE-workspace\SHE-w11-ui-debug`
+- 阅读材料：README.md、CMakeLists.txt、docs/MODULE_PRIORITY.md、docs/MILESTONES.md、docs/TECH_STACK.md、docs/AI_NATIVE_REFACTOR.md 相关 IUiService/UI frame flow 段落、docs/ARCHITECTURE.md 相关 runtime service/frame flow 段落、docs/MULTI_CODEX_LAUNCH_PLAN.md 相关 W11 启动任务段落、docs/ACCEPTANCE_CHECKLIST.md、docs/AI_CONTEXT.md 相关 diagnostics/context 段落、docs/DEVELOPMENT_WORKFLOW.md 相关 ImGui/debug tooling 段落、docs/ARCHITECTURE_DECISIONS.md 相关 AI-native/service 边界段落、docs/MULTI_CODEX_WORKFLOW.md 相关 workstream/handoff/test 段落
+- 新增文章：`she-w11-ui-debug-runtime-inspection`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、coordination 目录或不在允许范围内的工程材料
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
 
 - AIGril 记忆压缩与长期会话设计
 - AIGril 内容安全 API 的工程化封装
-- SHE W11 UI + Debug Tools 的运行时检查与调试面板边界
+- SHE W12 First Vertical Slice Game 的端到端玩法闭环
 - AutoResearch 报告生成和证据链设计
