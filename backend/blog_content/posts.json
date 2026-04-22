@@ -530,5 +530,24 @@
         "body_file": "posts/en/she-workspace-multicodex-integration-spine.md"
       }
     }
+  },
+  {
+    "slug": "baidutieba-python-csv-research-crawler",
+    "published_at": "2026-04-22",
+    "reading_time": "5 min",
+    "featured": false,
+    "tags": ["crawler", "python", "csv", "compliance"],
+    "translations": {
+      "zh": {
+        "title": "BaiduTieba-main：把贴吧关键词采集收进 CSV 研究边界",
+        "summary": "这篇文章基于 BaiduTieba-main 的 README 和 requirements 文件，介绍它如何用 Python、关键词配置、页码范围、CSV 输出和日志，把贴吧采集做成小范围研究练习，并强调 cookie 与数据发布边界。",
+        "body_file": "posts/zh/baidutieba-python-csv-research-crawler.md"
+      },
+      "en": {
+        "title": "BaiduTieba-main: Keeping Tieba Keyword Collection Inside a CSV Research Boundary",
+        "summary": "This post uses BaiduTieba-main's README and requirements file to explain how a Python keyword crawler can stay within a small CSV-based research workflow while keeping cookie and data-publishing boundaries explicit.",
+        "body_file": "posts/en/baidutieba-python-csv-research-crawler.md"
+      }
+    }
   }
 ]
