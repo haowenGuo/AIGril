@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：29
+- 已研究本机项目：30
 - 已调研外部资料：0
-- 已完成文章：29
-- 已写入 posts.json 文章：29
+- 已完成文章：30
+- 已写入 posts.json 文章：30
 - 已推送文章：4
-- 待提交/推送文章：25
+- 待提交/推送文章：26
 - 已生成最终报告：否
 
 ## 文章清单
@@ -165,6 +165,11 @@
   - 中文标题：Dify：把 LLM 应用开发收进工作流、RAG 和 LLMOps 平台
   - 英文标题：Dify: Turning LLM App Development into Workflow, RAG, and LLMOps
   - 内容概要：基于 Dify 的 README，介绍它如何把可视化 Workflow、RAG Pipeline、Agent capabilities、模型管理、LLMOps、可观测性和 API 集成整理成面向生产的 LLM 应用开发平台，并强调环境配置、源码打包和分发边界。
+
+- `acl-style-files-latex-submission-contract`
+  - 中文标题：ACL Style Files：把论文模板当成投稿契约
+  - 英文标题：ACL Style Files: Treating the Paper Template as a Submission Contract
+  - 内容概要：基于 ACL style files 的 README，介绍官方 LaTeX 模板如何把作者写作、style files 不可随意修改的边界、publication chair 的 fork/同步流程和后续格式预检连接成一条可维护的投稿契约。
 
 ## 2026-04-22 09:09 心跳
 
@@ -405,6 +410,14 @@
 - 新增文章：`dify-llm-app-platform-workflow-rag-llmops`
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取 `.env.example`、Docker Compose 配置、源码全文、数据库、运行日志、模型文件、本地部署材料、安装包、本地二进制文件或不在允许范围内的工程材料
+
+## 2026-04-22 18:31 本地 runner 写作迭代
+
+- 研究项目：`F:\新建文件夹\acl-style-files-master`
+- 阅读材料：README.md
+- 新增文章：`acl-style-files-latex-submission-contract`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取 style/source 文件全文、论文草稿、私钥、数据库、安装包、本地二进制文件、压缩包或不在允许范围内的工程材料
 
 ## 下一步
 
