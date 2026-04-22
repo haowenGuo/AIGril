@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：27
+- 已研究本机项目：28
 - 已调研外部资料：0
-- 已完成文章：27
-- 已写入 posts.json 文章：27
+- 已完成文章：28
+- 已写入 posts.json 文章：28
 - 已推送文章：4
-- 待提交/推送文章：23
+- 待提交/推送文章：24
 - 已生成最终报告：否
 
 ## 文章清单
@@ -155,6 +155,11 @@
   - 中文标题：SHE Coordination：把多 Codex 协作做成共享运行记忆
   - 英文标题：SHE Coordination: Turning Multi-Codex Work into Shared Operational Memory
   - 内容概要：基于 SHE coordination 目录的根 README、WORKSTREAMS README 和 HANDOFFS README，介绍它如何用任务板、状态台账、bounded workstream、handoff 命名规则和 integration impact 记录，把多 Codex 并行开发整理成可追溯的运行系统。
+
+- `gltf-sample-models-rendering-test-suite`
+  - 中文标题：glTF Sample Models：把 3D 资产样例做成渲染器测试清单
+  - 英文标题：glTF Sample Models: Turning 3D Assets into a Renderer Test Checklist
+  - 内容概要：基于 glTF Sample Models 的根 README 和 glTF 2.0 样例索引 README，介绍它如何用分离 glTF、Data URI glTF、GLB、Minimal Tests、Feature Tests、PBR Showcase 和 Extensions 样例，形成渲染器、导入器与资产管线的分层测试地图。
 
 ## 2026-04-22 09:09 心跳
 
@@ -380,8 +385,16 @@
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、任务板、状态台账、具体 handoff 文件、集成报告、私钥、数据库、安装包、本地二进制文件或不在允许范围内的工程材料
 
+## 2026-04-22 18:07 本地 runner 写作迭代
+
+- 研究项目：`F:\third_party\glTF-Sample-Models`
+- 阅读材料：README.md、2.0/README.md
+- 新增文章：`gltf-sample-models-rendering-test-suite`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取模型文件、截图、二进制资源、源码全文、私钥、数据库、安装包、本地二进制文件、per-model 资产目录内容或不在允许范围内的工程材料
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
 
-- `F:\third_party\glTF-Sample-Models`
+- `F:\ollama\dify`
