@@ -359,5 +359,24 @@
         "body_file": "posts/en/she-w08-renderer2d-frame-submission.md"
       }
     }
+  },
+  {
+    "slug": "she-w09-physics2d-fixed-step-collisions",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["engine", "physics", "gamedev", "cpp"],
+    "translations": {
+      "zh": {
+        "title": "SHE W09：把 Physics2D 做成固定步长与碰撞事件边界",
+        "summary": "这篇文章基于 SHE-w09-physics 的 README、CMake 配置和公开 docs，介绍 W09 如何把 Box2D runtime boundary、body/collider lifetime、fixed-step simulation 和 collision callbacks 接入 gameplay events。",
+        "body_file": "posts/zh/she-w09-physics2d-fixed-step-collisions.md"
+      },
+      "en": {
+        "title": "SHE W09: Turning Physics2D into a Fixed-Step and Collision Event Boundary",
+        "summary": "This post uses SHE-w09-physics' README, CMake setup, and public docs to explain how W09 connects the Box2D runtime boundary, body/collider lifetime, fixed-step simulation, and collision callbacks into gameplay events.",
+        "body_file": "posts/en/she-w09-physics2d-fixed-step-collisions.md"
+      }
+    }
   }
 ]
