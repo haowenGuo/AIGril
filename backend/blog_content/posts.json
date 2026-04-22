@@ -416,5 +416,24 @@
         "body_file": "posts/en/she-w11-ui-debug-runtime-inspection.md"
       }
     }
+  },
+  {
+    "slug": "she-w12-first-playable-vertical-slice",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["engine", "gamedev", "cpp", "vertical-slice"],
+    "translations": {
+      "zh": {
+        "title": "SHE W12：用第一个可玩 Vertical Slice 验证整条引擎链路",
+        "summary": "这篇文章基于 SHE-w12-vertical-slice 的 README、CMake 配置和公开 docs，介绍 W12 如何用一个小型可玩循环验证 gameplay、data、scene、physics、audio、debug UI 和 AI context 是否真正接通。",
+        "body_file": "posts/zh/she-w12-first-playable-vertical-slice.md"
+      },
+      "en": {
+        "title": "SHE W12: Validating the Engine Spine with the First Playable Vertical Slice",
+        "summary": "This post uses SHE-w12-vertical-slice's README, CMake setup, and public docs to explain how W12 validates the engine spine through one small playable loop across gameplay, data, scene, physics, audio, debug UI, and AI context.",
+        "body_file": "posts/en/she-w12-first-playable-vertical-slice.md"
+      }
+    }
   }
 ]
