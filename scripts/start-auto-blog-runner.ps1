@@ -11,6 +11,9 @@ $Runner = Join-Path $RepoRoot "scripts\auto_blog_runner.py"
 $RunDir = Join-Path $RepoRoot "backend\blog_content\auto_blog_runs\2026-04-22-16h-blog-autowriter"
 $Stdout = Join-Path $RunDir "local_runner_stdout.log"
 $Stderr = Join-Path $RunDir "local_runner_stderr.log"
+$StopFile = Join-Path $RunDir "stop.flag"
+
+Remove-Item -Path $StopFile -Force -ErrorAction SilentlyContinue
 
 $argsList = @(
     $Runner,

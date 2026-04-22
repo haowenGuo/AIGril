@@ -23,6 +23,14 @@ tmp/
 release/
 backend/blog_content/auto_blog_runs/**/local_runner_*.log
 backend/blog_content/auto_blog_runs/**/runner.lock
+backend/blog_content/auto_blog_runs/**/RUNNER_LOG.md
+backend/blog_content/auto_blog_runs/**/RUNNER_STATUS.json
+backend/blog_content/auto_blog_runs/**/last_runner_message.md
+backend/blog_content/auto_blog_runs/**/event-log.jsonl
+backend/blog_content/auto_blog_runs/**/progress.json
+backend/blog_content/auto_blog_runs/**/state.json
+backend/blog_content/auto_blog_runs/**/control-queue.jsonl
+backend/blog_content/auto_blog_runs/**/stop.flag
 
 # Legacy / generated assets not needed in the published repo
 /main.js

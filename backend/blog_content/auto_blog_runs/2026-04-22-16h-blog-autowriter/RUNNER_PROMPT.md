@@ -20,6 +20,9 @@ Read these files before making changes:
 
 - `backend/blog_content/authoring_kit/AUTO_BLOG_WORKFLOW.md`
 - `backend/blog_content/authoring_kit/PUBLISHING_GUIDE.md`
+- `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/mission.md`
+- `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/acceptance.md`
+- `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/loop-policy.json`
 - `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/STATUS.md`
 - `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/PROGRESS_LOG.md`
 - `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/PROJECT_INVENTORY.md`
@@ -79,6 +82,7 @@ The article must follow:
 - Do not package or upload source archives or installers.
 - Do not run `git add`, `git commit`, or `git push`.
 - The local runner script handles validation, Git commit, and push after this worker exits.
+- Do not edit runtime controller files such as `event-log.jsonl`, `progress.json`, `state.json`, `control-queue.jsonl`, `RUNNER_LOG.md`, or `RUNNER_STATUS.json`.
 
 ## Final Response
 
