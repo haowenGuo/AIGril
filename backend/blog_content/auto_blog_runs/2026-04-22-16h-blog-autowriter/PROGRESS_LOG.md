@@ -70,6 +70,17 @@
 - 处理方式：改由普通会话只 stage 博客内容相关文件，避开其他未提交改动
 - 目标：把第 2 到第 4 篇文章和运行状态同步到 GitHub `main`
 
+## 2026-04-22 10:10 架构调整：本地 runner 执行，heartbeat 汇报
+
+- 原因：heartbeat 写 `.git/index.lock` 不稳定，不适合作为真正执行器
+- 新执行器：`scripts/auto_blog_runner.py`
+- 启动脚本：`scripts/start-auto-blog-runner.ps1`
+- 停止脚本：`scripts/stop-auto-blog-runner.ps1`
+- 单轮写作提示：`RUNNER_PROMPT.md`
+- runner 状态：`RUNNER_STATUS.json`
+- runner 日志：`RUNNER_LOG.md`
+- 新职责划分：runner 负责写作、校验、提交、推送；heartbeat 只负责读日志和汇报
+
 ## 下一步
 
 继续从 `F:\AIGril` 或下一个本机项目中选择主题。建议候选：
