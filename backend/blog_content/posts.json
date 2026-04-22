@@ -663,5 +663,24 @@
         "body_file": "posts/en/krkrz-visual-novel-runtime-compatibility.md"
       }
     }
+  },
+  {
+    "slug": "notepad-plus-plus-local-tool-inventory",
+    "published_at": "2026-04-22",
+    "reading_time": "4 min",
+    "featured": false,
+    "tags": ["tools", "editor", "workflow", "windows"],
+    "translations": {
+      "zh": {
+        "title": "Notepad++：把轻量编辑器纳入本地工具清单",
+        "summary": "这篇文章基于 Notepad++ 的本地 README，介绍如何只用软件名、版本和启动入口等低风险信息，把轻量编辑器记录成本机工具链的一部分。",
+        "body_file": "posts/zh/notepad-plus-plus-local-tool-inventory.md"
+      },
+      "en": {
+        "title": "Notepad++: Treating a Lightweight Editor as Part of the Local Tool Inventory",
+        "summary": "This post uses the local Notepad++ README to explain how a lightweight editor can be documented through low-risk metadata such as name, version, and launch boundary.",
+        "body_file": "posts/en/notepad-plus-plus-local-tool-inventory.md"
+      }
+    }
   }
 ]
