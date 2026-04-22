@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：33
+- 已研究本机项目：34
 - 已调研外部资料：0
-- 已完成文章：33
-- 已写入 posts.json 文章：33
+- 已完成文章：34
+- 已写入 posts.json 文章：34
 - 已推送文章：4
-- 待提交/推送文章：29
+- 待提交/推送文章：30
 - 已生成最终报告：否
 
 ## 文章清单
@@ -185,6 +185,11 @@
   - 中文标题：Notepad++：把轻量编辑器纳入本地工具清单
   - 英文标题：Notepad++: Treating a Lightweight Editor as Part of the Local Tool Inventory
   - 内容概要：基于 Notepad++ 本地 README，介绍如何只用软件名、版本和启动入口等低风险信息，把轻量 Windows 文本编辑器记录成本机工具链的一部分，并强调不发布本机路径、安装包、二进制文件、插件目录或用户配置。
+
+- `jupyter-notebook-local-lab-entrypoint`
+  - 中文标题：Jupyter Notebook：把本地实验入口整理成可控工作台
+  - 英文标题：Jupyter Notebook: Turning a Local Research Entry Point into a Controlled Workbench
+  - 内容概要：基于 JupyterNotebook 本地 README，介绍如何把 Miniconda、Notebook 工作目录和启动入口记录成可复用的本地研究工作台，并强调不发布本机绝对路径、Notebook 内容、数据文件或个人环境细节。
 
 ## 2026-04-22 09:09 心跳
 
@@ -457,6 +462,14 @@
 - 新增文章：`notepad-plus-plus-local-tool-inventory`
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有发布本机安装路径、启动脚本路径、可执行文件路径、安装包、本地二进制文件、插件目录、用户配置、私钥、数据库或不在允许范围内的工程材料
+
+## 2026-04-22 19:13 本地 runner 写作迭代
+
+- 研究项目：`F:\JupyterNotebook`
+- 阅读材料：README.txt
+- 新增文章：`jupyter-notebook-local-lab-entrypoint`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有发布本机绝对安装路径、Notebook 内容、数据文件、启动脚本内容、安装包、本地二进制文件、私钥、数据库或不在允许范围内的工程材料
 
 ## 下一步
 

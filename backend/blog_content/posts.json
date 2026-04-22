@@ -682,5 +682,24 @@
         "body_file": "posts/en/notepad-plus-plus-local-tool-inventory.md"
       }
     }
+  },
+  {
+    "slug": "jupyter-notebook-local-lab-entrypoint",
+    "published_at": "2026-04-22",
+    "reading_time": "4 min",
+    "featured": false,
+    "tags": ["tools", "notebook", "python", "workflow"],
+    "translations": {
+      "zh": {
+        "title": "Jupyter Notebook：把本地实验入口整理成可控工作台",
+        "summary": "这篇文章基于 JupyterNotebook 的本地 README，介绍如何把 Miniconda、Notebook 工作目录和启动入口整理成安全克制的本地研究工作台记录。",
+        "body_file": "posts/zh/jupyter-notebook-local-lab-entrypoint.md"
+      },
+      "en": {
+        "title": "Jupyter Notebook: Turning a Local Research Entry Point into a Controlled Workbench",
+        "summary": "This post uses the local JupyterNotebook README to explain how a Miniconda-backed notebook workspace can be documented as a safe, repeatable research entry point.",
+        "body_file": "posts/en/jupyter-notebook-local-lab-entrypoint.md"
+      }
+    }
   }
 ]
