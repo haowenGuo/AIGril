@@ -9,8 +9,8 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
-    # deploy-trigger: classroom-blackboard-20260421
-buildFilter:
+    # deploy-trigger: classroom-blackboard-20260422
+    buildFilter:
       paths:
         - backend/**
         - requirements.txt
