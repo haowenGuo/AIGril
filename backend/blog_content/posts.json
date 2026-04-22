@@ -435,5 +435,24 @@
         "body_file": "posts/en/she-w12-first-playable-vertical-slice.md"
       }
     }
+  },
+  {
+    "slug": "humanoid-teaching-aliyun-serverless-backend",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["education", "serverless", "aliyun", "backend"],
+    "translations": {
+      "zh": {
+        "title": "仿真人教学 Aliyun Serverless：把正式后端模板先立住",
+        "summary": "这篇文章基于仿真人教学 aliyun-serverless 子项目的 README 和 package.json，介绍它如何把身份、资源、AI、课堂、统计和家长视图整理成面向正式部署的后端模板。",
+        "body_file": "posts/zh/humanoid-teaching-aliyun-serverless-backend.md"
+      },
+      "en": {
+        "title": "Humanoid Teaching Aliyun Serverless: Establishing the Formal Backend Template",
+        "summary": "This post uses the aliyun-serverless subproject README and package metadata to explain how it organizes identity, resources, AI teaching, classroom interaction, statistics, and parent views into a deployment-oriented backend template.",
+        "body_file": "posts/en/humanoid-teaching-aliyun-serverless-backend.md"
+      }
+    }
   }
 ]
