@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：28
+- 已研究本机项目：29
 - 已调研外部资料：0
-- 已完成文章：28
-- 已写入 posts.json 文章：28
+- 已完成文章：29
+- 已写入 posts.json 文章：29
 - 已推送文章：4
-- 待提交/推送文章：24
+- 待提交/推送文章：25
 - 已生成最终报告：否
 
 ## 文章清单
@@ -160,6 +160,11 @@
   - 中文标题：glTF Sample Models：把 3D 资产样例做成渲染器测试清单
   - 英文标题：glTF Sample Models: Turning 3D Assets into a Renderer Test Checklist
   - 内容概要：基于 glTF Sample Models 的根 README 和 glTF 2.0 样例索引 README，介绍它如何用分离 glTF、Data URI glTF、GLB、Minimal Tests、Feature Tests、PBR Showcase 和 Extensions 样例，形成渲染器、导入器与资产管线的分层测试地图。
+
+- `dify-llm-app-platform-workflow-rag-llmops`
+  - 中文标题：Dify：把 LLM 应用开发收进工作流、RAG 和 LLMOps 平台
+  - 英文标题：Dify: Turning LLM App Development into Workflow, RAG, and LLMOps
+  - 内容概要：基于 Dify 的 README，介绍它如何把可视化 Workflow、RAG Pipeline、Agent capabilities、模型管理、LLMOps、可观测性和 API 集成整理成面向生产的 LLM 应用开发平台，并强调环境配置、源码打包和分发边界。
 
 ## 2026-04-22 09:09 心跳
 
@@ -393,8 +398,16 @@
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取模型文件、截图、二进制资源、源码全文、私钥、数据库、安装包、本地二进制文件、per-model 资产目录内容或不在允许范围内的工程材料
 
+## 2026-04-22 18:23 本地 runner 写作迭代
+
+- 研究项目：`F:\ollama\dify`
+- 阅读材料：README.md
+- 新增文章：`dify-llm-app-platform-workflow-rag-llmops`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取 `.env.example`、Docker Compose 配置、源码全文、数据库、运行日志、模型文件、本地部署材料、安装包、本地二进制文件或不在允许范围内的工程材料
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
 
-- `F:\ollama\dify`
+- 未完成且低风险的 README/manifest 项目；优先避开备份目录、安装目录和可能包含论文私稿的目录。
