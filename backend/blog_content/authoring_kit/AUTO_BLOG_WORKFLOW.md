@@ -1,6 +1,6 @@
 # AIGril 自动博客撰写工作流
 
-这个文件用于 16 小时自动博客撰写任务。真正写文章、校验、提交和推送的部分由本地常驻 runner 执行；Codex heartbeat 只负责读取 runner 日志和状态，并向用户汇报。
+这个文件用于 16 小时自动博客撰写任务。当前工程按 `auto-longrun-task` 模式运行：真正写文章、校验、提交、推送和失败恢复的部分由本地 LongRun Controller 执行；Codex heartbeat 只负责读取 durable state，并向用户汇报。
 
 ## 当前运行目录
 
@@ -10,7 +10,7 @@
 
 ## 执行模型
 
-### 本地常驻 runner
+### LongRun Controller
 
 真正执行任务的是：
 
@@ -26,16 +26,21 @@
 
 runner 职责：
 
-1. 定时调用 `codex exec` 执行一轮写作
-2. 读取 `RUNNER_PROMPT.md`
-3. 生成一篇中英双语文章
-4. 更新 `posts.json`
-5. 更新 `STATUS.md` 和 `PROGRESS_LOG.md`
-6. 校验 `posts.json`
-7. 只 stage 博客相关文件
-8. 提交当前分支
-9. cherry-pick 到 `F:\AIGril_tmp_main`
-10. 推送到 GitHub `main`
+1. 读取 `mission.md`、`acceptance.md`、`loop-policy.json`
+2. 消费 `control-queue.jsonl` 和 `stop.flag`
+3. 如果存在 `pendingCommits`，先重试发布，不继续写新文章
+4. 定时调用 `codex exec` 执行一轮写作
+5. 读取 `RUNNER_PROMPT.md`
+6. 生成一篇中英双语文章
+7. 更新 `posts.json`
+8. 更新 `STATUS.md` 和 `PROGRESS_LOG.md`
+9. 校验 `posts.json`
+10. 只 stage 博客相关文件
+11. 提交当前分支，并把 commit 写入 `state.json`
+12. 按顺序 cherry-pick pending commits 到 `F:\AIGril_tmp_main`
+13. 推送到 GitHub `main`
+14. 追加 `event-log.jsonl`，刷新 `progress.json`
+15. 对失败进行分类，再进入重试、阻塞或等待
 
 ### heartbeat
 
@@ -43,12 +48,16 @@ heartbeat 不再写文章，不再执行 Git。
 
 heartbeat 职责：
 
-1. 读取 `RUNNER_STATUS.json`
-2. 读取 `RUNNER_LOG.md`
-3. 读取 `STATUS.md`
-4. 读取 `PROGRESS_LOG.md`
-5. 判断 runner 是否卡住或报错
-6. 只向用户汇报进度、错误或需要介入的事项
+1. 优先读取 `progress.json`
+2. 读取 `state.json`
+3. 读取 `event-log.jsonl` 末尾事件
+4. 必要时读取兼容旧状态的 `RUNNER_STATUS.json`
+5. 必要时读取 `RUNNER_LOG.md`
+6. 读取 `STATUS.md` 和 `PROGRESS_LOG.md`
+7. 判断 controller 是否卡住、报错或需要人工介入
+8. 只向用户汇报进度、错误或需要介入的事项
+
+heartbeat 不是执行器，也不是 Git 发布器。它只是一层 conversation projector。
 
 ## 任务目标
 
@@ -77,17 +86,20 @@ heartbeat 职责：
 
 ## runner 每轮执行顺序
 
-1. 阅读 `RUNNER_PROMPT.md`
-2. 阅读 `STATUS.md`
-3. 阅读 `PROGRESS_LOG.md`
-4. 查看 `PROJECT_INVENTORY.md`
-5. 选择一个尚未完成文章的本机项目
-6. 只读取低风险材料
-7. 必要时查找公开资料辅助理解
-8. 生成或完善中英双语文章
-9. 更新 `posts.json`
-10. 更新运行日志和统计
-11. 由 runner 校验、提交和推送
+1. 处理 `control-queue.jsonl` 和 `stop.flag`
+2. 如果 `state.json` 有 `pendingCommits`，先重试发布
+3. 阅读 `RUNNER_PROMPT.md`
+4. 阅读 `STATUS.md`
+5. 阅读 `PROGRESS_LOG.md`
+6. 查看 `PROJECT_INVENTORY.md`
+7. 选择一个尚未完成文章的本机项目
+8. 只读取低风险材料
+9. 必要时查找公开资料辅助理解
+10. 生成或完善中英双语文章
+11. 更新 `posts.json`
+12. 更新运行日志和统计
+13. 由 runner 校验、提交和推送
+14. 写入 `event-log.jsonl` 和 `progress.json`
 
 ## 低风险材料范围
 
@@ -139,7 +151,24 @@ runner 提交时，只允许包含：
 - `backend/blog_content/posts.json`
 - `backend/blog_content/posts/zh/*.md`
 - `backend/blog_content/posts/en/*.md`
-- `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/*.md`
+- `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/STATUS.md`
+- `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/PROGRESS_LOG.md`
+- `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/final_100_page_report.md`
+- `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/mission.md`
+- `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/acceptance.md`
+- `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/loop-policy.json`
+- `backend/blog_content/auto_blog_runs/2026-04-22-16h-blog-autowriter/LONGRUN_ENGINEERING_PLAN.md`
+
+runner 禁止提交：
+
+- `RUNNER_LOG.md`
+- `RUNNER_STATUS.json`
+- `last_runner_message.md`
+- `event-log.jsonl`
+- `progress.json`
+- `state.json`
+- `control-queue.jsonl`
+- `stop.flag`
 
 不要提交前端、后端业务、Electron、配置密钥或其他用户改动。
 
