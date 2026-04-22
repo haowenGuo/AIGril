@@ -226,5 +226,24 @@
         "body_file": "posts/en/she-w01-gameplay-core-contracts.md"
       }
     }
+  },
+  {
+    "slug": "she-w02-data-core-schema-contracts",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["engine", "gamedev", "cpp", "schema"],
+    "translations": {
+      "zh": {
+        "title": "SHE W02：把玩法数据先做成 schema-first 契约",
+        "summary": "这篇文章基于 SHE-w02-data 的 README、CMake 配置和公开 docs，介绍 W02 Data Core 如何用 schema registration、validation results 和 AI context 把玩法数据做成可验证契约。",
+        "body_file": "posts/zh/she-w02-data-core-schema-contracts.md"
+      },
+      "en": {
+        "title": "SHE W02: Turning Gameplay Data into Schema-First Contracts",
+        "summary": "This post uses SHE-w02-data's README, CMake setup, and public docs to explain how W02 Data Core turns gameplay data into verifiable contracts through schema registration, validation results, and AI context.",
+        "body_file": "posts/en/she-w02-data-core-schema-contracts.md"
+      }
+    }
   }
 ]
