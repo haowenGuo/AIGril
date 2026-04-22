@@ -264,5 +264,24 @@
         "body_file": "posts/en/she-w03-diagnostics-ai-context.md"
       }
     }
+  },
+  {
+    "slug": "she-w04-scripting-host-boundary",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["engine", "scripting", "cpp", "lua"],
+    "translations": {
+      "zh": {
+        "title": "SHE W04：把脚本能力先做成稳定宿主边界",
+        "summary": "这篇文章基于 SHE-w04-scripting 的 README、CMake 配置和公开 docs，介绍 W04 为什么要把脚本做成稳定 host boundary，而不是绕过 gameplay、data、diagnostics 和 AI Context 契约。",
+        "body_file": "posts/zh/she-w04-scripting-host-boundary.md"
+      },
+      "en": {
+        "title": "SHE W04: Turning Scripting into a Stable Host Boundary",
+        "summary": "This post uses SHE-w04-scripting's README, CMake setup, and public docs to explain why W04 treats scripting as a stable host boundary instead of a shortcut around gameplay, data, diagnostics, and AI context contracts.",
+        "body_file": "posts/en/she-w04-scripting-host-boundary.md"
+      }
+    }
   }
 ]
