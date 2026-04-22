@@ -321,5 +321,24 @@
         "body_file": "posts/en/she-w06-asset-pipeline-contracts.md"
       }
     }
+  },
+  {
+    "slug": "she-w07-platform-input-frame-boundary",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["engine", "platform", "input", "cpp"],
+    "translations": {
+      "zh": {
+        "title": "SHE W07：把窗口、输入和帧时间做成运行时边界",
+        "summary": "这篇文章基于 SHE-w07-platform 的 README、CMake 配置和公开 docs，介绍 W07 如何把窗口、输入、事件泵和帧时间做成后续渲染、物理、音频和 UI 能共同依赖的运行时边界。",
+        "body_file": "posts/zh/she-w07-platform-input-frame-boundary.md"
+      },
+      "en": {
+        "title": "SHE W07: Turning Windowing, Input, and Frame Timing into a Runtime Boundary",
+        "summary": "This post uses SHE-w07-platform's README, CMake setup, and public docs to explain how W07 turns windowing, input, event pumping, and frame timing into a runtime boundary for renderer, physics, audio, and UI work.",
+        "body_file": "posts/en/she-w07-platform-input-frame-boundary.md"
+      }
+    }
   }
 ]
