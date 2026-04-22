@@ -10,7 +10,7 @@
 
 ## 当前状态
 
-- 状态：已初始化
+- 状态：已切换为本地 runner 执行
 - 已发现候选本机项目：47 个
 - 已研究项目：4 个
 - 已调研外部资料：0 项
@@ -43,4 +43,4 @@
 
 ## Git 提交说明
 
-heartbeat 沙箱内无法写入 `.git/index.lock`。第 2 到第 4 篇文章已由普通会话补偿提交并准备推送。
+heartbeat 不再执行 Git。后续由 `scripts/auto_blog_runner.py` 负责校验、提交和推送；heartbeat 只读取 `RUNNER_STATUS.json` 与 `RUNNER_LOG.md` 汇报进度。
