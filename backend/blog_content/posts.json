@@ -568,5 +568,24 @@
         "body_file": "posts/en/she-coordination-multicodex-operational-memory.md"
       }
     }
+  },
+  {
+    "slug": "gltf-sample-models-rendering-test-suite",
+    "published_at": "2026-04-22",
+    "reading_time": "5 min",
+    "featured": false,
+    "tags": ["gltf", "rendering", "assets", "testing"],
+    "translations": {
+      "zh": {
+        "title": "glTF Sample Models：把 3D 资产样例做成渲染器测试清单",
+        "summary": "这篇文章基于 glTF Sample Models 的 README 和 glTF 2.0 索引，介绍它如何把三角形、PBR、动画、skinning、材质扩展和边缘案例整理成渲染器与资产管线的测试地图。",
+        "body_file": "posts/zh/gltf-sample-models-rendering-test-suite.md"
+      },
+      "en": {
+        "title": "glTF Sample Models: Turning 3D Assets into a Renderer Test Checklist",
+        "summary": "This post uses the glTF Sample Models README and glTF 2.0 index to explain how the collection turns triangles, PBR, animation, skinning, material extensions, and edge cases into a renderer and asset-pipeline test map.",
+        "body_file": "posts/en/gltf-sample-models-rendering-test-suite.md"
+      }
+    }
   }
 ]

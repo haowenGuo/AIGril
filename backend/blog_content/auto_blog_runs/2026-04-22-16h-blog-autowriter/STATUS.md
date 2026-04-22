@@ -12,12 +12,12 @@
 
 - 状态：已切换为本地 runner 执行
 - 已发现候选本机项目：47 个
-- 已研究项目：27 个
+- 已研究项目：28 个
 - 已调研外部资料：0 项
-- 已完成文章：27 篇
-- 已写入 posts.json 文章：27 篇
+- 已完成文章：28 篇
+- 已写入 posts.json 文章：28 篇
 - 已推送文章：4 篇
-- 待提交/推送文章：23 篇
+- 待提交/推送文章：24 篇
 - 最终报告：未生成
 
 ## 下次醒来建议
@@ -27,10 +27,11 @@
 3. `F:\aclpubcheck-main` 已完成 ACL pubcheck camera-ready 论文格式预检文章。
 4. `F:\lab\MediaCrawler-main` 已完成 Playwright 自媒体数据采集与合规边界文章，`F:\lab\BaiduTieba-main` 已完成贴吧关键词 CSV 采集与研究边界文章。
 5. `F:\SHE\coordination` 已完成多 Codex 共享运行记忆文章。
-6. 推荐后续项目：
-   - `F:\third_party\glTF-Sample-Models`
-7. 每次只推进一个项目，避免写散。
-8. 每次产出都要更新 `PROGRESS_LOG.md`。
+6. `F:\third_party\glTF-Sample-Models` 已完成 glTF 样例资产测试清单文章。
+7. 推荐后续项目：
+   - `F:\ollama\dify`
+8. 每次只推进一个项目，避免写散。
+9. 每次产出都要更新 `PROGRESS_LOG.md`。
 
 ## 安全提醒
 
