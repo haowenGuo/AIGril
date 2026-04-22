@@ -644,5 +644,24 @@
         "body_file": "posts/en/apache-maven-pom-build-documentation-contract.md"
       }
     }
+  },
+  {
+    "slug": "krkrz-visual-novel-runtime-compatibility",
+    "published_at": "2026-04-22",
+    "reading_time": "5 min",
+    "featured": false,
+    "tags": ["gamedev", "runtime", "visual-novel", "compatibility"],
+    "translations": {
+      "zh": {
+        "title": "吉里吉里Z：把视觉小说运行时做成清晰的兼容边界",
+        "summary": "这篇文章基于吉里吉里Z 本地分发目录的 README，介绍它如何把 2D 游戏运行时、KAG 视觉小说入口、插件化能力和吉里吉里2迁移注意事项整理成清晰边界。",
+        "body_file": "posts/zh/krkrz-visual-novel-runtime-compatibility.md"
+      },
+      "en": {
+        "title": "Kirikiri Z: Drawing a Clear Compatibility Boundary for a Visual Novel Runtime",
+        "summary": "This post uses the Kirikiri Z README to explain how the runtime frames 2D game hosting, KAG visual-novel authoring, pluginized capabilities, and Kirikiri2 migration notes.",
+        "body_file": "posts/en/krkrz-visual-novel-runtime-compatibility.md"
+      }
+    }
   }
 ]

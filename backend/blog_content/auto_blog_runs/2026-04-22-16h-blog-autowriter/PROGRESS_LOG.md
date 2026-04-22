@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：31
+- 已研究本机项目：32
 - 已调研外部资料：0
-- 已完成文章：31
-- 已写入 posts.json 文章：31
+- 已完成文章：32
+- 已写入 posts.json 文章：32
 - 已推送文章：4
-- 待提交/推送文章：27
+- 待提交/推送文章：28
 - 已生成最终报告：否
 
 ## 文章清单
@@ -175,6 +175,11 @@
   - 中文标题：Apache Maven：用 POM 把 Java 构建、报告和文档收进同一个入口
   - 英文标题：Apache Maven: Using the POM as a Build, Reporting, and Documentation Contract
   - 内容概要：基于 Apache Maven 本地分发目录的 README，介绍 Maven 如何用 Project Object Model 把构建、报告、文档和插件生态整理成可被人、CI 和自动化工具共同理解的工程契约，并强调不发布本地分发包或安装内容。
+
+- `krkrz-visual-novel-runtime-compatibility`
+  - 中文标题：吉里吉里Z：把视觉小说运行时做成清晰的兼容边界
+  - 英文标题：Kirikiri Z: Drawing a Clear Compatibility Boundary for a Visual Novel Runtime
+  - 内容概要：基于吉里吉里Z 本地分发目录的 README，介绍它如何把 2D 游戏/应用运行时、KAG 视觉小说入口、插件化能力、调试工具和吉里吉里2迁移注意事项整理成清晰边界，并强调不发布本地运行时、插件或二进制内容。
 
 ## 2026-04-22 09:09 心跳
 
@@ -431,6 +436,14 @@
 - 新增文章：`apache-maven-pom-build-documentation-contract`
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、插件目录、安装包、本地二进制文件、私钥、数据库、许可证全文或不在允许范围内的工程材料
+
+## 2026-04-22 18:52 本地 runner 写作迭代
+
+- 研究项目：`F:\game\krkrz_20171225`
+- 阅读材料：README.txt
+- 新增文章：`krkrz-visual-novel-runtime-compatibility`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取插件目录内容、调试器说明、可执行文件、存档目录、许可证全文、源码全文、本地二进制文件、安装包、私钥、数据库或不在允许范围内的工程材料
 
 ## 下一步
 
