@@ -473,5 +473,24 @@
         "body_file": "posts/en/humanoid-teaching-uniapp-multi-end-frontend.md"
       }
     }
+  },
+  {
+    "slug": "aclpubcheck-camera-ready-format-checks",
+    "published_at": "2026-04-22",
+    "reading_time": "5 min",
+    "featured": false,
+    "tags": ["publishing", "python", "latex", "acl"],
+    "translations": {
+      "zh": {
+        "title": "ACL pubcheck：把论文格式检查提前到 camera-ready 之前",
+        "summary": "这篇文章基于 ACL pubcheck 的 README，介绍它如何把字体、作者格式、页边距、页底空间和引用姓名检查前移到作者自己的论文交付流程里。",
+        "body_file": "posts/zh/aclpubcheck-camera-ready-format-checks.md"
+      },
+      "en": {
+        "title": "ACL pubcheck: Moving Paper Format Checks Before Camera Ready",
+        "summary": "This post uses the ACL pubcheck README to explain how the tool moves font, author-formatting, margin, bottom-space, and citation-name checks into the author's own paper delivery workflow.",
+        "body_file": "posts/en/aclpubcheck-camera-ready-format-checks.md"
+      }
+    }
   }
 ]

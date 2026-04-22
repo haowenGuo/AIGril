@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：22
+- 已研究本机项目：23
 - 已调研外部资料：0
-- 已完成文章：22
-- 已写入 posts.json 文章：22
+- 已完成文章：23
+- 已写入 posts.json 文章：23
 - 已推送文章：4
-- 待提交/推送文章：18
+- 待提交/推送文章：19
 - 已生成最终报告：否
 
 ## 文章清单
@@ -130,6 +130,11 @@
   - 中文标题：SHE W12：用第一个可玩 Vertical Slice 验证整条引擎链路
   - 英文标题：SHE W12: Validating the Engine Spine with the First Playable Vertical Slice
   - 内容概要：基于 SHE-w12-vertical-slice 的 README、CMakeLists、公开 docs 和 Vertical Slice feature README，介绍 W12 First Vertical Slice Game 如何用移动、收集 signal cores、避开 patrol drones、胜负重启和退出的小型玩法闭环，验证 gameplay、data、scripting、scene、renderer、physics、audio、debug UI 与 AI context 是否真正接通。
+
+- `aclpubcheck-camera-ready-format-checks`
+  - 中文标题：ACL pubcheck：把论文格式检查提前到 camera-ready 之前
+  - 英文标题：ACL pubcheck: Moving Paper Format Checks Before Camera Ready
+  - 内容概要：基于 ACL pubcheck 的 README，介绍它如何把字体、作者格式、页边距、页底空间和引用姓名检查前移到作者自己的 camera-ready 论文交付流程中，并说明在线版本与本地 CLI 的使用边界。
 
 ## 2026-04-22 09:09 心跳
 
@@ -314,6 +319,14 @@
 - 新增文章：`humanoid-teaching-uniapp-multi-end-frontend`
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、`.env.example`、页面源码、构建产物或不在允许范围内的工程材料
+
+## 2026-04-22 17:05 本地 runner 写作迭代
+
+- 研究项目：`F:\aclpubcheck-main`
+- 阅读材料：README.md
+- 新增文章：`aclpubcheck-camera-ready-format-checks`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、Notebook、示例 PDF、截图、生成的错误 JSON、package internals 或不在允许范围内的工程材料
 
 ## 下一步
 
