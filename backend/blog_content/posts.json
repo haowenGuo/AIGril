@@ -245,5 +245,24 @@
         "body_file": "posts/en/she-w02-data-core-schema-contracts.md"
       }
     }
+  },
+  {
+    "slug": "she-w03-diagnostics-ai-context",
+    "published_at": "2026-04-22",
+    "reading_time": "6 min",
+    "featured": false,
+    "tags": ["engine", "diagnostics", "cpp", "ai"],
+    "translations": {
+      "zh": {
+        "title": "SHE W03：让诊断和 AI Context 讲清楚每一帧",
+        "summary": "这篇文章基于 SHE-w03-diagnostics 的 README、CMake 配置和公开 docs，介绍 W03 如何用 frame trace、diagnostics report 和 authoring context 让运行时状态对人和 Codex 都可读。",
+        "body_file": "posts/zh/she-w03-diagnostics-ai-context.md"
+      },
+      "en": {
+        "title": "SHE W03: Making Diagnostics and AI Context Explain Every Frame",
+        "summary": "This post uses SHE-w03-diagnostics' README, CMake setup, and public docs to explain how W03 makes runtime state readable through frame traces, diagnostics reports, and authoring context export.",
+        "body_file": "posts/en/she-w03-diagnostics-ai-context.md"
+      }
+    }
   }
 ]

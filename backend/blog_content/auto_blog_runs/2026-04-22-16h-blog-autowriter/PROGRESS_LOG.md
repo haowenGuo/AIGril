@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：10
+- 已研究本机项目：11
 - 已调研外部资料：0
-- 已完成文章：10
-- 已写入 posts.json 文章：10
+- 已完成文章：11
+- 已写入 posts.json 文章：11
 - 已推送文章：4
-- 待提交/推送文章：6
+- 待提交/推送文章：7
 - 已生成最终报告：否
 
 ## 文章清单
@@ -70,6 +70,11 @@
   - 中文标题：SHE W02：把玩法数据先做成 schema-first 契约
   - 英文标题：SHE W02: Turning Gameplay Data into Schema-First Contracts
   - 内容概要：基于 SHE-w02-data 的 README、CMakeLists 和公开 docs，介绍 W02 Data Core 如何用 schema registration、validation results、data queries、structured error reporting 和 AI context 把玩法数据做成可验证契约。
+
+- `she-w03-diagnostics-ai-context`
+  - 中文标题：SHE W03：让诊断和 AI Context 讲清楚每一帧
+  - 英文标题：SHE W03: Making Diagnostics and AI Context Explain Every Frame
+  - 内容概要：基于 SHE-w03-diagnostics 的 README、CMakeLists 和公开 docs，介绍 W03 Diagnostics + AI Context 如何用 frame trace、phase report、latest frame diagnostics report 和 authoring context export 把运行时状态变成可检查叙事。
 
 ## 2026-04-22 09:09 心跳
 
@@ -159,11 +164,19 @@
 - 校验状态：待本地 runner 在本轮退出后执行 JSON 校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、coordination 目录或不在允许范围内的工程材料
 
+## 2026-04-22 13:09 本地 runner 写作迭代
+
+- 研究项目：`F:\SHE-workspace\SHE-w03-diagnostics`
+- 阅读材料：README.md、CMakeLists.txt、docs/ACCEPTANCE_CHECKLIST.md、docs/AI_CONTEXT.md、docs/AI_NATIVE_REFACTOR.md、docs/ARCHITECTURE.md、docs/ARCHITECTURE_DECISIONS.md、docs/DEVELOPMENT_WORKFLOW.md、docs/MILESTONES.md、docs/MODULE_PRIORITY.md、docs/MULTI_CODEX_LAUNCH_PLAN.md、docs/MULTI_CODEX_WORKFLOW.md、docs/TECH_STACK.md、docs/SCHEMAS/README.md
+- 新增文章：`she-w03-diagnostics-ai-context`
+- 校验状态：待本地 runner 在本轮退出后执行 JSON 校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、coordination 目录或不在允许范围内的工程材料
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
 
 - AIGril 记忆压缩与长期会话设计
 - AIGril 内容安全 API 的工程化封装
-- SHE W03 Diagnostics + AI Context 的可观察运行时设计
+- SHE W04 Scripting Host 的脚本边界设计
 - AutoResearch 报告生成和证据链设计
