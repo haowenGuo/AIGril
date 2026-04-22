@@ -511,5 +511,24 @@
         "body_file": "posts/en/mediacrawler-playwright-social-data-boundaries.md"
       }
     }
+  },
+  {
+    "slug": "she-workspace-multicodex-integration-spine",
+    "published_at": "2026-04-22",
+    "reading_time": "7 min",
+    "featured": false,
+    "tags": ["engine", "codex", "workflow", "gamedev"],
+    "translations": {
+      "zh": {
+        "title": "SHE Workspace：把多 Codex 引擎开发收束到 W00 主线",
+        "summary": "这篇文章基于 SHE-workspace 主仓库的 README、CMake 配置和公开 docs，介绍 W00 如何作为多 Codex 引擎开发的架构、协调和集成主线。",
+        "body_file": "posts/zh/she-workspace-multicodex-integration-spine.md"
+      },
+      "en": {
+        "title": "SHE Workspace: Using W00 as the Integration Spine for Multi-Codex Engine Work",
+        "summary": "This post uses the SHE-workspace main repository README, CMake setup, and public docs to explain how W00 acts as the architecture, coordination, and integration line for multi-Codex engine development.",
+        "body_file": "posts/en/she-workspace-multicodex-integration-spine.md"
+      }
+    }
   }
 ]

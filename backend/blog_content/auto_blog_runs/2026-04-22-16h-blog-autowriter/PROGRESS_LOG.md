@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：24
+- 已研究本机项目：25
 - 已调研外部资料：0
-- 已完成文章：24
-- 已写入 posts.json 文章：24
+- 已完成文章：25
+- 已写入 posts.json 文章：25
 - 已推送文章：4
-- 待提交/推送文章：20
+- 待提交/推送文章：21
 - 已生成最终报告：否
 
 ## 文章清单
@@ -140,6 +140,11 @@
   - 中文标题：MediaCrawler：把自媒体数据采集放进可控的学习边界
   - 英文标题：MediaCrawler: Keeping Social Platform Data Collection Inside a Controlled Learning Boundary
   - 内容概要：基于 MediaCrawler 的 README、package.json、pyproject.toml、requirements.txt 和公开 docs，介绍它如何用 Playwright 登录态、可选 CDP 模式、多平台模块、结构化存储和词云分析组织自媒体数据采集，同时强调学习研究、数据最小化和合规边界。
+
+- `she-workspace-multicodex-integration-spine`
+  - 中文标题：SHE Workspace：把多 Codex 引擎开发收束到 W00 主线
+  - 英文标题：SHE Workspace: Using W00 as the Integration Spine for Multi-Codex Engine Work
+  - 内容概要：基于 SHE-workspace 主仓库的 README、CMakeLists 和公开 docs，介绍 W00 主线如何承担多 Codex 引擎开发中的架构维护、workstream 切分、handoff 记录、service contract 集成、AI context 可解释性和 open-world blueprint 长期目标。
 
 ## 2026-04-22 09:09 心跳
 
@@ -341,10 +346,18 @@
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、账号配置、浏览器数据、数据库、采集结果、二维码图片、字体文件、安装包、本地二进制文件、docs/.vitepress 主题源码或不在允许范围内的工程材料
 
+## 2026-04-22 17:31 本地 runner 写作迭代
+
+- 研究项目：`F:\SHE-workspace\SHE`
+- 阅读材料：README.md、CMakeLists.txt、docs/ARCHITECTURE.md、docs/AI_NATIVE_REFACTOR.md、docs/MULTI_CODEX_WORKFLOW.md、docs/MULTI_CODEX_LAUNCH_PLAN.md、docs/AI_CONTEXT.md、docs/AI_NATIVE_OPEN_WORLD_BLUEPRINT_V2.md、docs/MODULE_PRIORITY.md、docs/MILESTONES.md、docs/TECH_STACK.md、docs/ACCEPTANCE_CHECKLIST.md、docs/SCHEMAS/README.md
+- 新增文章：`she-workspace-multicodex-integration-spine`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、coordination 文件内容、workstream handoff 内容或不在允许范围内的工程材料
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
 
-- AIGril 记忆压缩与长期会话设计
-- AIGril 内容安全 API 的工程化封装
-- AutoResearch 报告生成和证据链设计
+- `F:\SHE\coordination`
+- `F:\lab\BaiduTieba-main`
+- `F:\third_party\glTF-Sample-Models`
