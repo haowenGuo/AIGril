@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：15
+- 已研究本机项目：16
 - 已调研外部资料：0
-- 已完成文章：15
-- 已写入 posts.json 文章：15
+- 已完成文章：16
+- 已写入 posts.json 文章：16
 - 已推送文章：4
-- 待提交/推送文章：11
+- 待提交/推送文章：12
 - 已生成最终报告：否
 
 ## 文章清单
@@ -95,6 +95,11 @@
   - 中文标题：SHE W07：把窗口、输入和帧时间做成运行时边界
   - 英文标题：SHE W07: Turning Windowing, Input, and Frame Timing into a Runtime Boundary
   - 内容概要：基于 SHE-w07-platform 的 README、CMakeLists 和公开 docs，介绍 W07 Platform + Input 为什么要把 SDL3-backed window loop、keyboard/pointer input、event pumping 和 frame timing 做成 renderer、physics、audio、UI 与 gameplay 共同依赖的运行时边界。
+
+- `she-w08-renderer2d-frame-submission`
+  - 中文标题：SHE W08：把 Renderer2D 做成清晰的提交与帧所有权边界
+  - 英文标题：SHE W08: Turning Renderer2D into a Clear Submission and Frame Ownership Boundary
+  - 内容概要：基于 SHE-w08-renderer 的 README、CMakeLists 和公开 docs，介绍 W08 Renderer2D 为什么要先稳定 camera、sprite submission、texture/material handle integration 和 frame begin/end ownership，作为可见运行时、debug tools 与 AI context 共同依赖的渲染边界。
 
 ## 2026-04-22 09:09 心跳
 
@@ -224,11 +229,20 @@
 - 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、coordination 目录或不在允许范围内的工程材料
 
+## 2026-04-22 15:15 本地 runner 写作迭代
+
+- 研究项目：`F:\SHE-workspace\SHE-w08-renderer`
+- 阅读材料：README.md、CMakeLists.txt、docs/ACCEPTANCE_CHECKLIST.md、docs/AI_CONTEXT.md、docs/AI_NATIVE_REFACTOR.md、docs/ARCHITECTURE.md、docs/ARCHITECTURE_DECISIONS.md、docs/DEVELOPMENT_WORKFLOW.md、docs/MILESTONES.md、docs/MODULE_PRIORITY.md、docs/MULTI_CODEX_LAUNCH_PLAN.md 相关 W08/Renderer2D 段落、docs/MULTI_CODEX_WORKFLOW.md、docs/TECH_STACK.md、docs/SCHEMAS/README.md
+- 新增文章：`she-w08-renderer2d-frame-submission`
+- 校验状态：本轮已执行 JSON 和文章路径轻量校验；仍待本地 runner 在本轮退出后执行正式校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、本地二进制文件、coordination 目录或不在允许范围内的工程材料
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
 
 - AIGril 记忆压缩与长期会话设计
 - AIGril 内容安全 API 的工程化封装
-- SHE W08 Renderer2D 的渲染提交和 frame ownership 边界
+- SHE W09 Physics2D 的 fixed-step simulation 与 collision callback 边界
+- SHE W10 Audio Runtime 的播放契约与事件触发边界
 - AutoResearch 报告生成和证据链设计
