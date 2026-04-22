@@ -11,12 +11,12 @@
 ## 累计统计
 
 - 已发现候选本机项目：47
-- 已研究本机项目：5
+- 已研究本机项目：6
 - 已调研外部资料：0
-- 已完成文章：5
-- 已写入 posts.json 文章：5
+- 已完成文章：6
+- 已写入 posts.json 文章：6
 - 已推送文章：4
-- 待提交/推送文章：1
+- 待提交/推送文章：2
 - 已生成最终报告：否
 
 ## 文章清单
@@ -45,6 +45,11 @@
   - 中文标题：haorender：把 CPU 光栅化做成可调试的桌面渲染工作台
   - 英文标题：haorender: Turning CPU Rasterization into a Debuggable Desktop Rendering Workbench
   - 内容概要：基于 haorender-main 的 README 和 CMakeLists，介绍 CPU 光栅化管线、Qt 桌面工作流、PBR/Phong/Programmable Shader 三类着色路线、阴影控制、profiling、依赖边界和 Windows portable package 思路。
+
+- `humanclaw-desktop-pet-openclaw-bridge`
+  - 中文标题：HumanClaw：把桌宠界面和 OpenClaw 运行时分清楚
+  - 英文标题：HumanClaw: Separating the Desktop Pet from the OpenClaw Runtime
+  - 内容概要：基于 HumanClaw 的 README、package.json 和 requirements.txt，介绍 Electron/Vite/Three.js 桌宠界面、Python companion backend、本地语音链路和 OpenClaw Gateway runtime 之间的清晰边界。
 
 ## 2026-04-22 09:09 心跳
 
@@ -94,6 +99,14 @@
 - 校验状态：待本地 runner 在本轮退出后执行 JSON 校验、提交和推送
 - 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包或本地二进制文件
 
+## 2026-04-22 10:33 本地 runner 写作迭代
+
+- 研究项目：`F:\HumanClaw\HumanClaw`
+- 阅读材料：README.md、package.json、requirements.txt
+- 新增文章：`humanclaw-desktop-pet-openclaw-bridge`
+- 校验状态：待本地 runner 在本轮退出后执行 JSON 校验、提交和推送
+- 当前说明：本轮只修改博客内容层和运行记录；没有读取源码全文、私钥、数据库、安装包、示例子目录或本地二进制文件
+
 ## 下一步
 
 继续从下一个尚未完成文章的本机项目中选择主题。建议候选：
@@ -101,3 +114,4 @@
 - AIGril 记忆压缩与长期会话设计
 - AIGril 内容安全 API 的工程化封装
 - SHE 引擎的模块化迭代
+- 仿真人教学的前端与教学场景组织方式
