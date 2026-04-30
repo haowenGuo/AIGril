@@ -12,6 +12,7 @@ from backend.api.chat import router as chat_router
 from backend.api.tts import router as tts_router
 from backend.api.blog import router as blog_router
 from backend.api.edu import router as edu_router
+from backend.api.vivix import router as vivix_router
 from backend.AISafety import router as ai_safety_router
 from backend.models import db_models, edu_models  # noqa: F401
 # 🔴 导入新的压缩服务（而不是从 chat.py 导入）
@@ -77,6 +78,7 @@ app.include_router(tts_router, prefix="/api", tags=["语音"])
 app.include_router(ai_safety_router, prefix="/api", tags=["安全"])
 app.include_router(blog_router, tags=["博客"])
 app.include_router(edu_router, tags=["教学"])
+app.include_router(vivix_router, tags=["Vivix"])
 
 
 # ---------------- 根路径测试 ----------------
@@ -87,6 +89,7 @@ async def root():
         "docs": "/docs",
         "blog": "/blog",
         "edu": "/edu",
+        "vivix": "/vivix",
     }
 
 
