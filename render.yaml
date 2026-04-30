@@ -9,7 +9,7 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
-    # deploy-trigger: classroom-blackboard-20260423-redeploy
+    # deploy-trigger: vivix-static-assets-20260430
     buildFilter:
       paths:
         - backend/**
