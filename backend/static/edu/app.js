@@ -77,6 +77,31 @@ const teacherNav = [
     { key: 'teacher-classroom', label: '课堂看板' },
     { key: 'teacher-question-bank', label: '真实题库派题' },
 ];
+const adminNav = [
+    ...studentNav,
+    { key: 'teacher-dashboard', label: '教师总控台' },
+    { key: 'teacher-classroom', label: '课堂看板' },
+    { key: 'teacher-question-bank', label: '真实题库派题' },
+];
+
+function isTeacherLike(user) {
+    return ['teacher', 'admin'].includes(user?.role);
+}
+
+function isAdmin(user) {
+    return user?.role === 'admin';
+}
+
+function getNavigationForUser(user) {
+    if (isAdmin(user)) {
+        return adminNav;
+    }
+    return isTeacherLike(user) ? teacherNav : studentNav;
+}
+
+function isTeacherPage(page) {
+    return teacherNav.some((item) => item.key === page);
+}
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -204,7 +229,10 @@ function resolvePageForState(candidate) {
     if (!currentUser) {
         return authPages.includes(candidate) ? candidate : 'login';
     }
-    if (currentUser.role === 'teacher') {
+    if (isAdmin(currentUser)) {
+        return adminNav.some((item) => item.key === candidate) ? candidate : 'dashboard';
+    }
+    if (isTeacherLike(currentUser)) {
         return teacherNav.some((item) => item.key === candidate) ? candidate : 'teacher-dashboard';
     }
     return studentNav.some((item) => item.key === candidate) ? candidate : 'dashboard';
@@ -297,7 +325,9 @@ async function refreshSessionData() {
         state.teacherStudents = [];
         state.teacherClassrooms = null;
         state.questionBank = null;
-    } else if (currentUser.role === 'teacher') {
+    } else if (isAdmin(currentUser)) {
+        await Promise.all([loadStudentData(), loadTeacherData()]);
+    } else if (isTeacherLike(currentUser)) {
         await loadTeacherData();
     } else {
         await loadStudentData();
@@ -335,6 +365,11 @@ function renderAuthLogin() {
                         <span>密码</span>
                         <input type="password" name="password" placeholder="至少 6 位" required />
                     </label>
+                    <div class="admin-login-hint">
+                        <strong>管理员入口</strong>
+                        <span>邮箱：admin@simclass.local</span>
+                        <span>密码由 Render 环境变量 EDU_ADMIN_PASSWORD 设置</span>
+                    </div>
                     <button type="submit" class="primary-button">登录进入系统</button>
                 </form>
                 <div class="auth-footer">
@@ -533,6 +568,12 @@ function renderHeroPage({ heroImage, eyebrow, heading, subheading, content }) {
 }
 
 function renderSidebar(user, navigation) {
+    const roleLabel = isAdmin(user)
+        ? '平台管理员 · 全权限'
+        : user.role === 'teacher'
+            ? `${user.teacherTitle || '教师'} · 教师端`
+            : `${user.grade} · ${user.vipLevel}`;
+
     return `
         <aside class="sidebar" data-sidebar>
             <div class="sidebar-top">
@@ -542,7 +583,7 @@ function renderSidebar(user, navigation) {
                 </a>
                 <div class="sidebar-user">
                     <p>${escapeHtml(user.fullName)}</p>
-                    <span>${escapeHtml(user.role === 'teacher' ? `${user.teacherTitle || '教师'} · 教师端` : `${user.grade} · ${user.vipLevel}`)}</span>
+                    <span>${escapeHtml(roleLabel)}</span>
                 </div>
             </div>
             <nav class="sidebar-nav">
@@ -1306,10 +1347,10 @@ function renderTeacherQuestionBank() {
 
 function renderAppView() {
     const currentUser = state.me?.user;
-    const navigation = currentUser?.role === 'teacher' ? teacherNav : studentNav;
+    const navigation = getNavigationForUser(currentUser);
     let pageContent = '';
 
-    if (currentUser.role === 'teacher') {
+    if (isTeacherLike(currentUser) && isTeacherPage(state.currentPage)) {
         if (state.currentPage === 'teacher-classroom') {
             pageContent = renderTeacherClassroom();
         } else if (state.currentPage === 'teacher-question-bank') {

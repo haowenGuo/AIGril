@@ -239,6 +239,25 @@ textarea {
   font-weight: 700;
 }
 
+.admin-login-hint {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(22, 99, 62, 0.2);
+  background: rgba(22, 99, 62, 0.08);
+  border-radius: 8px;
+  color: var(--text);
+}
+
+.admin-login-hint strong {
+  color: var(--accent-strong);
+}
+
+.admin-login-hint span {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
 .notice {
   padding: 12px 14px;
   border-radius: var(--radius);

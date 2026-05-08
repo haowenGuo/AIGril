@@ -7,7 +7,7 @@ from pathlib import Path
 import uvicorn
 
 from backend.core.config import get_settings
-from backend.core.database import init_db
+from backend.core.database import AsyncSessionLocal, init_db
 from backend.api.chat import router as chat_router
 from backend.api.tts import router as tts_router
 from backend.api.blog import router as blog_router
@@ -17,6 +17,7 @@ from backend.AISafety import router as ai_safety_router
 from backend.models import db_models, edu_models  # noqa: F401
 # 🔴 导入新的压缩服务（而不是从 chat.py 导入）
 from backend.services.compress_service import timer_task_runner
+from backend.services.edu_platform_service import ensure_admin_account
 
 settings = get_settings()
 
@@ -32,6 +33,8 @@ async def lifespan(app: FastAPI):
     # 1. 服务启动前：初始化数据库
     print(f"🚀 启动 {settings.APP_NAME}...")
     await init_db()
+    async with AsyncSessionLocal() as db:
+        await ensure_admin_account(db)
     print("✅ 数据库初始化完成")
 
     # 2. 服务启动前：开启记忆压缩定时器

@@ -80,7 +80,7 @@ async def get_current_user(
 async def require_student(user: EduUser | None = Depends(get_current_user)) -> EduUser:
     if not user:
         raise HTTPException(status_code=401, detail="请先登录学生账号。")
-    if user.role != "student":
+    if user.role not in {"student", "admin"}:
         raise HTTPException(status_code=403, detail="当前接口仅允许学生端访问。")
     return user
 
@@ -88,7 +88,7 @@ async def require_student(user: EduUser | None = Depends(get_current_user)) -> E
 async def require_teacher(user: EduUser | None = Depends(get_current_user)) -> EduUser:
     if not user:
         raise HTTPException(status_code=401, detail="请先登录教师账号。")
-    if user.role != "teacher":
+    if user.role not in {"teacher", "admin"}:
         raise HTTPException(status_code=403, detail="当前接口仅允许教师端访问。")
     return user
 
@@ -151,6 +151,21 @@ async def edu_me(
                 "navigation": ["login", "student-register", "teacher-register"],
             }
         )
+    if user.role == "admin":
+        navigation = [
+            "dashboard",
+            "classroom",
+            "diagnostics",
+            "practice",
+            "teacher-dashboard",
+            "teacher-classroom",
+            "teacher-question-bank",
+        ]
+    elif user.role == "student":
+        navigation = ["dashboard", "classroom", "diagnostics", "practice"]
+    else:
+        navigation = ["teacher-dashboard", "teacher-classroom", "teacher-question-bank"]
+
     return _json_ok(
         {
             "user": {
@@ -164,9 +179,7 @@ async def edu_me(
                 "managedGrades": user.managed_grades or [],
             },
             "homePath": "/edu",
-            "navigation": ["overview", "classroom", "diagnostics", "practice"]
-            if user.role == "student"
-            else ["overview", "students", "question-bank", "classrooms"],
+            "navigation": navigation,
         }
     )
 

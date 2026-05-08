@@ -34,6 +34,16 @@ services:
         value: "14"
       - key: EDU_TEACHER_INVITE_CODE
         generateValue: true
+      - key: EDU_SEED_ADMIN
+        value: "true"
+      - key: EDU_ADMIN_EMAIL
+        value: admin@simclass.local
+      - key: EDU_ADMIN_PASSWORD
+        sync: false
+      - key: EDU_ADMIN_PHONE
+        value: "13800000000"
+      - key: EDU_ADMIN_SCHOOL_NAME
+        value: 仿真人教学教室
       - key: EDU_HF_DATASET_VIEWER_URL
         value: https://datasets-server.huggingface.co
       - key: EDU_HF_QUESTION_DATASET

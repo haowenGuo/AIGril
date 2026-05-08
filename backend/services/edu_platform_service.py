@@ -181,6 +181,56 @@ def _serialize_user(user: EduUser | None) -> dict[str, Any] | None:
     }
 
 
+async def ensure_admin_account(db: AsyncSession) -> EduUser | None:
+    if not settings.EDU_SEED_ADMIN:
+        return None
+
+    email = _normalize_email(settings.EDU_ADMIN_EMAIL or "")
+    password = (settings.EDU_ADMIN_PASSWORD or "").strip()
+    if not password and settings.DEBUG:
+        password = "Admin@123456"
+
+    if not email or not password:
+        print("⚠️ 教学管理员未创建：请配置 EDU_ADMIN_EMAIL 和 EDU_ADMIN_PASSWORD。")
+        return None
+
+    stmt = select(EduUser).where(EduUser.email == email).limit(1)
+    result = await db.execute(stmt)
+    existing = result.scalar_one_or_none()
+    if existing:
+        return existing
+
+    phone = settings.EDU_ADMIN_PHONE or "13800000000"
+    admin = EduUser(
+        full_name="系统管理员",
+        email=email,
+        password_hash=hash_password(password),
+        phone=phone,
+        role="admin",
+        vip_level="至尊会员",
+        grade="全学段",
+        school_name=settings.EDU_ADMIN_SCHOOL_NAME or "仿真人教学教室",
+        class_name="管理端",
+        target_exam="中高考",
+        learning_preference="管理后台",
+        favorite_subjects=["语文", "数学", "英语", "物理", "化学"],
+        weak_subjects=[],
+        goal_summary="用于教学平台首发部署、演示、排障和教师端管理。",
+        parent_name="系统",
+        parent_phone=phone,
+        parent_notice_opt_in=False,
+        agreement_accepted=True,
+        teacher_title="平台管理员",
+        managed_subjects=["语文", "数学", "英语", "物理", "化学"],
+        managed_grades=["初中", "高中"],
+    )
+    db.add(admin)
+    await db.commit()
+    await db.refresh(admin)
+    print(f"✅ 教学管理员已创建：{email}")
+    return admin
+
+
 def _serialize_diagnostic(item: EduDiagnostic) -> dict[str, Any]:
     return {
         "id": item.id,

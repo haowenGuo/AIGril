@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     EDU_SESSION_TTL_DAYS: int = 14
     EDU_TEACHER_INVITE_CODE: str = "teacher-demo"
     EDU_PASSWORD_PEPPER: str = ""
+    EDU_SEED_ADMIN: bool = True
+    EDU_ADMIN_EMAIL: str = "admin@simclass.local"
+    EDU_ADMIN_PASSWORD: str = ""
+    EDU_ADMIN_PHONE: str = "13800000000"
+    EDU_ADMIN_SCHOOL_NAME: str = "仿真人教学教室"
     EDU_HF_DATASET_VIEWER_URL: str = "https://datasets-server.huggingface.co"
     EDU_HF_QUESTION_DATASET: str = "SeaLLMs/SeaExam"
     EDU_HF_QUESTION_CONFIG: str = "m3exam-chinese"
