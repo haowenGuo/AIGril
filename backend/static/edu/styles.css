@@ -855,8 +855,9 @@ textarea {
 }
 
 .avatar-teacher-stage {
+  align-self: start;
   display: grid;
-  grid-template-rows: minmax(380px, 1fr) auto;
+  grid-template-rows: 380px auto;
   min-height: 520px;
   overflow: hidden;
   border: 1px solid rgba(24, 33, 27, 0.12);
@@ -867,6 +868,7 @@ textarea {
 
 .avatar-teacher-viewport {
   position: relative;
+  height: 380px;
   min-height: 380px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(16, 37, 26, 0.08)),
@@ -1106,6 +1108,7 @@ textarea {
   }
 
   .avatar-teacher-viewport {
+    height: 320px;
     min-height: 320px;
   }
 
@@ -1130,7 +1133,12 @@ textarea {
 
   .avatar-teacher-stage {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(340px, auto) auto;
+    grid-template-rows: 340px auto;
+  }
+
+  .avatar-teacher-viewport {
+    height: 340px;
+    min-height: 340px;
   }
 
   .ai-teacher-podium,
