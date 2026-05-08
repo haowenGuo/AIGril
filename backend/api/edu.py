@@ -65,6 +65,42 @@ def _clear_session_cookie(response: Response) -> None:
     response.delete_cookie(settings.EDU_SESSION_COOKIE_NAME, path="/")
 
 
+def _build_agent_blackboard_summary(
+    payload_summary: str,
+    session_payload: dict | None,
+) -> str:
+    parts: list[str] = []
+    if session_payload:
+        if session_payload.get("focusSummary"):
+            parts.append(f"学情聚焦：{session_payload['focusSummary']}")
+
+        question = session_payload.get("currentQuestion") or {}
+        if question.get("stem"):
+            parts.append(f"当前题目：{question['stem']}")
+
+        choices = question.get("choices") or []
+        if choices:
+            choice_text = "；".join(
+                f"{chr(65 + index)}. {choice}" for index, choice in enumerate(choices)
+            )
+            parts.append(f"答案选项：{choice_text}")
+
+        answer_text = question.get("answerText")
+        answer_index = question.get("answerIndex")
+        if answer_text and answer_index is not None:
+            try:
+                answer_number = int(answer_index)
+                label = chr(65 + answer_number) if 0 <= answer_number < 26 else str(answer_index)
+            except (TypeError, ValueError):
+                label = str(answer_index)
+            parts.append(f"教师参考答案：{label}. {answer_text}。未完成作答前先引导，不要直接报答案。")
+
+    if payload_summary:
+        parts.append(f"页面补充摘要：{payload_summary}")
+
+    return "\n".join(parts) or "课堂围绕知识库板书、真实题目和学生追问展开。"
+
+
 async def get_platform_service(db: AsyncSession = Depends(get_db)) -> EduPlatformService:
     return EduPlatformService(db)
 
@@ -431,11 +467,7 @@ async def classroom_teacher_dialogue(
             raise HTTPException(status_code=404, detail="课堂不存在或无权限访问。")
         session_payload = serialize_classroom_session(session)
 
-    blackboard_summary = (
-        payload.blackboardSummary
-        or (session_payload or {}).get("focusSummary")
-        or "课堂围绕知识库板书、真实题目和学生追问展开。"
-    )
+    blackboard_summary = _build_agent_blackboard_summary(payload.blackboardSummary, session_payload)
     reply = await generate_ai_teacher_reply(
         student_name=student.full_name,
         message=payload.message,

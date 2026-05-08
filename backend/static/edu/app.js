@@ -746,7 +746,11 @@ function renderStudentClassroom() {
     const blackboardTitle = '基于EMBER-Agent安全增强的仿真课堂';
     const currentQuestion = activeSession?.status === 'active' ? activeSession.currentQuestion : null;
     const currentChoices = currentQuestion?.choices || [];
-    const blackboardSummary = activeSession?.focusSummary || currentQuestion?.stem || '';
+    const blackboardSummary = [
+        activeSession?.focusSummary ? `学情聚焦：${activeSession.focusSummary}` : '',
+        currentQuestion?.stem ? `当前题目：${currentQuestion.stem}` : '',
+        currentChoices.length ? `答案选项：${currentChoices.map((choice, index) => `${String.fromCharCode(65 + index)}. ${choice}`).join('；')}` : '',
+    ].filter(Boolean).join('\n');
     const latestTeacherLine = (activeSession?.transcript || [])
         .filter((entry) => entry.role === 'teacher')
         .slice(-1)[0]?.text;
@@ -782,6 +786,7 @@ function renderStudentClassroom() {
                             <button type="button" class="ghost-button" data-action="voice-stop">停止语音</button>
                         </div>
                         <form class="stack-form ai-teacher-dialogue-form" data-form="ai-teacher-dialogue">
+                            <input type="hidden" name="sessionId" value="${activeSession?.id ? escapeHtml(activeSession.id) : ''}" />
                             <input type="hidden" name="knowledgeTitle" value="${escapeHtml(blackboardTitle)}" />
                             <input type="hidden" name="blackboardSummary" value="${escapeHtml(blackboardSummary)}" />
                             <label>

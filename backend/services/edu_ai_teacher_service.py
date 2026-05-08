@@ -29,9 +29,10 @@ async def generate_ai_teacher_reply(
     blackboard_summary: str,
     history: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Use DeepSeek as the classroom teacher when configured, otherwise return a safe fallback."""
+    """Use the configured classroom LLM as the teacher, otherwise return a safe fallback."""
 
-    if not settings.EDU_DEEPSEEK_API_KEY:
+    llm_config = _resolve_teacher_llm_config()
+    if not llm_config:
         return _fallback_reply(
             student_name=student_name,
             message=message,
@@ -40,9 +41,9 @@ async def generate_ai_teacher_reply(
         )
 
     llm = ChatOpenAI(
-        base_url=settings.EDU_DEEPSEEK_API_BASE,
-        api_key=settings.EDU_DEEPSEEK_API_KEY,
-        model=settings.EDU_DEEPSEEK_MODEL,
+        base_url=llm_config["base_url"],
+        api_key=llm_config["api_key"],
+        model=llm_config["model"],
         temperature=0.35,
         max_tokens=900,
     )
@@ -54,6 +55,7 @@ async def generate_ai_teacher_reply(
             f"最近对话：{history or []}",
             f"学生问题：{message}",
             "请输出适合语音播报的课堂讲解，控制在 500 字以内。",
+            "如果黑板摘要里有教师参考答案：学生未明确要求解析前，不要直接报答案；先提示观察条件、排除法或关键概念。",
         ]
     )
 
@@ -71,8 +73,8 @@ async def generate_ai_teacher_reply(
             "teacherName": "EMBER AI 教师",
             "content": content,
             "speechText": content,
-            "model": settings.EDU_DEEPSEEK_MODEL,
-            "provider": "deepseek",
+            "model": llm_config["model"],
+            "provider": llm_config["provider"],
             "safetyLabel": "ember-agent-safe",
         }
     except Exception as error:  # noqa: BLE001
@@ -85,6 +87,26 @@ async def generate_ai_teacher_reply(
         fallback["provider"] = "fallback"
         fallback["error"] = str(error)
         return fallback
+
+
+def _resolve_teacher_llm_config() -> dict[str, str] | None:
+    if settings.EDU_DEEPSEEK_API_KEY:
+        return {
+            "base_url": settings.EDU_DEEPSEEK_API_BASE,
+            "api_key": settings.EDU_DEEPSEEK_API_KEY,
+            "model": settings.EDU_DEEPSEEK_MODEL,
+            "provider": "deepseek",
+        }
+
+    if settings.LLM_API_KEY:
+        return {
+            "base_url": settings.LLM_API_BASE,
+            "api_key": settings.LLM_API_KEY,
+            "model": settings.LLM_MODEL_NAME,
+            "provider": "configured-llm",
+        }
+
+    return None
 
 
 def _extract_text(response: Any) -> str:
