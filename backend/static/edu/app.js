@@ -738,23 +738,156 @@ function renderStudentDashboard() {
     });
 }
 
+function buildFallbackBlackboardState(activeSession, currentQuestion, currentChoices) {
+    const attemptedCount = Number(activeSession?.attemptedCount || 0);
+    const correctCount = Number(activeSession?.correctCount || 0);
+    const accuracy = attemptedCount ? Math.round((correctCount / attemptedCount) * 100) : 0;
+    return {
+        title: '基于EMBER-Agent安全增强的仿真课堂',
+        mode: 'AI 黑板课堂中枢',
+        phase: activeSession?.status === 'active' ? '课堂作答' : activeSession ? '课后复盘' : '待开课',
+        status: activeSession?.status || 'pending',
+        attendance: activeSession?.attendanceState || 'pending',
+        knowledgePoint: {
+            title: [activeSession?.subject, activeSession?.topic || currentQuestion?.category || currentQuestion?.level].filter(Boolean).join(' · ') || '课堂知识点',
+            subject: activeSession?.subject || currentQuestion?.subject || '综合',
+            topic: activeSession?.topic || '',
+            category: currentQuestion?.category || '',
+            level: currentQuestion?.level || '',
+            focusSummary: activeSession?.focusSummary || '',
+            anchors: [
+                activeSession?.focusSummary ? `学情锚点：${activeSession.focusSummary}` : '',
+                currentQuestion?.dataset ? `题库来源：${currentQuestion.dataset}` : '',
+                currentQuestion?.level ? `难度标签：${currentQuestion.level}` : '',
+            ].filter(Boolean),
+        },
+        question: currentQuestion,
+        answerOptions: currentChoices.map((choice, index) => ({
+            label: String.fromCharCode(65 + index),
+            text: choice,
+            index,
+        })),
+        studentAnswer: { hasAnswer: false },
+        feedback: { text: '', isCorrect: false, isWrong: false, type: '' },
+        mistakeDiagnosis: null,
+        nextBoard: currentQuestion ? '学生先独立选择，AI 教师根据答案更新错因和板书。' : '开启课堂后，黑板会同步生成知识点、题目和选项。',
+        metrics: { attemptedCount, correctCount, accuracy },
+        timeline: activeSession?.transcript?.slice(-6) || [],
+    };
+}
+
+function buildBlackboardSummary(boardState) {
+    const knowledge = boardState?.knowledgePoint || {};
+    const options = boardState?.answerOptions || [];
+    return [
+        knowledge.focusSummary ? `学情聚焦：${knowledge.focusSummary}` : '',
+        knowledge.title ? `当前知识点：${knowledge.title}` : '',
+        boardState?.question?.stem ? `当前题目：${boardState.question.stem}` : '',
+        options.length ? `答案选项：${options.map((choice) => `${choice.label}. ${choice.text}`).join('；')}` : '',
+        boardState?.studentAnswer?.hasAnswer ? `学生回答：${boardState.studentAnswer.selectedChoiceLabel || ''} ${boardState.studentAnswer.selectedChoiceText || boardState.studentAnswer.freeText || ''}` : '',
+        boardState?.mistakeDiagnosis?.reason ? `错因：${boardState.mistakeDiagnosis.reason}` : '',
+        boardState?.nextBoard ? `下一步板书：${boardState.nextBoard}` : '',
+    ].filter(Boolean).join('\n');
+}
+
+function renderSmartBlackboard(boardState, activeSession) {
+    const question = boardState?.question || null;
+    const answerOptions = boardState?.answerOptions || [];
+    const knowledge = boardState?.knowledgePoint || {};
+    const studentAnswer = boardState?.studentAnswer || {};
+    const feedback = boardState?.feedback || {};
+    const mistake = boardState?.mistakeDiagnosis || null;
+    const metrics = boardState?.metrics || {};
+
+    return `
+        <article class="knowledge-blackboard classroom-board-only smart-blackboard">
+            <div class="blackboard-topline">
+                <span class="chalk-mark"></span>
+                <span class="blackboard-mode">${escapeHtml(boardState?.mode || 'AI 黑板课堂中枢')}</span>
+            </div>
+            <div class="blackboard-header-row">
+                <div>
+                    <h2>${escapeHtml(boardState?.title || '基于EMBER-Agent安全增强的仿真课堂')}</h2>
+                    <p class="blackboard-source">课堂阶段：${escapeHtml(boardState?.phase || '待开课')} · 签到：${escapeHtml(boardState?.attendance === 'reported' ? '已报到' : '待报到')}</p>
+                </div>
+                <div class="blackboard-score-card">
+                    <strong>${escapeHtml(metrics.correctCount || 0)} / ${escapeHtml(metrics.attemptedCount || 0)}</strong>
+                    <span>正确 / 作答</span>
+                    <em>${escapeHtml(metrics.accuracy || 0)}%</em>
+                </div>
+            </div>
+            <div class="blackboard-state-grid">
+                <section class="chalk-panel knowledge-panel">
+                    <span>当前知识点</span>
+                    <h3>${escapeHtml(knowledge.title || '课堂知识点')}</h3>
+                    <ul>
+                        ${(knowledge.anchors || []).length ? knowledge.anchors.map((item) => `<li>${escapeHtml(item)}</li>`).join('') : '<li>开课后将根据题库与学情生成知识点锚点。</li>'}
+                    </ul>
+                </section>
+                <section class="chalk-panel next-board-panel">
+                    <span>下一步板书</span>
+                    <p>${escapeHtml(boardState?.nextBoard || '等待课堂动作。')}</p>
+                </section>
+            </div>
+            ${question ? `
+                <form class="blackboard-question-form" data-form="classroom-respond">
+                    <input type="hidden" name="sessionId" value="${escapeHtml(activeSession?.id || '')}" />
+                    <input type="hidden" name="freeText" value="" />
+                    <div class="blackboard-question-head">
+                        <div>
+                            <span class="blackboard-section-label">课堂问题</span>
+                            <h3>${escapeHtml(question.subject || activeSession?.subject || '综合')} · ${escapeHtml(question.level || question.category || '真题互动')}</h3>
+                        </div>
+                        <span class="blackboard-mini-source">${escapeHtml(question.dataset || '题库')}</span>
+                    </div>
+                    <p class="blackboard-question">${escapeHtml(question.stem || '')}</p>
+                    <div class="blackboard-choice-list smart-choice-list">
+                        ${answerOptions.map((choice) => `
+                            <label class="blackboard-choice ${Number(studentAnswer.selectedChoiceIndex) === Number(choice.index) ? 'is-selected' : ''}">
+                                <input type="radio" name="selectedChoiceIndex" value="${escapeHtml(choice.index)}" ${Number(studentAnswer.selectedChoiceIndex) === Number(choice.index) ? 'checked' : ''} />
+                                <span><strong>${escapeHtml(choice.label)}.</strong> ${escapeHtml(choice.text)}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                    <button type="submit" class="blackboard-submit">提交答案并更新黑板</button>
+                </form>
+            ` : `
+                <div class="blackboard-empty">
+                    <h3>尚未生成课堂问题</h3>
+                    <p>请先点击下方“开始仿真课堂”，题目、选项、学生回答、错因和下一步板书会同步更新到这块木框黑板。</p>
+                </div>
+            `}
+            <div class="blackboard-state-grid lower-grid">
+                <section class="chalk-panel student-answer-panel">
+                    <span>学生回答</span>
+                    ${studentAnswer.hasAnswer ? `
+                        <p>${escapeHtml(studentAnswer.selectedChoiceLabel || '补充')} ${escapeHtml(studentAnswer.selectedChoiceText || studentAnswer.freeText || '')}</p>
+                    ` : '<p>等待学生提交当前题。</p>'}
+                </section>
+                <section class="chalk-panel feedback-panel ${feedback.isWrong ? 'is-warning' : feedback.isCorrect ? 'is-success' : ''}">
+                    <span>${feedback.isWrong ? '错因诊断' : feedback.isCorrect ? '即时反馈' : 'AI 教师提示'}</span>
+                    <p>${escapeHtml(mistake?.reason || feedback.text || '提交答案后，AI 教师会把反馈、错因和下一步板书同步写到黑板。')}</p>
+                    ${mistake ? `<small>${escapeHtml(mistake.repairAction || '')}</small>` : ''}
+                </section>
+            </div>
+        </article>
+    `;
+}
+
 function renderStudentClassroom() {
     const overview = state.student || {};
     const diagnostics = overview.learning?.diagnostics || [];
     const classroomSessions = overview.classrooms?.recent || [];
     const activeSession = overview.classrooms?.activeSession || classroomSessions[0] || null;
-    const blackboardTitle = '基于EMBER-Agent安全增强的仿真课堂';
     const currentQuestion = activeSession?.status === 'active' ? activeSession.currentQuestion : null;
     const currentChoices = currentQuestion?.choices || [];
-    const blackboardSummary = [
-        activeSession?.focusSummary ? `学情聚焦：${activeSession.focusSummary}` : '',
-        currentQuestion?.stem ? `当前题目：${currentQuestion.stem}` : '',
-        currentChoices.length ? `答案选项：${currentChoices.map((choice, index) => `${String.fromCharCode(65 + index)}. ${choice}`).join('；')}` : '',
-    ].filter(Boolean).join('\n');
+    const boardState = activeSession?.blackboardState || buildFallbackBlackboardState(activeSession, currentQuestion, currentChoices);
+    const blackboardTitle = boardState.title || '基于EMBER-Agent安全增强的仿真课堂';
+    const blackboardSummary = buildBlackboardSummary(boardState);
     const latestTeacherLine = (activeSession?.transcript || [])
         .filter((entry) => entry.role === 'teacher')
         .slice(-1)[0]?.text;
-    const avatarTeacherScript = latestTeacherLine
+    const avatarTeacherScript = boardState.teacherPrompt || latestTeacherLine
         || (currentQuestion
             ? `同学，请看黑板。本题是：${currentQuestion.stem || ''}。先独立判断，再选择答案。`
             : '同学们好，我是 EMBER AI 教师。请先开启仿真课堂，题目会显示在黑板上，我会站在黑板旁边带你一步步分析。');
@@ -806,32 +939,7 @@ function renderStudentClassroom() {
                         ` : ''}
                     </div>
                 </aside>
-                <article class="knowledge-blackboard classroom-board-only">
-                    <span class="chalk-mark"></span>
-                    <h2>${blackboardTitle}</h2>
-                    ${currentQuestion ? `
-                        <form class="blackboard-question-form" data-form="classroom-respond">
-                            <input type="hidden" name="sessionId" value="${escapeHtml(activeSession.id)}" />
-                            <input type="hidden" name="freeText" value="" />
-                            <h3>课堂问题</h3>
-                            <p class="blackboard-question">${escapeHtml(currentQuestion.stem || '')}</p>
-                            <div class="blackboard-choice-list">
-                                ${currentChoices.map((choice, index) => `
-                                    <label class="blackboard-choice">
-                                        <input type="radio" name="selectedChoiceIndex" value="${index}" />
-                                        <span><strong>${String.fromCharCode(65 + index)}.</strong> ${escapeHtml(choice)}</span>
-                                    </label>
-                                `).join('')}
-                            </div>
-                            <button type="submit" class="blackboard-submit">提交答案</button>
-                        </form>
-                    ` : `
-                        <div class="blackboard-empty">
-                            <h3>尚未生成课堂问题</h3>
-                            <p>请先点击下方“开始仿真课堂”，题目和答案选项会显示在这块木框黑板上。</p>
-                        </div>
-                    `}
-                </article>
+                ${renderSmartBlackboard(boardState, activeSession)}
             </section>
             <section class="hero-band">
                 <div>
@@ -1297,9 +1405,11 @@ function renderTeacherClassroom() {
                                 <h4>${escapeHtml(session.studentName || '')} · ${escapeHtml(session.subject)}</h4>
                                 <p>${escapeHtml(session.topic || '默认仿真带练')}</p>
                                 <ul class="tiny-list">
+                                    <li>黑板阶段：${escapeHtml(session.blackboardState?.phase || '待同步')}</li>
                                     <li>作答次数：${escapeHtml(session.attemptedCount)}</li>
                                     <li>答对题数：${escapeHtml(session.correctCount)}</li>
                                     <li>课堂焦点：${escapeHtml(session.focusSummary || '')}</li>
+                                    <li>下一步：${escapeHtml(session.blackboardState?.nextBoard || '等待课堂动作')}</li>
                                 </ul>
                             </article>
                         `).join('')}

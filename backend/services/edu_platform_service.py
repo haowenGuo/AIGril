@@ -272,7 +272,7 @@ def _serialize_assignment(item: EduPracticeAssignment) -> dict[str, Any]:
 
 
 def _serialize_classroom_session(item: EduClassroomSession) -> dict[str, Any]:
-    return {
+    payload = {
         "id": item.id,
         "studentUserId": item.student_user_id,
         "teacherUserId": item.teacher_user_id,
@@ -290,6 +290,8 @@ def _serialize_classroom_session(item: EduClassroomSession) -> dict[str, Any]:
         "createdAt": _to_iso(item.created_at),
         "updatedAt": _to_iso(item.updated_at),
     }
+    payload["blackboardState"] = _build_blackboard_state(payload)
+    return payload
 
 
 def _sort_by_date_desc(items: list[dict[str, Any]], field: str) -> list[dict[str, Any]]:
@@ -363,6 +365,164 @@ def _build_student_utterance(
     if free_text.strip():
         parts.append(f"我想补充：{free_text.strip()}")
     return "；".join(parts)
+
+
+def _last_transcript_entry(transcript: list[dict[str, Any]], *entry_types: str) -> dict[str, Any] | None:
+    allowed = set(entry_types)
+    for entry in reversed(transcript):
+        if entry.get("type") in allowed:
+            return entry
+    return None
+
+
+def _build_answer_options(question: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not question:
+        return []
+    return [
+        {
+            "label": build_choice_label(index),
+            "text": str(choice),
+            "index": index,
+        }
+        for index, choice in enumerate(question.get("choices") or [])
+    ]
+
+
+def _build_knowledge_point(session_payload: dict[str, Any]) -> dict[str, Any]:
+    question = session_payload.get("currentQuestion") or {}
+    subject = session_payload.get("subject") or question.get("subject") or "综合"
+    topic = session_payload.get("topic") or ""
+    level = question.get("level") or ""
+    category = question.get("category") or ""
+    focus_summary = session_payload.get("focusSummary") or ""
+    title_parts = [item for item in [subject, topic or category or level] if item]
+    return {
+        "title": " · ".join(title_parts) if title_parts else "课堂知识点",
+        "subject": subject,
+        "topic": topic,
+        "category": category,
+        "level": level,
+        "focusSummary": focus_summary,
+        "anchors": [
+            item
+            for item in [
+                f"学情锚点：{focus_summary}" if focus_summary else "",
+                f"题型来源：{question.get('dataset') or '自有题库'}" if question else "",
+                f"难度标签：{level}" if level else "",
+            ]
+            if item
+        ][:3],
+    }
+
+
+def _build_mistake_diagnosis(
+    *,
+    selected_entry: dict[str, Any] | None,
+    feedback_entry: dict[str, Any] | None,
+    question: dict[str, Any] | None,
+    focus_summary: str,
+) -> dict[str, Any] | None:
+    if not selected_entry or not feedback_entry or feedback_entry.get("type") != "feedback-wrong":
+        return None
+    selected_label = selected_entry.get("selectedChoiceLabel") or "当前选项"
+    selected_text = selected_entry.get("selectedChoiceText") or ""
+    return {
+        "title": "错因定位",
+        "selected": f"{selected_label}：{selected_text}" if selected_text else selected_label,
+        "reason": (
+            "当前错误更像是没有把题干限制条件和选项逐项对应起来。"
+            "先圈出关键词，再排除与题意不一致的表达。"
+        ),
+        "focus": focus_summary,
+        "repairAction": "回到题干限制条件，重新判断每个选项与题意是否完全一致。",
+        "referenceAnswer": (
+            f"{build_choice_label(int(question.get('answerIndex', 0)))}：{question.get('answerText') or ''}"
+            if question
+            else ""
+        ),
+    }
+
+
+def _build_blackboard_state(session_payload: dict[str, Any]) -> dict[str, Any]:
+    transcript = list(session_payload.get("transcript") or [])
+    question = session_payload.get("currentQuestion")
+    focus_summary = session_payload.get("focusSummary") or ""
+    status = session_payload.get("status") or "active"
+    attempted_count = int(session_payload.get("attemptedCount") or 0)
+    correct_count = int(session_payload.get("correctCount") or 0)
+    accuracy = round((correct_count / attempted_count) * 100) if attempted_count else 0
+    selected_entry = _last_transcript_entry(transcript, "student-turn")
+    feedback_entry = _last_transcript_entry(transcript, "feedback-correct", "feedback-wrong", "hint", "nudge")
+    ai_teacher_entry = _last_transcript_entry(transcript, "ai-teacher-reply")
+    is_wrong = bool(feedback_entry and feedback_entry.get("type") == "feedback-wrong")
+    is_correct = bool(feedback_entry and feedback_entry.get("type") == "feedback-correct")
+
+    if status != "active":
+        phase = "课后复盘"
+        next_board = "整理课堂实录，沉淀错题与下一次练习任务。"
+    elif is_wrong:
+        phase = "错因讲评"
+        next_board = "先完成错因定位，再重新判断当前题。"
+    elif is_correct:
+        phase = "进阶换题"
+        next_board = "把刚才的解题依据迁移到下一题。"
+    elif question:
+        phase = "课堂作答"
+        next_board = "学生先独立选择，AI 教师根据答案更新错因和板书。"
+    else:
+        phase = "待开课"
+        next_board = "开启课堂后，黑板会同步生成知识点、题目和选项。"
+
+    selected_choice_index = selected_entry.get("selectedChoiceIndex") if selected_entry else None
+    selected_choice_label = selected_entry.get("selectedChoiceLabel") if selected_entry else ""
+    selected_choice_text = selected_entry.get("selectedChoiceText") if selected_entry else ""
+    free_text = selected_entry.get("freeText") if selected_entry else ""
+
+    return {
+        "title": "基于EMBER-Agent安全增强的仿真课堂",
+        "mode": "AI 黑板课堂中枢",
+        "phase": phase,
+        "status": status,
+        "attendance": session_payload.get("attendanceState") or "pending",
+        "knowledgePoint": _build_knowledge_point(session_payload),
+        "question": question,
+        "answerOptions": _build_answer_options(question),
+        "studentAnswer": {
+            "selectedChoiceIndex": selected_choice_index,
+            "selectedChoiceLabel": selected_choice_label,
+            "selectedChoiceText": selected_choice_text,
+            "freeText": free_text,
+            "hasAnswer": selected_choice_index is not None or bool(free_text),
+        },
+        "feedback": {
+            "type": feedback_entry.get("type") if feedback_entry else "",
+            "text": feedback_entry.get("text") if feedback_entry else "",
+            "isCorrect": is_correct,
+            "isWrong": is_wrong,
+        },
+        "mistakeDiagnosis": _build_mistake_diagnosis(
+            selected_entry=selected_entry,
+            feedback_entry=feedback_entry,
+            question=question,
+            focus_summary=focus_summary,
+        ),
+        "nextBoard": next_board,
+        "teacherPrompt": ai_teacher_entry.get("text") if ai_teacher_entry else "",
+        "metrics": {
+            "attemptedCount": attempted_count,
+            "correctCount": correct_count,
+            "accuracy": accuracy,
+        },
+        "timeline": [
+            {
+                "role": entry.get("role"),
+                "type": entry.get("type", ""),
+                "text": entry.get("text", ""),
+                "createdAt": entry.get("createdAt"),
+            }
+            for entry in transcript[-6:]
+        ],
+    }
 
 
 class EduPlatformService:
@@ -716,7 +876,18 @@ class EduPlatformService:
             _build_entry(
                 "student",
                 _build_student_utterance(current_question, selected_choice_index, trimmed_text),
-                {"type": "student-turn"},
+                {
+                    "type": "student-turn",
+                    "selectedChoiceIndex": int(selected_choice_index) if has_choice else None,
+                    "selectedChoiceLabel": build_choice_label(int(selected_choice_index)) if has_choice else "",
+                    "selectedChoiceText": (
+                        (current_question.get("choices") or [])[int(selected_choice_index)]
+                        if has_choice
+                        and 0 <= int(selected_choice_index) < len(current_question.get("choices") or [])
+                        else ""
+                    ),
+                    "freeText": trimmed_text,
+                },
             )
         )
 
