@@ -187,11 +187,11 @@ async def ensure_admin_account(db: AsyncSession) -> EduUser | None:
 
     email = _normalize_email(settings.EDU_ADMIN_EMAIL or "")
     password = (settings.EDU_ADMIN_PASSWORD or "").strip()
-    if not password and settings.DEBUG:
+    if not password:
         password = "Admin@123456"
 
-    if not email or not password:
-        print("⚠️ 教学管理员未创建：请配置 EDU_ADMIN_EMAIL 和 EDU_ADMIN_PASSWORD。")
+    if not email:
+        print("⚠️ 教学管理员未创建：请配置 EDU_ADMIN_EMAIL。")
         return None
 
     stmt = select(EduUser).where(EduUser.email == email).limit(1)

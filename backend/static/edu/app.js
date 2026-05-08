@@ -368,7 +368,7 @@ function renderAuthLogin() {
                     <div class="admin-login-hint">
                         <strong>管理员入口</strong>
                         <span>邮箱：admin@simclass.local</span>
-                        <span>密码由 Render 环境变量 EDU_ADMIN_PASSWORD 设置</span>
+                        <span>默认密码：Admin@123456，可用 Render 环境变量 EDU_ADMIN_PASSWORD 覆盖</span>
                     </div>
                     <button type="submit" class="primary-button">登录进入系统</button>
                 </form>
