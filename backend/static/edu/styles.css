@@ -822,8 +822,9 @@ textarea {
 .simulation-classroom {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(260px, 0.34fr) minmax(0, 1fr);
   gap: 22px;
+  align-items: stretch;
   overflow: hidden;
   margin-bottom: 28px;
   padding: 24px;
@@ -847,9 +848,81 @@ textarea {
 }
 
 .ai-teacher-podium,
+.avatar-teacher-stage,
 .knowledge-blackboard {
   position: relative;
   z-index: 1;
+}
+
+.avatar-teacher-stage {
+  display: grid;
+  grid-template-rows: minmax(380px, 1fr) auto;
+  min-height: 520px;
+  overflow: hidden;
+  border: 1px solid rgba(24, 33, 27, 0.12);
+  border-radius: var(--radius);
+  background: rgba(255, 250, 240, 0.95);
+  box-shadow: 0 22px 42px rgba(24, 33, 27, 0.14);
+}
+
+.avatar-teacher-viewport {
+  position: relative;
+  min-height: 380px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(16, 37, 26, 0.08)),
+    linear-gradient(90deg, rgba(18, 165, 125, 0.08) 1px, transparent 1px),
+    linear-gradient(rgba(18, 165, 125, 0.08) 1px, transparent 1px);
+  background-size: auto, 24px 24px, 24px 24px;
+}
+
+.avatar-teacher-viewport canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.avatar-loading-card {
+  position: absolute;
+  inset: 24px;
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  padding: 18px;
+  border: 1px dashed rgba(24, 33, 27, 0.22);
+  border-radius: var(--radius);
+  background: rgba(255, 250, 240, 0.74);
+  text-align: center;
+}
+
+.avatar-teacher-viewport.is-loaded .avatar-loading-card {
+  display: none;
+}
+
+.avatar-teacher-console {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border-top: 1px solid rgba(24, 33, 27, 0.1);
+  background: rgba(255, 250, 240, 0.96);
+}
+
+.avatar-teacher-console h3,
+.avatar-teacher-console p {
+  margin: 0;
+}
+
+.avatar-teacher-actions,
+.ai-teacher-dialogue-form .button-row {
+  margin-top: 8px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 
 .ai-teacher-podium {
@@ -1022,6 +1095,20 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .simulation-classroom {
+    grid-template-columns: 1fr;
+  }
+
+  .avatar-teacher-stage {
+    grid-template-columns: minmax(220px, 0.45fr) minmax(0, 0.55fr);
+    grid-template-rows: 1fr;
+    min-height: 320px;
+  }
+
+  .avatar-teacher-viewport {
+    min-height: 320px;
+  }
+
   .ai-teacher-podium {
     grid-template-columns: 180px minmax(0, 1fr);
     align-items: center;
@@ -1039,6 +1126,11 @@ textarea {
 
   .simulation-classroom {
     padding: 16px;
+  }
+
+  .avatar-teacher-stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(340px, auto) auto;
   }
 
   .ai-teacher-podium,

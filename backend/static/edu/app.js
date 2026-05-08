@@ -747,17 +747,60 @@ function renderStudentClassroom() {
     const currentQuestion = activeSession?.status === 'active' ? activeSession.currentQuestion : null;
     const currentChoices = currentQuestion?.choices || [];
     const blackboardSummary = activeSession?.focusSummary || currentQuestion?.stem || '';
+    const latestTeacherLine = (activeSession?.transcript || [])
+        .filter((entry) => entry.role === 'teacher')
+        .slice(-1)[0]?.text;
+    const avatarTeacherScript = latestTeacherLine
+        || (currentQuestion
+            ? `同学，请看黑板。本题是：${currentQuestion.stem || ''}。先独立判断，再选择答案。`
+            : '同学们好，我是 EMBER AI 教师。请先开启仿真课堂，题目会显示在黑板上，我会站在黑板旁边带你一步步分析。');
 
     return renderHeroPage({
         heroImage: heroImages.dashboard,
         eyebrow: '仿真课堂',
-        heading: '课堂黑板只保留题目、选项和实时作答',
-        subheading: '先开启课堂生成题目，系统会把当前问题直接写到木框黑板上。',
+        heading: 'AI 教师站在黑板旁边进行仿真授课',
+        subheading: 'VRM 虚拟教师会读取课堂题目、播放语音讲解，并通过对话系统回答追问。',
         content: `
             <section class="simulation-classroom">
                 <div class="classroom-ambient">
                     <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1400&q=80" alt="真实教室场景" />
                 </div>
+                <aside class="avatar-teacher-stage" aria-label="AI 教师人物模型">
+                    <div class="avatar-teacher-viewport" data-avatar-teacher>
+                        <div class="avatar-loading-card">
+                            <strong>AI 教师载入中</strong>
+                            <span>正在读取 VRM 人物模型和课堂动作</span>
+                        </div>
+                    </div>
+                    <div class="avatar-teacher-console">
+                        <span class="eyebrow">AI 教师</span>
+                        <h3>EMBER AI 教师</h3>
+                        <p data-avatar-status>AI 教师正在准备模型</p>
+                        <p class="visually-hidden" data-teacher-script>${escapeHtml(avatarTeacherScript)}</p>
+                        <div class="button-row avatar-teacher-actions">
+                            <button type="button" class="primary-button inline-button" data-action="voice-play">播放AI教师讲解</button>
+                            <button type="button" class="ghost-button" data-action="voice-stop">停止语音</button>
+                        </div>
+                        <form class="stack-form ai-teacher-dialogue-form" data-form="ai-teacher-dialogue">
+                            <input type="hidden" name="knowledgeTitle" value="${escapeHtml(blackboardTitle)}" />
+                            <input type="hidden" name="blackboardSummary" value="${escapeHtml(blackboardSummary)}" />
+                            <label>
+                                <span>向 AI 教师追问</span>
+                                <textarea name="message" rows="3" placeholder="例如：老师，为什么这个选项不对？"></textarea>
+                            </label>
+                            <div class="button-row">
+                                <button type="submit" class="primary-button inline-button">发送追问</button>
+                                <button type="button" class="ghost-button" data-action="preset-ai-question">填入示例问题</button>
+                            </div>
+                        </form>
+                        ${state.classroomTeacherReply ? `
+                            <div class="ai-teacher-reply">
+                                <strong>AI 教师回答</strong>
+                                <p>${escapeHtml(state.classroomTeacherReply.content || state.classroomTeacherReply.speechText || '')}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                </aside>
                 <article class="knowledge-blackboard classroom-board-only">
                     <span class="chalk-mark"></span>
                     <h2>${blackboardTitle}</h2>
@@ -1399,6 +1442,7 @@ function renderAuthView() {
 function render() {
     updateBodyClass();
     app.innerHTML = state.me?.user ? renderAppView() : renderAuthView();
+    window.dispatchEvent(new CustomEvent('simclass:rendered'));
 }
 
 async function submitAuthForm(formName, payload) {
@@ -1539,6 +1583,9 @@ function speakText(text) {
     utterance.lang = 'zh-CN';
     utterance.rate = 0.92;
     utterance.pitch = 1.02;
+    utterance.onstart = () => window.dispatchEvent(new CustomEvent('simclass:teacher-speaking-start'));
+    utterance.onend = () => window.dispatchEvent(new CustomEvent('simclass:teacher-speaking-end'));
+    utterance.onerror = () => window.dispatchEvent(new CustomEvent('simclass:teacher-speaking-end'));
     window.speechSynthesis.speak(utterance);
 }
 
@@ -1546,6 +1593,7 @@ function stopSpeech() {
     if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
     }
+    window.dispatchEvent(new CustomEvent('simclass:teacher-speaking-end'));
 }
 
 async function handleClick(event) {
