@@ -3,6 +3,7 @@ import io
 import json
 import os
 import sys
+import tempfile
 import traceback
 import wave
 from typing import Any
@@ -10,10 +11,13 @@ from typing import Any
 import numpy as np
 
 
+ENGINE = os.environ.get("AIGRIL_ASR_ENGINE", os.environ.get("AIGRIL_ASR_PROVIDER", "whisper")).strip().lower() or "whisper"
 MODEL_ID = os.environ.get("AIGRIL_ASR_MODEL_ID", "openai/whisper-small").strip() or "openai/whisper-small"
+SENSEVOICE_MODEL_ID = os.environ.get("AIGRIL_SENSEVOICE_MODEL_ID", "FunAudioLLM/SenseVoiceSmall").strip() or "FunAudioLLM/SenseVoiceSmall"
 MODEL_ENDPOINT = os.environ.get("AIGRIL_ASR_MODEL_ENDPOINT", "https://hf-mirror.com").strip()
 CACHE_DIR = os.environ.get("AIGRIL_ASR_CACHE_DIR", os.path.join(os.path.dirname(__file__), "..", ".local", "asr-cache"))
 LANGUAGE = os.environ.get("AIGRIL_ASR_LANGUAGE", "zh").strip()
+SENSEVOICE_LANGUAGE = os.environ.get("AIGRIL_SENSEVOICE_LANGUAGE", "auto").strip() or "auto"
 TASK = os.environ.get("AIGRIL_ASR_TASK", "transcribe").strip() or "transcribe"
 CHUNK_LENGTH_S = int(os.environ.get("AIGRIL_ASR_CHUNK_LENGTH_S", "30"))
 BATCH_SIZE = int(os.environ.get("AIGRIL_ASR_BATCH_SIZE", "8"))
@@ -27,6 +31,8 @@ os.environ.setdefault("HF_HUB_CACHE", os.path.join(CACHE_DIR, "hub"))
 os.environ.setdefault("TRANSFORMERS_CACHE", os.path.join(CACHE_DIR, "transformers"))
 
 PIPELINE = None
+SENSEVOICE_MODEL = None
+SENSEVOICE_POSTPROCESS = None
 
 
 def send(payload: dict[str, Any]) -> None:
@@ -121,6 +127,35 @@ def ensure_pipeline():
     return PIPELINE
 
 
+def ensure_sensevoice_model():
+    global SENSEVOICE_MODEL
+    global SENSEVOICE_POSTPROCESS
+    if SENSEVOICE_MODEL is not None:
+        return SENSEVOICE_MODEL, SENSEVOICE_POSTPROCESS
+
+    try:
+        import torch
+        from funasr import AutoModel
+        from funasr.utils.postprocess_utils import rich_transcription_postprocess
+    except ImportError as exc:
+        raise RuntimeError(
+            'SenseVoiceSmall 需要安装 funasr：python -m pip install "funasr>=1.1.2" modelscope huggingface_hub'
+        ) from exc
+
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    log(f"[worker] loading SenseVoice model: {SENSEVOICE_MODEL_ID} on {device}")
+    SENSEVOICE_MODEL = AutoModel(
+        model=SENSEVOICE_MODEL_ID,
+        trust_remote_code=True,
+        device=device,
+        hub="hf",
+        cache_dir=CACHE_DIR
+    )
+    SENSEVOICE_POSTPROCESS = rich_transcription_postprocess
+    log("[worker] SenseVoice model ready")
+    return SENSEVOICE_MODEL, SENSEVOICE_POSTPROCESS
+
+
 def transcribe(audio_base64: str) -> dict[str, Any]:
     if not audio_base64:
         raise RuntimeError("录音内容为空")
@@ -131,11 +166,15 @@ def transcribe(audio_base64: str) -> dict[str, Any]:
     if is_effective_silence(audio_array):
         return {
             "text": "",
+            "engine": ENGINE,
             "language": LANGUAGE or None,
             "task": TASK,
-            "model_id": MODEL_ID,
+            "model_id": SENSEVOICE_MODEL_ID if ENGINE in {"sensevoice", "sensevoice-small", "funasr"} else MODEL_ID,
             "duration_seconds": duration_seconds
         }
+
+    if ENGINE in {"sensevoice", "sensevoice-small", "funasr"}:
+        return transcribe_sensevoice(audio_bytes, duration_seconds)
 
     asr_pipeline = ensure_pipeline()
 
@@ -167,9 +206,53 @@ def transcribe(audio_base64: str) -> dict[str, Any]:
 
     return {
         "text": text,
+        "engine": "whisper",
         "language": LANGUAGE or None,
         "task": TASK,
         "model_id": MODEL_ID,
+        "duration_seconds": duration_seconds
+    }
+
+
+def transcribe_sensevoice(wav_bytes: bytes, duration_seconds: float) -> dict[str, Any]:
+    model, postprocess = ensure_sensevoice_model()
+    temp_path = ""
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as audio_file:
+            audio_file.write(wav_bytes)
+            temp_path = audio_file.name
+
+        result = model.generate(
+            input=temp_path,
+            cache={},
+            language=SENSEVOICE_LANGUAGE,
+            use_itn=True,
+            batch_size=64
+        )
+    finally:
+        if temp_path:
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+
+    text = ""
+    if isinstance(result, list) and result:
+        text = str(result[0].get("text") or "").strip()
+    elif isinstance(result, dict):
+        text = str(result.get("text") or "").strip()
+    else:
+        text = str(result or "").strip()
+
+    if text and postprocess:
+        text = postprocess(text)
+
+    return {
+        "text": text,
+        "engine": "sensevoice",
+        "language": SENSEVOICE_LANGUAGE,
+        "task": TASK,
+        "model_id": SENSEVOICE_MODEL_ID,
         "duration_seconds": duration_seconds
     }
 
@@ -183,10 +266,16 @@ def handle_request(payload: dict[str, Any]) -> dict[str, Any]:
         }
 
     if action == "warmup":
-        ensure_pipeline()
+        if ENGINE in {"sensevoice", "sensevoice-small", "funasr"}:
+            ensure_sensevoice_model()
+            model_id = SENSEVOICE_MODEL_ID
+        else:
+            ensure_pipeline()
+            model_id = MODEL_ID
         return {
             "status": "ready",
-            "model_id": MODEL_ID
+            "engine": ENGINE,
+            "model_id": model_id
         }
 
     if action == "transcribe":
@@ -198,6 +287,7 @@ def handle_request(payload: dict[str, Any]) -> dict[str, Any]:
 def main() -> None:
     send({
         "type": "ready",
+        "engine": ENGINE,
         "model_id": MODEL_ID
     })
 

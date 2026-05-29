@@ -463,6 +463,8 @@ def push_pending_commits(commit_hashes: list[str], main_worktree: Path) -> None:
         latest_evidence=", ".join(commit_hashes),
         next_action="fetch main and cherry-pick pending commits",
     )
+    clear_empty_cherry_pick_if_needed(main_worktree)
+
     status = run_cmd(["git", "status", "--short"], cwd=main_worktree, timeout=30)
     if status.returncode != 0:
         raise RuntimeError(status.stdout)
@@ -483,6 +485,8 @@ def push_pending_commits(commit_hashes: list[str], main_worktree: Path) -> None:
         )
         proc = run_cmd(["git", "cherry-pick", commit_hash], cwd=main_worktree, timeout=180)
         if proc.returncode != 0:
+            if skip_empty_cherry_pick_if_needed(main_worktree, commit_hash, proc.stdout):
+                continue
             raise RuntimeError(f"git cherry-pick {commit_hash} failed:\n{proc.stdout}")
 
     proc = run_cmd(["git", "push", "origin", "HEAD:main"], cwd=main_worktree, timeout=180)
@@ -500,6 +504,65 @@ def push_pending_commits(commit_hashes: list[str], main_worktree: Path) -> None:
         f"Pushed {len(commit_hashes)} pending commit(s) to main",
         extra={"commits": commit_hashes, "mainWorktree": str(main_worktree)},
     )
+
+
+def cherry_pick_head_exists(main_worktree: Path) -> bool:
+    git_path = run_cmd(["git", "rev-parse", "--git-path", "CHERRY_PICK_HEAD"], cwd=main_worktree, timeout=30)
+    if git_path.returncode != 0:
+        return False
+    return (main_worktree / git_path.stdout.strip()).exists()
+
+
+def clear_empty_cherry_pick_if_needed(main_worktree: Path) -> None:
+    if not cherry_pick_head_exists(main_worktree):
+        return
+
+    status = run_cmd(["git", "status", "--porcelain"], cwd=main_worktree, timeout=30)
+    if status.returncode != 0:
+        raise RuntimeError(status.stdout)
+    if status.stdout.strip():
+        raise RuntimeError("main worktree has an in-progress cherry-pick with local changes:\n" + status.stdout)
+
+    skip = run_cmd(["git", "cherry-pick", "--skip"], cwd=main_worktree, timeout=60)
+    if skip.returncode != 0:
+        raise RuntimeError(f"git cherry-pick --skip failed:\n{skip.stdout}")
+    append_event(
+        "REPAIR_FINISHED",
+        "Skipped an empty in-progress cherry-pick before publishing pending commits",
+        extra={"mainWorktree": str(main_worktree)},
+    )
+
+
+def skip_empty_cherry_pick_if_needed(main_worktree: Path, commit_hash: str, output: str) -> bool:
+    text = output.lower()
+    looks_empty = (
+        "previous cherry-pick is now empty" in text
+        or "nothing to commit, working tree clean" in text
+        or "the patch is already applied" in text
+    )
+    if not looks_empty or not cherry_pick_head_exists(main_worktree):
+        return False
+
+    status = run_cmd(["git", "status", "--porcelain"], cwd=main_worktree, timeout=30)
+    if status.returncode != 0 or status.stdout.strip():
+        return False
+
+    skip = run_cmd(["git", "cherry-pick", "--skip"], cwd=main_worktree, timeout=60)
+    if skip.returncode != 0:
+        raise RuntimeError(f"git cherry-pick --skip failed:\n{skip.stdout}")
+
+    append_log(
+        "## Pending Commit Skipped\n\n"
+        f"- Time: `{now_iso()}`\n"
+        f"- Commit: `{commit_hash}`\n"
+        "- Reason: patch already exists in the publishing worktree\n"
+    )
+    append_event(
+        "REPAIR_FINISHED",
+        f"Skipped already-applied pending commit {commit_hash}",
+        extra={"commit": commit_hash, "mainWorktree": str(main_worktree)},
+    )
+    return True
 
 
 def push_existing_main_worktree_if_needed(main_worktree: Path) -> None:

@@ -60,7 +60,7 @@ const EN_MALE_VOICE_HINTS = [
 function normalizeSpeechMode(mode) {
     const requestedMode = String(mode || '').trim().toLowerCase();
 
-    if (['server', 'local', 'off', 'auto'].includes(requestedMode)) {
+    if (['cosyvoice3', 'kokoro', 'vits', 'server', 'local', 'off', 'auto'].includes(requestedMode)) {
         return requestedMode;
     }
 
@@ -69,6 +69,20 @@ function normalizeSpeechMode(mode) {
 
 function resolveSpeechMode(modeOverride = null) {
     const requestedMode = normalizeSpeechMode(modeOverride || CONFIG.SPEECH_MODE);
+
+    const desktopRuntime = isDesktopRuntime();
+
+    if (requestedMode === 'vits') {
+        return desktopRuntime ? 'vits' : 'server';
+    }
+
+    if (requestedMode === 'cosyvoice3') {
+        return desktopRuntime ? 'cosyvoice3' : 'server';
+    }
+
+    if (requestedMode === 'kokoro') {
+        return desktopRuntime ? 'kokoro' : 'server';
+    }
 
     if (requestedMode === 'server') {
         return 'server';
@@ -83,10 +97,10 @@ function resolveSpeechMode(modeOverride = null) {
     }
 
     if (requestedMode === 'auto') {
-        return 'server';
+        return desktopRuntime ? 'local' : 'server';
     }
 
-    return 'server';
+    return desktopRuntime ? 'local' : 'server';
 }
 
 function normalizeVoiceName(value) {
@@ -222,7 +236,8 @@ class ServerTTSCandidate {
         alignment,
         audioPlayer,
         updateMessageContent,
-        scrollToBottom
+        scrollToBottom,
+        onAvatarPlaybackStart
     }) {
         if (!payload?.audio_base64) {
             return false;
@@ -238,11 +253,175 @@ class ServerTTSCandidate {
                 scrollToBottom();
             },
             onPlaybackStart: () => {
+                onAvatarPlaybackStart?.();
                 if (alignment?.characters?.length) {
                     updateMessageContent('');
                 } else {
                     updateMessageContent(displayText);
                 }
+                scrollToBottom();
+            },
+            onPlaybackEnd: () => {
+                updateMessageContent(displayText);
+                scrollToBottom();
+            }
+        });
+
+        return true;
+    }
+}
+
+class LocalVitsTTSCandidate {
+    constructor() {
+        this.id = 'local-vits-tts';
+        this.replyMode = 'stream_text';
+    }
+
+    get supportsTTS() {
+        return isDesktopRuntime();
+    }
+
+    async speak({
+        payload,
+        displayText,
+        audioPlayer,
+        updateMessageContent,
+        scrollToBottom,
+        onAvatarPlaybackStart
+    }) {
+        if (!this.supportsTTS || !displayText) {
+            return false;
+        }
+
+        updateMessageContent(displayText);
+        scrollToBottom();
+
+        const { synthesizeLocalVitsSpeech } = await import('./local-vits-tts.js');
+        const speechText = payload?.speech_text || displayText;
+        const result = await synthesizeLocalVitsSpeech(speechText);
+        await audioPlayer.playSpeech({
+            audioBase64: result.audioBase64,
+            mimeType: result.mimeType,
+            displayText,
+            alignment: null,
+            onPlaybackStart: () => {
+                onAvatarPlaybackStart?.();
+                updateMessageContent(displayText);
+                scrollToBottom();
+            },
+            onPlaybackEnd: () => {
+                updateMessageContent(displayText);
+                scrollToBottom();
+            }
+        });
+
+        return true;
+    }
+}
+
+class CosyVoice3TTSCandidate {
+    constructor() {
+        this.id = 'cosyvoice3-anime-shy-soft';
+        this.replyMode = 'stream_text';
+    }
+
+    get supportsTTS() {
+        return isDesktopRuntime() && typeof window.aigrilDesktop?.tts?.synthesize === 'function';
+    }
+
+    async speak({
+        payload,
+        displayText,
+        audioPlayer,
+        updateMessageContent,
+        scrollToBottom,
+        onAvatarPlaybackStart
+    }) {
+        if (!this.supportsTTS || !displayText) {
+            return false;
+        }
+
+        updateMessageContent(displayText);
+        scrollToBottom();
+
+        const speechText = payload?.speech_text || displayText;
+        const result = await window.aigrilDesktop.tts.synthesize({
+            provider: 'cosyvoice3',
+            preset: 'anime_shy_soft',
+            text: speechText,
+            speed: 0.92
+        });
+
+        if (!result?.ok || !result.audio_base64) {
+            throw new Error(result?.error || 'CosyVoice3 本地语音合成失败');
+        }
+
+        await audioPlayer.playSpeech({
+            audioBase64: result.audio_base64,
+            mimeType: result.mime_type || 'audio/wav',
+            displayText,
+            alignment: null,
+            onPlaybackStart: () => {
+                onAvatarPlaybackStart?.();
+                updateMessageContent(displayText);
+                scrollToBottom();
+            },
+            onPlaybackEnd: () => {
+                updateMessageContent(displayText);
+                scrollToBottom();
+            }
+        });
+
+        return true;
+    }
+}
+
+class KokoroZhTTSCandidate {
+    constructor() {
+        this.id = 'kokoro-82m-zh';
+        this.replyMode = 'stream_text';
+    }
+
+    get supportsTTS() {
+        return isDesktopRuntime() && typeof window.aigrilDesktop?.tts?.synthesize === 'function';
+    }
+
+    async speak({
+        payload,
+        displayText,
+        audioPlayer,
+        updateMessageContent,
+        scrollToBottom,
+        onAvatarPlaybackStart
+    }) {
+        if (!this.supportsTTS || !displayText) {
+            return false;
+        }
+
+        updateMessageContent(displayText);
+        scrollToBottom();
+
+        const speechText = payload?.speech_text || displayText;
+        const result = await window.aigrilDesktop.tts.synthesize({
+            provider: 'kokoro',
+            voice: 'zf_003',
+            text: speechText,
+            speed: 0.98,
+            timeoutMs: 120000
+        });
+
+        if (!result?.ok || !result.audio_base64) {
+            throw new Error(result?.error || 'Kokoro 本地语音合成失败');
+        }
+
+        await audioPlayer.playSpeech({
+            audioBase64: result.audio_base64,
+            mimeType: result.mime_type || 'audio/wav',
+            displayText,
+            alignment: null,
+            onPlaybackStart: () => {
+                onAvatarPlaybackStart?.();
+                updateMessageContent(displayText);
                 scrollToBottom();
             },
             onPlaybackEnd: () => {
@@ -276,7 +455,8 @@ class NativeSpeechSynthesisCandidate {
         displayText,
         vrmSystem,
         updateMessageContent,
-        scrollToBottom
+        scrollToBottom,
+        onAvatarPlaybackStart
     }) {
         if (!this.supportsTTS || !displayText) {
             return false;
@@ -307,6 +487,7 @@ class NativeSpeechSynthesisCandidate {
             utterance.onstart = () => {
                 started = true;
                 vrmSystem.startFallbackSpeech();
+                onAvatarPlaybackStart?.();
                 updateMessageContent(displayText);
                 scrollToBottom();
             };
@@ -438,16 +619,53 @@ export function createSpeechProvider({
     const resolvedMode = resolveSpeechMode(speechMode);
 
     const ttsCandidates = [];
+    if (enableTTS && resolvedMode === 'vits') {
+        ttsCandidates.push(new LocalVitsTTSCandidate());
+        if (desktopRuntime) {
+            ttsCandidates.push(new NativeSpeechSynthesisCandidate({
+                id: 'browser-speech-synthesis',
+                allowDesktop: true,
+                preferDesktopFemale: true
+            }));
+        }
+    }
+
+    if (enableTTS && resolvedMode === 'cosyvoice3') {
+        ttsCandidates.push(new CosyVoice3TTSCandidate());
+        if (desktopRuntime) {
+            ttsCandidates.push(new NativeSpeechSynthesisCandidate({
+                id: 'browser-speech-synthesis',
+                allowDesktop: true,
+                preferDesktopFemale: true
+            }));
+        }
+    }
+
+    if (enableTTS && resolvedMode === 'kokoro') {
+        ttsCandidates.push(new KokoroZhTTSCandidate());
+        if (desktopRuntime) {
+            ttsCandidates.push(new NativeSpeechSynthesisCandidate({
+                id: 'browser-speech-synthesis',
+                allowDesktop: true,
+                preferDesktopFemale: true
+            }));
+        }
+    }
+
     if (enableTTS && resolvedMode === 'server') {
         ttsCandidates.push(new ServerTTSCandidate());
-        if (!desktopRuntime && CONFIG.WEB_NATIVE_TTS_FALLBACK_ENABLED) {
-            ttsCandidates.push(new NativeSpeechSynthesisCandidate());
+        if (desktopRuntime || CONFIG.WEB_NATIVE_TTS_FALLBACK_ENABLED) {
+            ttsCandidates.push(new NativeSpeechSynthesisCandidate({
+                id: 'browser-speech-synthesis',
+                allowDesktop: desktopRuntime,
+                preferDesktopFemale: desktopRuntime
+            }));
         }
     }
 
     if (enableTTS && resolvedMode === 'local') {
         ttsCandidates.push(new NativeSpeechSynthesisCandidate({
-            id: desktopRuntime ? 'desktop-native-tts' : 'browser-native-tts',
+            id: 'browser-speech-synthesis',
             allowDesktop: desktopRuntime,
             preferDesktopFemale: desktopRuntime
         }));

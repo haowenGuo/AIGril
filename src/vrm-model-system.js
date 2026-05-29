@@ -9,7 +9,6 @@ import { createVRMAnimationClip, VRMAnimationLoaderPlugin } from '@pixiv/three-v
 
 import { CONFIG } from './config.js';
 
-
 export class VRMModelSystem {
     constructor() {
         this.scene = null;
@@ -123,10 +122,25 @@ export class VRMModelSystem {
         this.controls.maxAzimuthAngle = Math.PI / 6;
 
         this.initLight();
+        this.applyPreferences();
         window.addEventListener('resize', () => this.onWindowResize(container));
         this.animate();
 
         console.log('✅ 3D场景初始化完成');
+    }
+
+    applyPreferences() {
+        if (!this.camera || !this.controls) {
+            return;
+        }
+
+        this.camera.position.copy(CONFIG.CAMERA_POSITION);
+        this.controls.target.copy(CONFIG.CAMERA_TARGET);
+        this.controls.minDistance = CONFIG.CAMERA_MIN_DISTANCE;
+        this.controls.maxDistance = CONFIG.CAMERA_MAX_DISTANCE;
+        this.camera.lookAt(CONFIG.CAMERA_TARGET);
+        this.camera.updateProjectionMatrix();
+        this.controls.update();
     }
 
     initLight() {
@@ -522,8 +536,8 @@ export class VRMModelSystem {
                 targetLipSyncValue = this.externalLipSyncValue;
             } else {
                 this.speakTimeAccumulator += deltaTime;
-                targetLipSyncValue =
-                    Math.abs(Math.sin(this.speakTimeAccumulator * CONFIG.SPEAK_SPEED)) * CONFIG.SPEAK_AMPLITUDE;
+                const pulse = 0.5 - 0.5 * Math.cos(this.speakTimeAccumulator * Math.PI * 2 * CONFIG.SPEAK_SPEED);
+                targetLipSyncValue = Math.pow(pulse, CONFIG.AUDIO_LIP_SYNC_PULSE_SHAPE) * CONFIG.SPEAK_AMPLITUDE;
             }
         }
 

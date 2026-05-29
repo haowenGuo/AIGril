@@ -19,6 +19,12 @@ backend/**/__pycache__/
 input/
 output/
 tmp/
+build-cache/
+.humanclaw-rollback/
+.humanclaw-state/
+.runtime-logs/
+eval-results/
+AIGrilClaw/.refs/
 历史版本/
 release/
 backend/blog_content/auto_blog_runs/**/local_runner_*.log

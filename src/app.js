@@ -3,9 +3,16 @@ import { TTSAudioPlayer } from './tts-audio-player.js';
 import { ChatTTSSystem } from './chat-tts-system.js';
 import { createChatService } from './chat-service.js';
 import { createSpeechProvider } from './speech-provider.js';
+import { applyDesktopPreferencesToConfig } from './config.js';
+import { installAvatarDialogueBubble } from './avatar-dialogue-bubble.js';
 
 
 window.addEventListener('DOMContentLoaded', async () => {
+    installAvatarDialogueBubble({
+        rootElement: document.getElementById('app-container'),
+        variant: 'main'
+    });
+    applyDesktopPreferencesToConfig(window.aigrilDesktop?.preferences || {});
     const vrmSystem = new VRMModelSystem();
     const audioPlayer = new TTSAudioPlayer(vrmSystem);
     const chatService = createChatService();
@@ -19,9 +26,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     });
 
     window.aigrilDesktop?.onPreferencesUpdated?.(({ preferences = {} } = {}) => {
+        applyDesktopPreferencesToConfig(preferences);
         speechProvider?.dispose?.();
         speechProvider = buildSpeechProvider(preferences.speechMode);
         chatSystem.setSpeechProvider(speechProvider);
+        chatSystem.applyRuntimePreferences();
+        vrmSystem.applyPreferences();
         window.speechProvider = speechProvider;
     });
 

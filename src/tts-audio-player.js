@@ -1,5 +1,7 @@
 import { CONFIG } from './config.js';
 
+const TWO_PI = Math.PI * 2;
+
 
 function base64ToBlobUrl(base64Audio, mimeType) {
     const binaryString = window.atob(base64Audio);
@@ -27,6 +29,16 @@ function getSafeAlignment(alignment, displayText) {
 }
 
 
+function clamp(value, minimum, maximum) {
+    return Math.min(Math.max(value, minimum), maximum);
+}
+
+
+function lerp(start, end, amount) {
+    return start + (end - start) * amount;
+}
+
+
 export class TTSAudioPlayer {
     constructor(vrmSystem) {
         this.vrmSystem = vrmSystem;
@@ -37,10 +49,13 @@ export class TTSAudioPlayer {
         this.audioContext = null;
         this.mediaSourceNode = null;
         this.analyserNode = null;
-        this.frequencyData = null;
+        this.timeDomainData = null;
 
         this.currentObjectUrl = null;
         this.syncRafId = 0;
+        this.lipSyncEnvelope = 0;
+        this.lipSyncPulsePhase = 0;
+        this.lastLipSyncAudioTime = 0;
     }
 
     async unlock() {
@@ -66,6 +81,7 @@ export class TTSAudioPlayer {
     }) {
         await this.stop();
         await this.unlock();
+        this.resetLipSyncState();
 
         const safeAlignment = getSafeAlignment(alignment, displayText);
         let visibleCharCount = 0;
@@ -160,11 +176,18 @@ export class TTSAudioPlayer {
 
         this.audioElement.currentTime = 0;
         this.vrmSystem.stopSpeaking();
+        this.resetLipSyncState();
 
         if (this.currentObjectUrl) {
             URL.revokeObjectURL(this.currentObjectUrl);
             this.currentObjectUrl = null;
         }
+    }
+
+    resetLipSyncState() {
+        this.lipSyncEnvelope = 0;
+        this.lipSyncPulsePhase = 0;
+        this.lastLipSyncAudioTime = 0;
     }
 
     async ensureAudioGraph() {
@@ -180,34 +203,65 @@ export class TTSAudioPlayer {
         this.audioContext = new AudioContextClass();
         this.mediaSourceNode = this.audioContext.createMediaElementSource(this.audioElement);
         this.analyserNode = this.audioContext.createAnalyser();
-        this.analyserNode.fftSize = 2048;
-        this.frequencyData = new Uint8Array(this.analyserNode.frequencyBinCount);
+        this.analyserNode.fftSize = 1024;
+        this.analyserNode.smoothingTimeConstant = CONFIG.AUDIO_LIP_SYNC_ANALYSER_SMOOTHING;
+        this.timeDomainData = new Uint8Array(this.analyserNode.fftSize);
 
         this.mediaSourceNode.connect(this.analyserNode);
         this.analyserNode.connect(this.audioContext.destination);
     }
 
     updateLipSyncFromAudio() {
-        if (!this.analyserNode || !this.frequencyData) {
+        if (!this.analyserNode || !this.timeDomainData) {
             return;
         }
 
-        this.analyserNode.getByteFrequencyData(this.frequencyData);
-        const speechBins = this.frequencyData.subarray(2, Math.min(48, this.frequencyData.length));
-        if (speechBins.length === 0) {
-            return;
+        this.analyserNode.getByteTimeDomainData(this.timeDomainData);
+
+        let totalSquares = 0;
+        for (const value of this.timeDomainData) {
+            const sample = (value - 128) / 128;
+            totalSquares += sample * sample;
         }
 
-        let total = 0;
-        for (const value of speechBins) {
-            total += value;
+        const rms = Math.sqrt(totalSquares / this.timeDomainData.length);
+        const rawEnergy = clamp(
+            (rms - CONFIG.AUDIO_LIP_SYNC_NOISE_FLOOR) * CONFIG.AUDIO_LIP_SYNC_GAIN,
+            0,
+            1
+        );
+        const envelopeRate = rawEnergy > this.lipSyncEnvelope
+            ? CONFIG.AUDIO_LIP_SYNC_ATTACK
+            : CONFIG.AUDIO_LIP_SYNC_RELEASE;
+        this.lipSyncEnvelope = lerp(this.lipSyncEnvelope, rawEnergy, envelopeRate);
+
+        const audioTime = this.audioElement.currentTime || 0;
+        let deltaTime = this.lastLipSyncAudioTime > 0
+            ? audioTime - this.lastLipSyncAudioTime
+            : 1 / 60;
+        if (!Number.isFinite(deltaTime) || deltaTime <= 0 || deltaTime > 0.12) {
+            deltaTime = 1 / 60;
         }
+        this.lastLipSyncAudioTime = audioTime;
 
-        const average = total / speechBins.length;
-        const normalized = Math.min(1, average / CONFIG.AUDIO_LIP_SYNC_DIVISOR);
-        const mouthValue = Math.min(CONFIG.MAX_MOUTH_OPEN, normalized * CONFIG.AUDIO_LIP_SYNC_BOOST);
+        const cadence = lerp(
+            CONFIG.AUDIO_LIP_SYNC_MIN_CADENCE,
+            CONFIG.AUDIO_LIP_SYNC_MAX_CADENCE,
+            this.lipSyncEnvelope
+        );
+        this.lipSyncPulsePhase = (this.lipSyncPulsePhase + deltaTime * cadence) % 1;
 
-        this.vrmSystem.setLipSyncValue(mouthValue);
+        const pulse = Math.pow(
+            0.5 - 0.5 * Math.cos(this.lipSyncPulsePhase * TWO_PI),
+            CONFIG.AUDIO_LIP_SYNC_PULSE_SHAPE
+        );
+        const mouthValue = this.lipSyncEnvelope <= CONFIG.AUDIO_LIP_SYNC_SILENCE_THRESHOLD
+            ? 0
+            : this.lipSyncEnvelope *
+                (CONFIG.AUDIO_LIP_SYNC_SUSTAIN + (1 - CONFIG.AUDIO_LIP_SYNC_SUSTAIN) * pulse) *
+                CONFIG.AUDIO_LIP_SYNC_BOOST;
+
+        this.vrmSystem.setLipSyncValue(clamp(mouthValue, 0, CONFIG.MAX_MOUTH_OPEN));
     }
 
     findVisibleCharCount(alignment, currentTime, lastVisibleCharCount) {

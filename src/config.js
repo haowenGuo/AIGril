@@ -1,20 +1,77 @@
 import * as THREE from 'three';
 
+const DEFAULT_BACKEND_BASE_URL = 'https://airi-backend.onrender.com';
+const DEFAULT_DESKTOP_BACKEND_BASE_URL = '';
+const DEFAULT_BACKEND_MODE = 'humanclaw';
+const DEFAULT_SPEECH_MODE = 'server';
+const DEFAULT_DESKTOP_SPEECH_MODE = 'cosyvoice3';
+const DEFAULT_CAMERA_DISTANCE = 1.1;
+const DEFAULT_CAMERA_HEIGHT = 1.3;
+const DEFAULT_CAMERA_TARGET_Y = 1;
+const DEFAULT_DESKTOP_NATIVE_TTS_RATE = 0.96;
+const DEFAULT_DESKTOP_NATIVE_TTS_PITCH = 1.12;
+const DEFAULT_DESKTOP_NATIVE_TTS_VOLUME = 1;
+const DEFAULT_AUTO_CHAT_MIN_INTERVAL = 60000;
+const DEFAULT_AUTO_CHAT_MAX_INTERVAL = 120000;
+
+function normalizeBackendBaseUrl(value, fallbackValue = DEFAULT_BACKEND_BASE_URL) {
+    const normalizedValue = String(value || '').trim().replace(/\/+$/, '');
+    return normalizedValue || fallbackValue;
+}
+
+function normalizeBackendMode(value) {
+    return DEFAULT_BACKEND_MODE;
+}
+
+function normalizeSpeechMode(value, fallbackValue = DEFAULT_SPEECH_MODE) {
+    const normalizedValue = String(value || '').trim().toLowerCase();
+    return ['cosyvoice3', 'kokoro', 'vits', 'server', 'local', 'off', 'auto'].includes(normalizedValue)
+        ? normalizedValue
+        : fallbackValue;
+}
+
+function normalizeNumber(value, minimum, maximum, fallbackValue, digits = 2) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+        return fallbackValue;
+    }
+
+    const clampedValue = Math.min(Math.max(numericValue, minimum), maximum);
+    return Number(clampedValue.toFixed(digits));
+}
+
+function normalizeDesktopBoolean(value, fallbackValue) {
+    if (typeof value === 'boolean') {
+        return value;
+    }
+    return fallbackValue;
+}
+
+function getDesktopPreferencesSnapshot() {
+    if (typeof window === 'undefined') {
+        return {};
+    }
+    return window.aigrilDesktop?.preferences || {};
+}
+
 function getRuntimeSettings() {
     if (typeof window === 'undefined') {
         return {
-            backendBaseUrl: 'http://localhost:8000',
+            backendBaseUrl: DEFAULT_BACKEND_BASE_URL,
+            backendMode: DEFAULT_BACKEND_MODE,
             demoModeEnabled: false,
             isGitHubPages: false,
-            speechMode: 'server'
+            speechMode: DEFAULT_SPEECH_MODE,
+            desktopPreferences: {}
         };
     }
 
+    const desktopPreferences = getDesktopPreferencesSnapshot();
+    const isDesktopRuntime = window.aigrilDesktop?.platform === 'electron';
     const url = new URL(window.location.href);
     const queryBackend = url.searchParams.get('backend')?.trim();
     const forceDemo = url.searchParams.get('demo') === '1';
     const querySpeechMode = url.searchParams.get('speechMode')?.trim().toLowerCase();
-    const desktopPreferenceSpeechMode = window.aigrilDesktop?.preferences?.speechMode;
 
     if (queryBackend) {
         window.localStorage.setItem('aigril_backend_base_url', queryBackend);
@@ -29,23 +86,114 @@ function getRuntimeSettings() {
     )?.trim();
     const storedSpeechMode = (
         window.localStorage.getItem('aigril_speech_mode') ||
-        desktopPreferenceSpeechMode ||
-        'server'
+        desktopPreferences.speechMode ||
+        DEFAULT_SPEECH_MODE
     ).trim().toLowerCase();
-    const backendBaseUrl = queryBackend || storedBackend || 'http://localhost:8000';
     const isGitHubPages = window.location.hostname.endsWith('github.io');
     const demoModeEnabled = forceDemo || (isGitHubPages && !queryBackend && !storedBackend);
-    const requestedSpeechMode = querySpeechMode || storedSpeechMode || 'server';
-    const speechMode = ['server', 'local', 'off', 'auto'].includes(requestedSpeechMode)
-        ? requestedSpeechMode
-        : 'server';
+
+    const fallbackBackendBaseUrl = isDesktopRuntime
+        ? DEFAULT_DESKTOP_BACKEND_BASE_URL
+        : DEFAULT_BACKEND_BASE_URL;
+    const fallbackSpeechMode = isDesktopRuntime
+        ? DEFAULT_DESKTOP_SPEECH_MODE
+        : DEFAULT_SPEECH_MODE;
 
     return {
-        backendBaseUrl,
+        backendBaseUrl: normalizeBackendBaseUrl(
+            desktopPreferences.backendBaseUrl || queryBackend || (isDesktopRuntime ? '' : storedBackend),
+            fallbackBackendBaseUrl
+        ),
+        backendMode: normalizeBackendMode(
+            desktopPreferences.backendMode || DEFAULT_BACKEND_MODE
+        ),
         demoModeEnabled,
         isGitHubPages,
-        speechMode
+        speechMode: normalizeSpeechMode(
+            querySpeechMode || desktopPreferences.speechMode || storedSpeechMode,
+            fallbackSpeechMode
+        ),
+        desktopPreferences
     };
+}
+
+function applyBackendUrls(baseUrl) {
+    const fallbackBackendBaseUrl = typeof window !== 'undefined' && window.aigrilDesktop?.platform === 'electron'
+        ? DEFAULT_DESKTOP_BACKEND_BASE_URL
+        : DEFAULT_BACKEND_BASE_URL;
+    CONFIG.BACKEND_BASE_URL = normalizeBackendBaseUrl(baseUrl, fallbackBackendBaseUrl);
+    CONFIG.BACKEND_STREAM_API_URL = `${CONFIG.BACKEND_BASE_URL}/api/chat`;
+    CONFIG.BACKEND_TTS_API_URL = `${CONFIG.BACKEND_BASE_URL}/api/chat/tts`;
+    CONFIG.BACKEND_TTS_SYNTHESIZE_API_URL = `${CONFIG.BACKEND_BASE_URL}/api/tts/synthesize`;
+    CONFIG.BACKEND_TEXT_API_URL = `${CONFIG.BACKEND_BASE_URL}/api/chat/text`;
+}
+
+function applyCameraSettings(preferences = {}) {
+    const cameraDistance = normalizeNumber(
+        preferences.cameraDistance,
+        0.75,
+        1.8,
+        CONFIG.CAMERA_POSITION.z
+    );
+    const cameraHeight = normalizeNumber(
+        preferences.cameraHeight,
+        0.7,
+        1.8,
+        CONFIG.CAMERA_POSITION.y
+    );
+    const cameraTargetY = normalizeNumber(
+        preferences.cameraTargetY,
+        0.5,
+        1.5,
+        CONFIG.CAMERA_TARGET.y
+    );
+
+    CONFIG.CAMERA_POSITION.set(0, cameraHeight, cameraDistance);
+    CONFIG.CAMERA_TARGET.set(0, cameraTargetY, 0);
+    CONFIG.CAMERA_MIN_DISTANCE = Number(Math.max(0.55, cameraDistance - 0.35).toFixed(2));
+    CONFIG.CAMERA_MAX_DISTANCE = Number(Math.min(2.2, cameraDistance + 0.45).toFixed(2));
+}
+
+function applyDesktopSpeechSettings(preferences = {}) {
+    CONFIG.DESKTOP_NATIVE_TTS_RATE = normalizeNumber(
+        preferences.desktopNativeTtsRate,
+        0.6,
+        1.4,
+        CONFIG.DESKTOP_NATIVE_TTS_RATE
+    );
+    CONFIG.DESKTOP_NATIVE_TTS_PITCH = normalizeNumber(
+        preferences.desktopNativeTtsPitch,
+        0.6,
+        1.6,
+        CONFIG.DESKTOP_NATIVE_TTS_PITCH
+    );
+    CONFIG.DESKTOP_NATIVE_TTS_VOLUME = normalizeNumber(
+        preferences.desktopNativeTtsVolume,
+        0,
+        1,
+        CONFIG.DESKTOP_NATIVE_TTS_VOLUME
+    );
+}
+
+function applyAutoChatSettings(preferences = {}) {
+    const minimumIntervalMs = Math.round(normalizeNumber(
+        preferences.autoChatMinIntervalSec,
+        15,
+        1800,
+        CONFIG.AUTO_CHAT_MIN_INTERVAL / 1000,
+        0
+    ) * 1000);
+    const maximumIntervalMs = Math.round(normalizeNumber(
+        preferences.autoChatMaxIntervalSec,
+        minimumIntervalMs / 1000,
+        3600,
+        CONFIG.AUTO_CHAT_MAX_INTERVAL / 1000,
+        0
+    ) * 1000);
+
+    CONFIG.AUTO_CHAT_ENABLED = false;
+    CONFIG.AUTO_CHAT_MIN_INTERVAL = minimumIntervalMs;
+    CONFIG.AUTO_CHAT_MAX_INTERVAL = Math.max(minimumIntervalMs, maximumIntervalMs);
 }
 
 const runtimeSettings = getRuntimeSettings();
@@ -73,18 +221,27 @@ export const CONFIG = {
     DANCE_ACTION_LIST: ['vrma17', 'vrma25'],
     CROSS_FADE_DURATION: 0.4,
     RENDER_PIXEL_RATIO: 2,
-    CAMERA_POSITION: new THREE.Vector3(0, 1.3, 1.1),
-    CAMERA_TARGET: new THREE.Vector3(0, 1, 0),
+    CAMERA_POSITION: new THREE.Vector3(0, DEFAULT_CAMERA_HEIGHT, DEFAULT_CAMERA_DISTANCE),
+    CAMERA_TARGET: new THREE.Vector3(0, DEFAULT_CAMERA_TARGET_Y, 0),
     CAMERA_MIN_DISTANCE: 0.85,
     CAMERA_MAX_DISTANCE: 1.5,
     BLINK_MIN_INTERVAL: 2000,
     BLINK_MAX_INTERVAL: 5000,
-    SPEAK_SPEED: 10,
-    SPEAK_AMPLITUDE: 0.4,
+    SPEAK_SPEED: 5.2,
+    SPEAK_AMPLITUDE: 0.46,
     MAX_MOUTH_OPEN: 0.95,
-    LIP_SYNC_SMOOTHING: 0.35,
-    AUDIO_LIP_SYNC_DIVISOR: 70,
-    AUDIO_LIP_SYNC_BOOST: 1.8,
+    LIP_SYNC_SMOOTHING: 0.32,
+    AUDIO_LIP_SYNC_ANALYSER_SMOOTHING: 0.12,
+    AUDIO_LIP_SYNC_NOISE_FLOOR: 0.012,
+    AUDIO_LIP_SYNC_GAIN: 8.5,
+    AUDIO_LIP_SYNC_ATTACK: 0.52,
+    AUDIO_LIP_SYNC_RELEASE: 0.16,
+    AUDIO_LIP_SYNC_SILENCE_THRESHOLD: 0.04,
+    AUDIO_LIP_SYNC_MIN_CADENCE: 4.3,
+    AUDIO_LIP_SYNC_MAX_CADENCE: 6.4,
+    AUDIO_LIP_SYNC_SUSTAIN: 0.12,
+    AUDIO_LIP_SYNC_PULSE_SHAPE: 0.72,
+    AUDIO_LIP_SYNC_BOOST: 0.92,
     TEXT_SYNC_LEAD_SECONDS: 0.03,
     TEXT_ONLY_SPEECH_CHAR_MS: 85,
     TEXT_ONLY_SPEECH_MIN_MS: 1200,
@@ -92,8 +249,6 @@ export const CONFIG = {
     EXPRESSION_RESET_DELAY_MS: 350,
     EXPRESSION_HOLD_MS: 2800,
     BLINK_EXPRESSION_HOLD_MS: 220,
-    // 表情预设统一收口在这里。
-    // 对话系统只传表情名，不直接控制数值。
     EXPRESSION_PRESETS: {
         happy: 0.4,
         angry: 0.55,
@@ -111,10 +266,12 @@ export const CONFIG = {
         neutral: 0.0
     },
     BACKEND_BASE_URL: runtimeSettings.backendBaseUrl,
+    BACKEND_MODE: runtimeSettings.backendMode,
     DEMO_MODE_ENABLED: runtimeSettings.demoModeEnabled,
     IS_GITHUB_PAGES: runtimeSettings.isGitHubPages,
     BACKEND_STREAM_API_URL: `${runtimeSettings.backendBaseUrl}/api/chat`,
     BACKEND_TTS_API_URL: `${runtimeSettings.backendBaseUrl}/api/chat/tts`,
+    BACKEND_TTS_SYNTHESIZE_API_URL: `${runtimeSettings.backendBaseUrl}/api/tts/synthesize`,
     BACKEND_TEXT_API_URL: `${runtimeSettings.backendBaseUrl}/api/chat/text`,
     SPEECH_MODE: runtimeSettings.speechMode,
     ASR_SAMPLE_RATE: 16000,
@@ -125,12 +282,42 @@ export const CONFIG = {
     ASR_CONTINUOUS_IDLE_MS: 6500,
     ASR_CONTINUOUS_RESTART_MS: 450,
     ASR_CONTINUOUS_MIN_SPEECH_MS: 380,
+    ASR_CONTINUOUS_VOICE_SCORE: 0.52,
+    ASR_CONTINUOUS_VOICE_FRAMES: 3,
     ASR_WAKE_WORD: '老婆',
     ASR_WAKE_WORD_ALIASES: ['老婆', '老 婆', '我老婆'],
     WEB_NATIVE_TTS_FALLBACK_ENABLED: true,
-    DESKTOP_NATIVE_TTS_RATE: 0.96,
-    DESKTOP_NATIVE_TTS_PITCH: 1.12,
-    DESKTOP_NATIVE_TTS_VOLUME: 1,
-    AUTO_CHAT_MIN_INTERVAL: 60000,
-    AUTO_CHAT_MAX_INTERVAL: 120000
+    DESKTOP_NATIVE_TTS_RATE: DEFAULT_DESKTOP_NATIVE_TTS_RATE,
+    DESKTOP_NATIVE_TTS_PITCH: DEFAULT_DESKTOP_NATIVE_TTS_PITCH,
+    DESKTOP_NATIVE_TTS_VOLUME: DEFAULT_DESKTOP_NATIVE_TTS_VOLUME,
+    AUTO_CHAT_ENABLED: false,
+    AUTO_CHAT_MIN_INTERVAL: DEFAULT_AUTO_CHAT_MIN_INTERVAL,
+    AUTO_CHAT_MAX_INTERVAL: DEFAULT_AUTO_CHAT_MAX_INTERVAL
 };
+
+export function applyDesktopPreferencesToConfig(preferences = {}) {
+    if (!preferences || typeof preferences !== 'object') {
+        return CONFIG;
+    }
+
+    if ('backendBaseUrl' in preferences) {
+        applyBackendUrls(preferences.backendBaseUrl);
+    }
+    if ('backendMode' in preferences) {
+        CONFIG.BACKEND_MODE = normalizeBackendMode(preferences.backendMode);
+    }
+    if ('speechMode' in preferences) {
+        const fallbackSpeechMode = typeof window !== 'undefined' && window.aigrilDesktop?.platform === 'electron'
+            ? DEFAULT_DESKTOP_SPEECH_MODE
+            : DEFAULT_SPEECH_MODE;
+        CONFIG.SPEECH_MODE = normalizeSpeechMode(preferences.speechMode, fallbackSpeechMode);
+    }
+
+    applyCameraSettings(preferences);
+    applyDesktopSpeechSettings(preferences);
+    applyAutoChatSettings(preferences);
+
+    return CONFIG;
+}
+
+applyDesktopPreferencesToConfig(runtimeSettings.desktopPreferences);

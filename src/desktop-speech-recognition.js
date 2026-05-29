@@ -186,6 +186,7 @@ export function createDesktopSpeechRecognitionService() {
                 ? new Float32Array(analyser.fftSize)
                 : null;
             const byteTimeDomainData = floatTimeDomainData ? null : new Uint8Array(analyser.fftSize);
+            const frequencyData = new Uint8Array(analyser.frequencyBinCount);
 
             let finalizeMode = 'stop';
             let isFinalized = false;
@@ -228,6 +229,61 @@ export function createDesktopSpeechRecognitionService() {
                 }
 
                 return measuredLevel;
+            };
+
+            const sampleVoiceActivity = () => {
+                const level = sampleLevel();
+                analyser.getByteFrequencyData(frequencyData);
+
+                let totalEnergy = 0;
+                let voiceEnergy = 0;
+                let coreVoiceEnergy = 0;
+                let highEnergy = 0;
+                const nyquist = audioContext.sampleRate / 2;
+
+                for (let index = 1; index < frequencyData.length; index += 1) {
+                    const frequency = index * nyquist / frequencyData.length;
+                    const normalized = frequencyData[index] / 255;
+                    const energy = normalized * normalized;
+                    totalEnergy += energy;
+
+                    if (frequency >= 85 && frequency <= 3600) {
+                        voiceEnergy += energy;
+                    }
+                    if (frequency >= 160 && frequency <= 1400) {
+                        coreVoiceEnergy += energy;
+                    }
+                    if (frequency >= 4200) {
+                        highEnergy += energy;
+                    }
+                }
+
+                const voiceRatio = totalEnergy > 0 ? voiceEnergy / totalEnergy : 0;
+                const coreVoiceRatio = totalEnergy > 0 ? coreVoiceEnergy / totalEnergy : 0;
+                const highRatio = totalEnergy > 0 ? highEnergy / totalEnergy : 0;
+                const levelScore = Math.min(1, level / 0.065);
+                const voiceScore = Math.max(
+                    0,
+                    Math.min(
+                        1,
+                        levelScore * 0.35 +
+                            voiceRatio * 0.45 +
+                            coreVoiceRatio * 0.35 -
+                            highRatio * 0.35
+                    )
+                );
+
+                return {
+                    level,
+                    voiceScore,
+                    voiceLike: level >= CONFIG.ASR_MIN_INPUT_LEVEL &&
+                        voiceScore >= CONFIG.ASR_CONTINUOUS_VOICE_SCORE &&
+                        voiceRatio >= 0.36 &&
+                        highRatio <= 0.42,
+                    voiceRatio,
+                    coreVoiceRatio,
+                    highRatio
+                };
             };
 
             const cleanup = () => {
@@ -288,6 +344,9 @@ export function createDesktopSpeechRecognitionService() {
                 },
                 getLevel() {
                     return sampleLevel();
+                },
+                getVoiceActivity() {
+                    return sampleVoiceActivity();
                 },
                 getPeakLevel() {
                     return peakLevel;
