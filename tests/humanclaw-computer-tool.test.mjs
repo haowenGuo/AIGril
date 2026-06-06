@@ -7,7 +7,12 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { HumanClawGateway } = require('../electron/humanclaw-gateway.cjs');
-const { resolveTargetPath, commonUserRoots } = require('../electron/humanclaw-computer-tool.cjs');
+const {
+    HumanClawComputerTool,
+    resolveTargetPath,
+    commonUserRoots
+} = require('../electron/humanclaw-computer-tool.cjs');
+const { HumanClawPlatformAdapter } = require('../electron/humanclaw-platform-adapter.cjs');
 
 async function jsonFetch(url, options = {}) {
     const response = await fetch(url, {
@@ -39,6 +44,86 @@ test('HumanClaw computer path helpers resolve workspace and common roots', () =>
     const workspaceRoot = path.resolve('.');
     assert.equal(resolveTargetPath('note.txt', { workspaceDir: workspaceRoot }), path.join(workspaceRoot, 'note.txt'));
     assert.ok(commonUserRoots({ workspaceRoot, workspaceDir: workspaceRoot }).some((entry) => entry === workspaceRoot));
+});
+
+test('HumanClaw computer tool exposes OSWorld-style GUI actions through the platform adapter', async () => {
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'humanclaw-computer-gui-test-'));
+    const platformAdapter = new HumanClawPlatformAdapter({ platform: 'win32' });
+    platformAdapter.desktopScreenshotCommand = ({ outputPath }) => ({
+        supported: true,
+        command: process.execPath,
+        args: [
+            '-e',
+            `require('fs').mkdirSync(require('path').dirname(${JSON.stringify(outputPath)}), { recursive: true }); require('fs').writeFileSync(${JSON.stringify(outputPath)}, 'png'); console.log(JSON.stringify({ ok: true, path: ${JSON.stringify(outputPath)}, width: 2, height: 2 }));`
+        ]
+    });
+    platformAdapter.guiInputCommand = ({ action }) => ({
+        supported: true,
+        command: process.execPath,
+        args: ['-e', `console.log(JSON.stringify({ ok: true, action: ${JSON.stringify(action)} }))`]
+    });
+    platformAdapter.clipboardReadCommand = () => ({
+        supported: true,
+        command: process.execPath,
+        args: ['-e', 'console.log(JSON.stringify({ ok: true, text: "clipboard text" }))']
+    });
+    platformAdapter.clipboardWriteCommand = ({ text }) => ({
+        supported: true,
+        command: process.execPath,
+        args: ['-e', `console.log(JSON.stringify({ ok: true, bytes: ${Buffer.byteLength(text, 'utf8')} }))`]
+    });
+
+    const tool = new HumanClawComputerTool({
+        workspaceRoot,
+        platformAdapter
+    });
+
+    try {
+        const schema = await tool.execute({ action: 'schema' }, {}, { workspaceRoot, platformAdapter });
+        assert.ok(schema.details.schema.actions.includes('screen_screenshot'));
+        assert.ok(schema.details.schema.actions.includes('mouse_click'));
+        assert.equal(schema.details.schema.safety.guiInput, 'windows-powershell-user32');
+
+        const screenshot = await tool.execute(
+            { action: 'screen_screenshot', path: 'screen.png' },
+            { workspace: workspaceRoot },
+            { workspaceRoot, workspaceDir: workspaceRoot, platformAdapter }
+        );
+        assert.equal(screenshot.details.status, 'completed');
+        assert.equal(screenshot.details.width, 2);
+        assert.ok(screenshot.content.some((entry) => entry.type === 'image'));
+
+        const clickNeedsApproval = await tool.execute(
+            { action: 'mouse_click', x: 10, y: 12 },
+            { workspace: workspaceRoot },
+            { workspaceRoot, platformAdapter }
+        );
+        assert.equal(clickNeedsApproval.details.status, 'needs_approval');
+
+        const click = await tool.execute(
+            { action: 'click', x: 10, y: 12 },
+            { workspace: workspaceRoot, approved: true },
+            { workspaceRoot, platformAdapter }
+        );
+        assert.equal(click.details.status, 'completed');
+        assert.equal(click.details.action, 'mouse_click');
+
+        const clipboardRead = await tool.execute(
+            { action: 'clipboard_read' },
+            { workspace: workspaceRoot },
+            { workspaceRoot, platformAdapter }
+        );
+        assert.equal(clipboardRead.details.text, 'clipboard text');
+
+        const clipboardWrite = await tool.execute(
+            { action: 'clipboard_write', text: 'hello' },
+            { workspace: workspaceRoot, approved: true },
+            { workspaceRoot, platformAdapter }
+        );
+        assert.equal(clipboardWrite.details.status, 'completed');
+    } finally {
+        await tool.shutdown();
+    }
 });
 
 test('HumanClaw computer tool provides filesystem and process control with approval gates', async () => {

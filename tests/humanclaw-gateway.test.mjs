@@ -43,6 +43,21 @@ test('HumanClaw Gateway exposes health, tools, guarded tool calls, and audit', a
         assert.equal(tools.body.ok, true);
         assert.ok(tools.body.coreTools.some((tool) => tool.id === 'read'));
         assert.ok(tools.body.coreTools.some((tool) => tool.id === 'exec' && tool.needsApproval));
+        assert.ok(tools.body.runtimeTools.some((tool) => tool.id === 'tool_search' && tool.spec));
+        assert.ok(tools.body.localTools.some((tool) => tool.id === 'computer' && tool.spec));
+        assert.equal(tools.body.localTools.some((tool) => tool.id === 'read'), false);
+        assert.equal(tools.body.gateway.toolRuntime.model, 'codex_like_gateway_tool_registry');
+
+        const searchTools = await jsonFetch(`${baseUrl}/tools/call`, {
+            method: 'POST',
+            body: JSON.stringify({
+                tool: 'tool_search',
+                args: { query: 'computer file write', includeMcp: false, limit: 5 },
+                context: { workspace: workspaceRoot }
+            })
+        });
+        assert.equal(searchTools.body.ok, true, searchTools.body.error);
+        assert.match(JSON.stringify(searchTools.body.result), /computer/);
 
         const write = await jsonFetch(`${baseUrl}/tools/call`, {
             method: 'POST',

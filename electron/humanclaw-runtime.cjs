@@ -2,47 +2,23 @@ const fsp = require('fs/promises');
 const path = require('path');
 const { randomUUID } = require('crypto');
 const { HumanClawMcpManager } = require('./humanclaw-mcp-session.cjs');
+const { HumanClawToolDoctor } = require('./humanclaw-tool-doctor.cjs');
+const { HumanClawCapabilityManager } = require('./humanclaw-capability-manager.cjs');
+const { HumanClawSelfDebugger } = require('./humanclaw-self-debugger.cjs');
+const { createHumanClawPlatformAdapter } = require('./humanclaw-platform-adapter.cjs');
 const { getToolContractPromptText } = require('./humanclaw-tool-contracts.cjs');
+const {
+    CORE_RUNTIME_TOOL_DEFINITIONS: RUNTIME_TOOL_DEFINITIONS,
+    CORE_RUNTIME_TOOL_IDS: RUNTIME_TOOL_IDS,
+    createHumanClawToolRuntimeRegistry,
+    parseDirectMcpToolId
+} = require('./humanclaw-tool-runtime.cjs');
 
 const DEFAULT_MAX_RESULT_TEXT_CHARS = 12000;
 const DEFAULT_MAX_TRANSCRIPT_ITEMS = 500;
 const DEFAULT_SUBAGENT_WAIT_TIMEOUT_MS = 30000;
 const DEFAULT_SUBAGENT_RUN_TIMEOUT_MS = 15 * 60 * 1000;
 
-const RUNTIME_TOOL_DEFINITIONS = Object.freeze([
-    Object.freeze({
-        id: 'update_plan',
-        label: 'update_plan',
-        description: 'Update the visible agent plan as a first-class runtime tool.',
-        sectionId: 'runtime',
-        route: 'humanclaw-runtime',
-        materialized: true,
-        status: 'available',
-        needsApproval: false
-    }),
-    Object.freeze({
-        id: 'subagents',
-        label: 'subagents',
-        description: 'Spawn, wait, cancel, and inspect child Agent runs through the HumanClaw runtime transcript.',
-        sectionId: 'runtime',
-        route: 'humanclaw-runtime',
-        materialized: true,
-        status: 'available',
-        needsApprovalActions: Object.freeze(['spawn', 'create', 'send', 'close'])
-    }),
-    Object.freeze({
-        id: 'mcp_bridge',
-        label: 'mcp_bridge',
-        description: 'Manage configured MCP servers and execute tools/resources/prompts through stdio or HTTP MCP sessions.',
-        sectionId: 'runtime',
-        route: 'humanclaw-runtime',
-        materialized: true,
-        status: 'available',
-        needsApprovalActions: Object.freeze(['tool_call'])
-    })
-]);
-
-const RUNTIME_TOOL_IDS = new Set(RUNTIME_TOOL_DEFINITIONS.map((tool) => tool.id));
 const FILE_MUTATING_TOOLS = new Set(['write', 'edit', 'apply_patch']);
 const FILE_READONLY_TOOLS = new Set(['read', 'web_fetch']);
 const EXEC_TOOLS = new Set(['exec']);
@@ -223,6 +199,59 @@ function normalizeMcpContent(result) {
     ];
 }
 
+function isPlainObject(value) {
+    return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+const MCP_BRIDGE_ARG_KEYS = new Set([
+    'action',
+    'operation',
+    'intent',
+    'server',
+    'serverId',
+    'tool',
+    'name',
+    'toolName',
+    'tool_name',
+    'args',
+    'arguments',
+    'tool_args',
+    'toolArgs',
+    'parameters',
+    'params',
+    'serverConfig',
+    'config',
+    'servers',
+    'persist',
+    'timeoutMs',
+    'runId',
+    'sessionId',
+    '_meta',
+    'meta',
+    'uri',
+    'resourceUri',
+    'resource',
+    'prompt',
+    'promptName'
+]);
+
+function normalizeMcpToolArgs(args = {}) {
+    const explicitArgs =
+        args.args ||
+        args.arguments ||
+        args.tool_args ||
+        args.toolArgs ||
+        args.parameters ||
+        args.params;
+    const normalized = isPlainObject(explicitArgs) ? { ...explicitArgs } : {};
+    for (const [key, value] of Object.entries(args || {})) {
+        if (!MCP_BRIDGE_ARG_KEYS.has(key) && normalized[key] === undefined) {
+            normalized[key] = value;
+        }
+    }
+    return normalized;
+}
+
 function parseJsonLine(line) {
     try {
         return JSON.parse(line);
@@ -328,6 +357,7 @@ class HumanClawRuntime {
         this.transcriptDir = path.join(this.auditDir, 'transcripts');
         this.emitGatewayEvent = typeof options.emitGatewayEvent === 'function' ? options.emitGatewayEvent : () => {};
         this.subagentExecutor = typeof options.subagentExecutor === 'function' ? options.subagentExecutor : null;
+        this.platformAdapter = createHumanClawPlatformAdapter(options.platformAdapter || options.platform || {});
         this.runs = new Map();
         this.planState = new Map();
         this.subagents = new Map();
@@ -340,6 +370,30 @@ class HumanClawRuntime {
             defaultServers: options.mcpServers,
             configPath: options.mcpConfigPath
         });
+        this.toolDoctor = new HumanClawToolDoctor({
+            workspaceRoot: this.workspaceRoot,
+            projectRoot: this.projectRoot,
+            auditDir: this.auditDir,
+            mcpManager: this.mcpManager,
+            emitGatewayEvent: (type, payload) => this.emitGatewayEvent(type, payload)
+        });
+        this.capabilityManager = new HumanClawCapabilityManager({
+            workspaceRoot: this.workspaceRoot,
+            projectRoot: this.projectRoot,
+            auditDir: this.auditDir,
+            mcpManager: this.mcpManager,
+            toolDoctor: this.toolDoctor,
+            emitGatewayEvent: (type, payload) => this.emitGatewayEvent(type, payload)
+        });
+        this.selfDebugger = new HumanClawSelfDebugger({
+            workspaceRoot: this.workspaceRoot,
+            projectRoot: this.projectRoot,
+            auditDir: this.auditDir,
+            toolDoctor: this.toolDoctor,
+            capabilityManager: this.capabilityManager,
+            emitGatewayEvent: (type, payload) => this.emitGatewayEvent(type, payload)
+        });
+        this.toolRuntimeRegistry = createHumanClawToolRuntimeRegistry(this);
     }
 
     getStatus() {
@@ -350,9 +404,18 @@ class HumanClawRuntime {
             activeTranscriptRuns: this.runs.size,
             planStateCount: this.planState.size,
             subagentCount: this.subagents.size,
+            platform: this.platformAdapter.getStatus(),
             mcpServerCount: this.mcpManager.getStatus().serverCount,
             mcp: this.mcpManager.getStatus(),
-            runtimeTools: RUNTIME_TOOL_DEFINITIONS.map((tool) => tool.id),
+            toolDoctor: this.toolDoctor.getStatus(),
+            capabilityManager: this.capabilityManager.getStatus(),
+            selfDebugger: this.selfDebugger.getStatus(),
+            runtimeTools: this.toolRuntimeRegistry.listDefinitions().map((tool) => tool.id),
+            toolRuntime: {
+                model: 'codex_like_tool_runtime_registry',
+                directToolCount: this.toolRuntimeRegistry.modelVisibleSpecs().length,
+                registeredToolCount: this.toolRuntimeRegistry.listDefinitions().length
+            },
             permissionDefaults: {
                 fileSystem: 'workspace-write',
                 shell: 'approval-required',
@@ -371,7 +434,18 @@ class HumanClawRuntime {
                 'mcp_health_check',
                 'mcp_prompt_calls',
                 'mcp_input_schema_validation',
-                'mcp_tool_and_resource_calls'
+                'mcp_tool_and_resource_calls',
+                'tool_doctor_health_checks',
+                'tool_scorecard',
+                'mcp_discovery',
+                'self_repair_gate',
+                'capability_registry',
+                'capability_installer',
+                'skill_auto_authoring',
+                'repair_executor',
+                'self_debug_loop',
+                'self_debug_evidence_collection',
+                'self_debug_repair_protocol'
             ]
         };
     }
@@ -387,11 +461,11 @@ class HumanClawRuntime {
     }
 
     getRuntimeToolDefinitions() {
-        return RUNTIME_TOOL_DEFINITIONS.map((tool) => ({ ...tool }));
+        return this.toolRuntimeRegistry.listDefinitions();
     }
 
     canExecuteTool(toolId) {
-        return RUNTIME_TOOL_IDS.has(toolId);
+        return this.toolRuntimeRegistry.has(toolId);
     }
 
     resolveRunPath(runId, sessionId = 'main') {
@@ -696,6 +770,16 @@ class HumanClawRuntime {
 
     classifyToolCall({ toolId, args = {} } = {}) {
         const action = normalizeAction(args.action || args.operation || args.intent || args.command);
+        const directMcp = parseDirectMcpToolId(toolId);
+        if (directMcp) {
+            return {
+                class: 'mcp',
+                mutates: false,
+                requiresApprovalCapable: false,
+                action: directMcp.tool,
+                directMcpTool: directMcp.id
+            };
+        }
         if (RUNTIME_TOOL_IDS.has(toolId)) {
             if (toolId === 'update_plan') {
                 return {
@@ -712,6 +796,56 @@ class HumanClawRuntime {
                     mutates: ['spawn', 'create', 'send', 'close'].includes(subagentAction),
                     requiresApprovalCapable: ['spawn', 'create', 'send', 'close'].includes(subagentAction),
                     action: subagentAction
+                };
+            }
+            if (toolId === 'tool_doctor') {
+                const doctorAction = normalizeAction(args.action, 'health_check');
+                const mutates = ['record_observation', 'propose_repair', 'mark_repair'].includes(doctorAction)
+                    || (doctorAction === 'discover_mcp' && (args.cloneGithub === true || args.allowNetwork === true));
+                return {
+                    class: 'tool_health',
+                    mutates,
+                    requiresApprovalCapable: false,
+                    action: doctorAction
+                };
+            }
+            if (toolId === 'capability_manager') {
+                const capabilityAction = normalizeAction(args.action, 'registry');
+                const mutates = [
+                    'plan_install',
+                    'install_capability',
+                    'author_skill',
+                    'rollback',
+                    'execute_repair',
+                    'refresh_registry'
+                ].includes(capabilityAction);
+                return {
+                    class: 'capability_lifecycle',
+                    mutates,
+                    requiresApprovalCapable: ['install_capability', 'author_skill', 'rollback', 'execute_repair'].includes(capabilityAction),
+                    action: capabilityAction
+                };
+            }
+            if (toolId === 'self_debugger') {
+                const debugAction = normalizeAction(args.action, 'open_case');
+                const codeRepairActions = ['apply_patch'];
+                const statefulActions = [
+                    'open_case',
+                    'create_case',
+                    'collect_evidence',
+                    'diagnose',
+                    'propose_patch',
+                    'validate_patch',
+                    'apply_patch',
+                    'run_loop',
+                    'mark_case',
+                    'close_case'
+                ];
+                return {
+                    class: 'self_debug',
+                    mutates: statefulActions.includes(debugAction),
+                    requiresApprovalCapable: codeRepairActions.includes(debugAction),
+                    action: debugAction
                 };
             }
             return {
@@ -909,33 +1043,7 @@ class HumanClawRuntime {
     }
 
     async executeTool(toolId, args = {}, context = {}) {
-        if (toolId === 'update_plan') {
-            return await this.updatePlan({
-                runId: context.runId || args.runId,
-                sessionId: context.sessionId || context.sessionKey || args.sessionId || 'main',
-                plan: args.plan || args.items || args.steps || args.todos || [],
-                explanation: args.explanation || args.summary || ''
-            });
-        }
-        if (toolId === 'subagents') {
-            return await this.executeSubagentRelay(args, context);
-        }
-        if (toolId === 'mcp_bridge') {
-            return await this.executeMcpBridge(args, context);
-        }
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({ status: 'not_materialized', tool: toolId }, null, 2)
-                }
-            ],
-            isError: true,
-            details: {
-                status: 'not_materialized',
-                tool: toolId
-            }
-        };
+        return await this.toolRuntimeRegistry.dispatch(toolId, args, context);
     }
 
     publicSubagent(subagent = {}) {
@@ -1013,7 +1121,7 @@ class HumanClawRuntime {
             planner: normalizeString(args.planner || context.planner, 'llm'),
             agentLoop: normalizeString(args.agentLoop || context.agentLoop, 'llm'),
             agentMode: normalizeString(args.agentMode || context.agentMode, 'llm'),
-            maxAgentSteps: Number(args.maxAgentSteps || context.maxAgentSteps || 6)
+            maxAgentSteps: Number(args.maxAgentSteps || context.maxAgentSteps || 50)
         };
     }
 
@@ -1479,6 +1587,47 @@ class HumanClawRuntime {
                 }
             };
         }
+        if (action === 'list_tool_specs') {
+            const server = normalizeString(args.server || args.serverId);
+            const toolSpecs = await this.mcpManager.listToolSpecs(server, args.timeoutMs || context.timeoutMs);
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: JSON.stringify({ status: 'completed', toolSpecs }, null, 2)
+                    }
+                ],
+                details: {
+                    status: 'completed',
+                    server,
+                    toolSpecs
+                }
+            };
+        }
+        if (action === 'search_tools') {
+            const server = normalizeString(args.server || args.serverId);
+            const query = normalizeString(args.query || args.q || args.search);
+            const toolSpecs = await this.mcpManager.searchToolSpecs({
+                query,
+                server,
+                limit: args.limit,
+                timeoutMs: args.timeoutMs || context.timeoutMs
+            });
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: JSON.stringify({ status: 'completed', query, toolSpecs }, null, 2)
+                    }
+                ],
+                details: {
+                    status: 'completed',
+                    query,
+                    server,
+                    toolSpecs
+                }
+            };
+        }
         if (action === 'list_resources') {
             const server = normalizeString(args.server || args.serverId);
             const resources = await this.mcpManager.listResources(server, args.timeoutMs || context.timeoutMs);
@@ -1562,7 +1711,8 @@ class HumanClawRuntime {
         }
         if (['tool_call', 'call_tool'].includes(action)) {
             const server = normalizeString(args.server || args.serverId);
-            const tool = normalizeString(args.tool || args.name);
+            const tool = normalizeString(args.tool || args.name || args.toolName || args.tool_name);
+            const toolArgs = normalizeMcpToolArgs(args);
             await this.appendItem(runId, {
                 type: 'mcp.tool.call.begin',
                 sessionId,
@@ -1570,14 +1720,14 @@ class HumanClawRuntime {
                 payload: {
                     server,
                     tool,
-                    args: args.args || args.arguments || {}
+                    args: toolArgs
                 }
             });
             try {
                 const result = await this.mcpManager.callTool({
                     server,
                     tool,
-                    args: args.args || args.arguments || {},
+                    args: toolArgs,
                     meta: args._meta || args.meta,
                     timeoutMs: args.timeoutMs || context.timeoutMs
                 });

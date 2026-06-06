@@ -156,7 +156,17 @@ async function createScriptedChatCompletionsServer(decisionFactory) {
 test('Agentic Executor widens decision timeout after vision context is involved', () => {
     assert.equal(
         resolveAgentDecisionTimeoutMs({ timeoutMs: 25000 }, { events: [], stepResults: [] }),
-        25000
+        45000
+    );
+    assert.equal(
+        resolveAgentDecisionTimeoutMs(
+            { timeoutMs: 25000 },
+            {
+                events: [],
+                stepResults: [{ response: { ok: false, status: 'error' } }]
+            }
+        ),
+        60000
     );
     assert.equal(
         resolveAgentDecisionTimeoutMs(
@@ -277,7 +287,7 @@ test('Agentic Executor Loop asks confirmation, resumes, observes, and keeps call
         assert.equal(confirmed.body.planner, 'llm-agentic-executor');
         assert.equal(confirmed.body.steps.length, 3);
         assert.ok(confirmed.body.events.length >= 6);
-        assert.match(confirmed.body.displayText, /\*\*Agentic Executor 已完成\*\*/);
+        assert.match(confirmed.body.displayText, /\*\*(Agentic Executor|任务执行流程) 已完成\*\*/);
         assert.match(confirmed.body.displayText, /- 已读取复核通过/);
 
         const text = await fs.readFile(path.join(workspaceRoot, 'planner-output', 'README.txt'), 'utf8');
@@ -290,6 +300,11 @@ test('Agentic Executor Loop asks confirmation, resumes, observes, and keeps call
         assert.doesNotMatch(llmServer.calls[0].system, /邮箱 SKILL/);
         assert.match(llmServer.calls[0].system, /final_answer 字段是给用户看的 Markdown 字符串/);
         assert.equal(llmServer.calls[0].payload.messages[1].content.includes('"initial_plan_hint": null'), true);
+        const firstPromptPayload = JSON.parse(llmServer.calls[0].payload.messages.find((entry) => entry.role === 'user').content);
+        assert.equal(firstPromptPayload.capability_catalog.tool_contracts, undefined);
+        assert.equal(firstPromptPayload.capability_catalog.deferred_contracts, true);
+        assert.ok(firstPromptPayload.capability_catalog.tools.every((tool) => tool.contract === 'deferred'));
+        assert.doesNotMatch(JSON.stringify(firstPromptPayload.capability_catalog), /TOOL CONTRACT|input_schema|return_schema/);
     } finally {
         await gateway.stop();
         await llmServer.close();
@@ -350,7 +365,7 @@ test('Agentic Executor restores pending approval from durable store after Gatewa
         });
         assert.equal(confirmed.body.ok, true, confirmed.body.displayText);
         assert.equal(confirmed.body.status, 'completed');
-        assert.match(confirmed.body.displayText, /Agentic Executor 已完成/);
+        assert.match(confirmed.body.displayText, /(Agentic Executor|任务执行流程) 已完成/);
 
         const text = await fs.readFile(path.join(workspaceRoot, 'planner-output', 'README.txt'), 'utf8');
         assert.match(text, /Agentic Executor OK/);
@@ -463,7 +478,8 @@ test('Agentic Executor can request approved read-only vision context', async () 
         assert.equal(first.body.ok, false);
         assert.equal(first.body.status, 'needs_approval');
         assert.equal(first.body.approvalType, 'vision_capture_context');
-        assert.match(first.body.displayText, /可以看一眼屏幕吗/);
+        assert.match(first.body.displayText, /先得到你的确认/);
+        assert.match(first.body.displayText, /看一眼当前画面|看一眼屏幕/);
         assert.doesNotMatch(first.body.displayText, /确认编号|Agentic Executor/);
         assert.equal(captured.length, 0);
 
@@ -645,9 +661,371 @@ test('Agentic Executor max-step fallback does not expose raw tool logs to the us
         });
         assert.equal(result.body.ok, false);
         assert.equal(result.body.status, 'max_steps_reached');
-        assert.match(result.body.displayText, /工具步数上限/);
-        assert.doesNotMatch(result.body.displayText, /```|secret-ish line|Agentic Executor/);
-        assert.match(result.body.displayText, /读取 note\.txt：完成/);
+        assert.match(result.body.displayText, /先停住|还没有形成足够稳的结论/);
+        assert.doesNotMatch(result.body.displayText, /```|secret-ish line|Agentic Executor|我已经做过这些步骤|读取 note\.txt：完成/);
+        assert.equal(result.body.surface.source, 'agent_max_steps');
+        assert.equal(result.body.surface.bubbleText, '我先停住，避免越跑越乱。');
+        assert.equal(result.body.steps.length, 1);
+    } finally {
+        await gateway.stop();
+        await llmServer.close();
+    }
+});
+
+test('Agentic Executor keeps deprecated task layers out of the model prompt', async () => {
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'humanclaw-codex-turn-prompt-'));
+    const llmServer = await createScriptedChatCompletionsServer(() => ({
+        mode: 'task',
+        intent: 'research_reading',
+        summary: '给论文做概要分析',
+        action: 'blocked',
+        blocked_reason: '我现在还没有读取到论文原文，所以不能把概要说成已经完成。'
+    }));
+    const llmSettings = {
+        provider: 'openai-compatible',
+        baseUrl: llmServer.url,
+        apiKey: 'test-key',
+        model: 'mock-evidence-gate-agent',
+        temperature: 0.1,
+        timeoutMs: 10000
+    };
+    const gateway = new HumanClawGateway({
+        port: 0,
+        workspaceRoot,
+        projectRoot: path.resolve('.'),
+        auditDir: path.join(workspaceRoot, '.audit')
+    });
+
+    try {
+        const status = await gateway.start();
+        const result = await runAgent(status.url, {
+            sessionId: 'codex-turn-prompt-test',
+            message: '读一下这篇论文《Generative Agents: Interactive Simulacra of Human Behavior》，给我一个概要分析。',
+            agentLoop: 'llm',
+            maxAgentSteps: 3,
+            llmSettings,
+            memoryContext: {
+                memory_context: {
+                    current_dialogue: {
+                        type: 'research_reading'
+                    }
+                }
+            },
+            context: {
+                workspace: workspaceRoot,
+                memoryContext: {
+                    memory_context: {
+                        current_dialogue: {
+                            type: 'research_reading'
+                        }
+                    }
+                }
+            }
+        });
+
+        assert.equal(result.body.ok, false);
+        assert.equal(result.body.status, 'blocked');
+        assert.equal(result.body.taskSpec, undefined);
+        assert.equal(result.body.evidenceLedger, undefined);
+        assert.equal(result.body.taskGraph, undefined);
+        assert.equal(result.body.events.some((event) => event.type === 'evidence_recovery'), false);
+        assert.match(result.body.displayText, /没有读取到论文原文|不能把概要说成已经完成/);
+        assert.equal(result.body.surface.renderer, 'aigl-persona-renderer');
+        assert.equal(llmServer.calls.length, 1);
+        const llmUserPayload = JSON.parse(llmServer.calls[0].payload.messages.find((entry) => entry.role === 'user').content);
+        assert.equal(llmUserPayload.task_brief, undefined);
+        assert.equal(llmUserPayload.task_spec, undefined);
+        assert.equal(llmUserPayload.evidence_ledger, undefined);
+        assert.equal(llmUserPayload.task_graph, undefined);
+        assert.equal(llmUserPayload.recent_turn_items.model, 'codex_like_turn_items');
+        assert.equal(llmUserPayload.runtime_diagnostics, undefined);
+        assert.doesNotMatch(llmServer.calls[0].system, /task_brief|TaskSpec|Evidence Ledger|Task Graph/);
+        assert.match(llmServer.calls[0].system, /recent_turn_items/);
+        assert.doesNotMatch(llmServer.calls[0].system, /runtime_diagnostics/);
+    } finally {
+        await gateway.stop();
+        await llmServer.close();
+    }
+});
+
+test('Agentic Executor keeps generic official-doc tasks Codex-like in the first prompt', async () => {
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'humanclaw-generic-doc-prompt-'));
+    const llmServer = await createScriptedChatCompletionsServer(() => ({
+        mode: 'task',
+        intent: 'browser_documentation',
+        summary: '需要先查官方文档',
+        action: 'final',
+        final_answer: '我会先查官方文档，再写 browser-wait-example.md。'
+    }));
+    const llmSettings = {
+        provider: 'openai-compatible',
+        baseUrl: llmServer.url,
+        apiKey: 'test-key',
+        model: 'mock-generic-doc-prompt-agent',
+        temperature: 0.1,
+        timeoutMs: 10000
+    };
+    const gateway = new HumanClawGateway({
+        port: 0,
+        workspaceRoot,
+        projectRoot: path.resolve('.'),
+        auditDir: path.join(workspaceRoot, '.audit')
+    });
+
+    try {
+        const status = await gateway.start();
+        const result = await runAgent(status.url, {
+            sessionId: 'generic-doc-prompt-test',
+            message: 'AIGL，帮我查一下 Playwright 里如何等待元素出现，然后给我写一个最小可运行的 JS 示例，保存成 browser-wait-example.md。要求说明 timeout 怎么设置',
+            agentLoop: 'llm',
+            maxAgentSteps: 1,
+            llmSettings,
+            context: {
+                workspace: workspaceRoot
+            }
+        });
+
+        assert.equal(result.body.taskSpec, undefined);
+        assert.equal(result.body.evidenceLedger, undefined);
+        assert.equal(result.body.taskGraph, undefined);
+        assert.equal(llmServer.calls.length, 1);
+        const llmUserPayload = JSON.parse(llmServer.calls[0].payload.messages.find((entry) => entry.role === 'user').content);
+        assert.equal(llmUserPayload.task_brief, undefined);
+        assert.equal(llmUserPayload.recent_turn_items.items.some((item) => item.type === 'task_brief'), false);
+        assert.match(llmServer.calls[0].system, /技术文档\/API\/官方文档/);
+        assert.match(JSON.stringify(llmUserPayload.capability_catalog), /官方技术文档|API 用法|PDF/);
+    } finally {
+        await gateway.stop();
+        await llmServer.close();
+    }
+});
+
+test('Agentic Executor feeds tool results back as Codex-like turn items', async () => {
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'humanclaw-evidence-recovery-'));
+    await fs.writeFile(
+        path.join(workspaceRoot, 'paper.md'),
+        'Generative Agents paper notes: memory stream, reflection, planning, and retrieval are the main pieces.',
+        'utf8'
+    );
+    const llmServer = await createScriptedChatCompletionsServer(({ decisionCount }) => {
+        if (decisionCount === 1) {
+            return {
+                mode: 'task',
+                intent: 'research_reading',
+                summary: '补齐论文资料证据',
+                action: 'tool',
+                tool_call: {
+                    tool: 'computer',
+                    title: '读取论文资料',
+                    args: { action: 'read', path: 'paper.md' }
+                }
+            };
+        }
+        return {
+            mode: 'task',
+            intent: 'research_reading',
+            summary: '基于读取证据总结',
+            action: 'final',
+            final_answer: '我这次是基于读到的 paper.md 来说：它主要围绕 memory stream、reflection、planning 和 retrieval 组织智能体行为。'
+        };
+    });
+    const llmSettings = {
+        provider: 'openai-compatible',
+        baseUrl: llmServer.url,
+        apiKey: 'test-key',
+        model: 'mock-evidence-recovery-agent',
+        temperature: 0.1,
+        timeoutMs: 10000
+    };
+    const gateway = new HumanClawGateway({
+        port: 0,
+        workspaceRoot,
+        projectRoot: path.resolve('.'),
+        auditDir: path.join(workspaceRoot, '.audit')
+    });
+
+    try {
+        const status = await gateway.start();
+        const result = await runAgent(status.url, {
+            sessionId: 'evidence-recovery-test',
+            message: '读一下 paper.md，给我一个概要分析。',
+            agentLoop: 'llm',
+            maxAgentSteps: 4,
+            llmSettings,
+            context: {
+                workspace: workspaceRoot
+            }
+        });
+
+        assert.equal(result.body.ok, true, result.body.displayText);
+        assert.equal(result.body.status, 'completed');
+        assert.equal(result.body.events.filter((event) => event.type === 'evidence_recovery').length, 0);
+        assert.equal(result.body.steps.length, 1);
+        assert.match(result.body.displayText, /memory stream|reflection|planning|retrieval/);
+        assert.equal(llmServer.calls.length, 2);
+        const secondPayload = JSON.parse(llmServer.calls[1].payload.messages.find((entry) => entry.role === 'user').content);
+        assert.equal(secondPayload.recent_turn_items.model, 'codex_like_turn_items');
+        assert.ok(secondPayload.recent_turn_items.items.some((item) =>
+            item.type === 'tool_result' &&
+            item.status === 'completed' &&
+            /memory stream|reflection|planning|retrieval/.test(item.preview)
+        ));
+        assert.equal(secondPayload.runtime_diagnostics, undefined);
+    } finally {
+        await gateway.stop();
+        await llmServer.close();
+    }
+});
+
+test('Agentic Executor allows zero-observation final answers without evidence warnings', async () => {
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'humanclaw-final-deferral-'));
+    await fs.writeFile(path.join(workspaceRoot, 'paper.md'), 'Observed paper evidence from a local file.', 'utf8');
+    const llmServer = await createScriptedChatCompletionsServer(({ decisionCount }) => {
+        if (decisionCount === 1) {
+            return {
+                mode: 'task',
+                intent: 'research_reading',
+                summary: '直接总结论文',
+                action: 'final',
+                final_answer: '我已经读完并总结好了。'
+            };
+        }
+        if (decisionCount === 2) {
+            return {
+                mode: 'task',
+                intent: 'research_reading',
+                summary: '先读取证据',
+                action: 'tool',
+                tool_call: {
+                    tool: 'computer',
+                    title: '读取论文证据',
+                    args: { action: 'read', path: 'paper.md' }
+                }
+            };
+        }
+        return {
+            mode: 'task',
+            intent: 'research_reading',
+            summary: '基于证据总结',
+            action: 'final',
+            final_answer: '基于读取到的 paper.md 证据，可以继续写概要。'
+        };
+    });
+    const llmSettings = {
+        provider: 'openai-compatible',
+        baseUrl: llmServer.url,
+        apiKey: 'test-key',
+        model: 'mock-final-deferral-agent',
+        temperature: 0.1,
+        timeoutMs: 10000
+    };
+    const gateway = new HumanClawGateway({
+        port: 0,
+        workspaceRoot,
+        projectRoot: path.resolve('.'),
+        auditDir: path.join(workspaceRoot, '.audit')
+    });
+
+    try {
+        const status = await gateway.start();
+        const result = await runAgent(status.url, {
+            sessionId: 'final-deferral-test',
+            message: '读一下 paper.md，给我一个概要分析。',
+            agentLoop: 'llm',
+            maxAgentSteps: 4,
+            llmSettings,
+            context: {
+                workspace: workspaceRoot
+            }
+        });
+
+        assert.equal(result.body.ok, true, result.body.displayText);
+        assert.equal(result.body.status, 'completed');
+        assert.equal(llmServer.calls.length, 1);
+        assert.equal(result.body.steps.length, 0);
+        assert.equal(result.body.events.some((event) => event.status === 'final_without_observation_warning'), false);
+        assert.match(result.body.displayText, /我已经读完并总结好了/);
+    } finally {
+        await gateway.stop();
+        await llmServer.close();
+    }
+});
+
+test('Agentic Executor treats missing command failures as observations for the next decision', async () => {
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'humanclaw-tool-failure-observation-'));
+    const llmServer = await createScriptedChatCompletionsServer(({ decisionCount }) => {
+        if (decisionCount === 1) {
+            return {
+                mode: 'task',
+                intent: 'research_reading',
+                summary: '尝试用外部解析器读取页面',
+                action: 'tool',
+                tool_call: {
+                    tool: 'computer',
+                    title: '尝试外部 HTML 解析器',
+                    args: {
+                        action: 'exec',
+                        command: '__aigl_missing_parser_tool__ --version',
+                        reason: '模拟一个缺失的解析依赖'
+                    }
+                }
+            };
+        }
+        return {
+            mode: 'task',
+            intent: 'research_reading',
+            summary: '外部解析器不可用，换稳定路径',
+            action: 'final',
+            final_answer: '这个外部解析器不可用。下一步应该换成内置 web/pdf 读取工具，而不是卡在这一步。'
+        };
+    });
+    const llmSettings = {
+        provider: 'openai-compatible',
+        baseUrl: llmServer.url,
+        apiKey: 'test-key',
+        model: 'mock-tool-failure-observation-agent',
+        temperature: 0.1,
+        timeoutMs: 10000
+    };
+    const gateway = new HumanClawGateway({
+        port: 0,
+        workspaceRoot,
+        projectRoot: path.resolve('.'),
+        auditDir: path.join(workspaceRoot, '.audit')
+    });
+
+    try {
+        const status = await gateway.start();
+        const result = await runAgent(status.url, {
+            sessionId: 'tool-failure-observation-test',
+            message: '读一下 https://arxiv.org/abs/1706.03762，先拿页面证据。',
+            agentLoop: 'llm',
+            maxAgentSteps: 3,
+            llmSettings,
+            context: {
+                workspace: workspaceRoot,
+                approved: true,
+                confirmationPolicy: 'auto'
+            }
+        });
+
+        assert.equal(llmServer.calls.length, 2);
+        assert.equal(result.body.events.filter((event) => event.type === 'evidence_recovery').length, 0);
+        assert.equal(result.body.steps.length, 1);
+        assert.equal(result.body.steps[0].response.ok, false);
+        const secondPayload = JSON.parse(llmServer.calls[1].payload.messages.find((entry) => entry.role === 'user').content);
+        assert.ok(secondPayload.recent_turn_items.items.some((item) =>
+            item.type === 'tool_result' &&
+            item.status === 'failed' &&
+            /__aigl_missing_parser_tool__|not recognized|not found|无法将/.test(item.preview)
+        ));
+        assert.ok(secondPayload.recent_turn_items.items.some((item) =>
+            item.type === 'tool_result' &&
+            item.status === 'failed' &&
+            item.error_type === 'missing_dependency' &&
+            /available cross-platform path|PowerShell|Node\.js/.test(item.recovery_hint)
+        ));
+        assert.match(result.body.displayText, /外部解析器不可用|换成内置/);
     } finally {
         await gateway.stop();
         await llmServer.close();
@@ -832,6 +1210,104 @@ test('Agentic Executor email loop observes mailbox results before final answer',
         assert.match(result.body.displayText, /没有未读新邮件/);
         assert.match(JSON.stringify(llmServer.calls[1].payload.messages), /邮箱 SKILL/);
         assert.match(JSON.stringify(llmServer.calls[2].payload.messages), /0 封未读新邮件/);
+    } finally {
+        await gateway.stop();
+        await llmServer.close();
+    }
+});
+
+test('Agentic Executor renders email tool failures through persona surface instead of raw tool text', async () => {
+    const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'humanclaw-email-agent-failure-'));
+    const llmServer = await createScriptedChatCompletionsServer(({ decisionCount }) => {
+        if (decisionCount === 1) {
+            return {
+                mode: 'task',
+                intent: 'email_management',
+                summary: '需要邮箱能力',
+                action: 'load_context',
+                capability_request: {
+                    skills: ['email'],
+                    tools: ['email'],
+                    mcp: [],
+                    reason: '需要读取未读邮件'
+                }
+            };
+        }
+        if (decisionCount === 2) {
+            return {
+                mode: 'task',
+                intent: 'email_management',
+                summary: '检查未读邮件',
+                action: 'tool',
+                tool_call: {
+                    tool: 'email',
+                    title: '检查未读邮件',
+                    args: { action: 'list', filter: 'unread', limit: 10 }
+                }
+            };
+        }
+        return {
+            mode: 'task',
+            intent: 'email_management',
+            summary: '邮箱没有配置',
+            action: 'final',
+            final_answer: 'email 工具需要 account/email 参数，或设置 HUMANCLAW_EMAIL_<PROVIDER>_ACCOUNT。'
+        };
+    });
+    const llmSettings = {
+        provider: 'openai-compatible',
+        baseUrl: llmServer.url,
+        apiKey: 'test-key',
+        model: 'mock-email-failure-agent',
+        temperature: 0.1,
+        timeoutMs: 10000
+    };
+    const gateway = new HumanClawGateway({
+        port: 0,
+        workspaceRoot,
+        projectRoot: path.resolve('.'),
+        auditDir: path.join(workspaceRoot, '.audit')
+    });
+    const emailCalls = [];
+
+    try {
+        const status = await gateway.start();
+        const originalCallTool = gateway.callTool.bind(gateway);
+        gateway.callTool = async (request) => {
+            if (request.tool === 'email') {
+                emailCalls.push(request);
+                return {
+                    ok: false,
+                    callId: 'mock-email-needs-config',
+                    tool: 'email',
+                    status: 'needs_config',
+                    durationMs: 1,
+                    error: 'email 工具需要 account/email 参数，或设置 HUMANCLAW_EMAIL_<PROVIDER>_ACCOUNT。'
+                };
+            }
+            return await originalCallTool(request);
+        };
+
+        const result = await runAgent(status.url, {
+            sessionId: 'email-agent-failure-test',
+            message: '帮我看看有没有 GitHub 的新邮件',
+            agentLoop: 'llm',
+            llmSettings,
+            context: {
+                workspace: workspaceRoot,
+                approved: true,
+                confirmationPolicy: 'auto'
+            }
+        });
+
+        assert.equal(result.body.ok, false);
+        assert.equal(result.body.status, 'needs_config');
+        assert.equal(result.body.surface.source, 'tool_failure');
+        assert.equal(emailCalls.length, 1);
+        assert.match(result.body.displayText, /邮箱账号/);
+        assert.match(result.body.bubbleText, /邮箱还没连上/);
+        assert.doesNotMatch(result.body.displayText, /HUMANCLAW_EMAIL|<PROVIDER>|tool_call|raw observation/);
+        assert.doesNotMatch(result.body.speechText, /HUMANCLAW_EMAIL|<PROVIDER>|tool_call|raw observation/);
     } finally {
         await gateway.stop();
         await llmServer.close();

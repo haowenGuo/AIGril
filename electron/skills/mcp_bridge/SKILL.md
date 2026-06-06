@@ -20,4 +20,4 @@ MCP 是 AIGL 连接外部工具的统一插座。使用时先发现能力，再�
 - 调用 `call_tool` 前要遵守 MCP tool 的 `inputSchema`；本地 manager 会做参数校验。
 - `read_resource/get_prompt` 是只读上下文；`call_tool/register_server/remove_server/shutdown_server` 可能需要审批。
 - MCP 失败时不要假装成功，向用户说明是配置、连接、鉴权、schema 还是超时问题。
-
+- 研究/网页类工具要遵守语义边界：`web_fetch` 只读 HTML/纯文本，PDF 或二进制必须改用 MCP 返回的 `pdf_extract_text` 或 `download_file`。

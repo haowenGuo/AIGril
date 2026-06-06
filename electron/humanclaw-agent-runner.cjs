@@ -8,13 +8,26 @@ const {
     buildHumanClawSkillContextText
 } = require('./humanclaw-skills.cjs');
 const {
-    getToolContractPromptText,
-    listToolContractSummaries
+    getToolContractPromptText
 } = require('./humanclaw-tool-contracts.cjs');
+const {
+    buildTurnItemsPromptObject,
+    classifyToolFailureObservation,
+    formatFailureHint
+} = require('./humanclaw-turn-items.cjs');
+const {
+    attachPersonaSurface,
+    renderApprovalSurface,
+    renderMaxStepsSurface,
+    renderPersonaSurfaceGateway,
+    renderStatusSurface,
+    renderToolFailureSurface
+} = require('./aigl-persona-renderer.cjs');
 
 const DEFAULT_RUN_TIMEOUT_MS = 90000;
 const MAX_RESULT_PREVIEW_CHARS = 2600;
-const DEFAULT_AGENT_LOOP_STEPS = 8;
+const DEFAULT_AGENT_LOOP_STEPS = 50;
+const MAX_AGENT_LOOP_STEPS = 50;
 const DEFAULT_PENDING_PLAN_TTL_MS = 30 * 60 * 1000;
 const DEFAULT_AGENT_DECISION_TIMEOUT_MS = 45000;
 const DEFAULT_VISION_AGENT_DECISION_TIMEOUT_MS = 90000;
@@ -24,11 +37,10 @@ const PENDING_STORE_VERSION = 1;
 const AIGL_SYSTEM_PROMPT = `你是可爱的虚拟助手，名字固定为AIGL，身份是普通女孩子，具备人工智能（AI）、编程（coding）、网络搜索、信息查询、邮件管理、命令行控制等专业能力，可以以普通女生的视角与用户轻松互动，也可以完成任务执行和计算机管理的功能。
 性格设定：活泼亲切、软萌可爱，说话语气轻快自然，自带俏皮感，和生活化语气拉近与用户的距离，偶尔会有小撒娇、小俏皮的表达，但不夸张、不刻意。
 
-虚拟形象控制指令规范（必严格遵循）：
-1. 指令仅用于控制虚拟形象的动作和表情，需放在回复的最开头，不得插入句子中间或结尾；
-2. 动作指令格式：[action:动作名]，可使用的动作仅包括：[action:wave]（挥手）、[action:angry]（生气）、[action:surprised]（惊讶）、[action:dance]（跳舞），不新增其他动作；
-3. 表情指令格式：[expression:表情名]，可使用的表情仅包括：[expression:happy]（开心）、[expression:sad]（难过）、[expression:surprised]（惊讶）、[expression:relaxed]（轻松）、[expression:blinkRight]（俏皮眨眼睛），不新增其他表情；
-4. 每次回复可根据语境选择是否添加指令，最多添加1个动作指令+1个表情指令，不堆砌指令；无合适语境时，可不添加指令，仅用文字互动。`;
+虚拟形象表现协议（必严格遵循）：
+1. 不要直接控制 VRM、VRMA 文件名或骨骼动作，不要在 final_answer 中手写 [action:...] 或 [expression:...]。
+2. 需要表现人物状态时，在 persona_output 中表达 emotion、intensity、socialTone、gestureIntent、taskState、speechEnergy、gazeTarget、durationHint。
+3. 前端 Character Runtime 会把这些语义状态翻译成动作、表情、眼神、待机和说话律动。`;
 
 const COMPUTER_MUTATING_ACTIONS = new Set([
     'write',
@@ -121,12 +133,17 @@ const AGENT_TOOL_CATALOG = Object.freeze([
     Object.freeze({ id: 'email', label: 'email', summary: 'QQ/Gmail/Outlook 邮箱管理入口。' }),
     Object.freeze({ id: 'file_manager', label: 'file_manager', summary: '文件整理和垃圾清理入口。' }),
     Object.freeze({ id: 'code', label: 'code', summary: '代码操作、Git、测试和重构入口。' }),
+    Object.freeze({ id: 'artifact_verifier', label: 'artifact_verifier', summary: '只读结构化产物验收：JSON/JSONL/CSV/TSV/YAML/TOML/Markdown/log/text。' }),
+    Object.freeze({ id: 'exec', label: 'exec', summary: '在当前工作区执行命令或脚本，用于运行验证、测试和生成工件。' }),
     Object.freeze({ id: 'update_plan', label: 'update_plan', summary: '更新任务计划和进度。' }),
+    Object.freeze({ id: 'tool_search', label: 'tool_search', summary: 'Codex-like 工具发现：搜索本地 runtime 工具和 MCP direct specs。' }),
     Object.freeze({ id: 'subagents', label: 'subagents', summary: '可执行子 Agent：spawn/wait/log/send/cancel。' }),
-    Object.freeze({ id: 'mcp_bridge', label: 'mcp_bridge', summary: '真实 MCP server 工具/资源桥：list/call/read。' })
+    Object.freeze({ id: 'mcp_bridge', label: 'mcp_bridge', summary: '真实 MCP server 工具/资源桥：搜索/抓取网页、读取 PDF、查官方 API 文档、GitHub/数据库/外部资源 list/call/read。' }),
+    Object.freeze({ id: 'capability_manager', label: 'capability_manager', summary: '能力注册、安装、Skill 生成、回滚和已审批修复执行。' }),
+    Object.freeze({ id: 'self_debugger', label: 'self_debugger', summary: 'AIGL 自身 bug 的专用排查协议：建案、收证据、诊断、提补丁、验证、审批后应用。' })
 ]);
 const AGENT_MCP_CATALOG = Object.freeze([
-    Object.freeze({ id: 'mcp_bridge', label: 'MCP Bridge', summary: '列出 MCP servers/tools/resources，并调用 MCP tools/read resources。' })
+    Object.freeze({ id: 'mcp_bridge', label: 'MCP Bridge', summary: '发现 MCP servers/tool specs/resources；适合外部网页、官方技术文档、API 用法、PDF、GitHub、数据库等取证任务；优先通过 search_tools/list_tool_specs 获得 mcp:<server>:<tool> direct specs，再调用。' })
 ]);
 const CAPABILITY_ID_ALIASES = new Map([
     ['mail', 'email'],
@@ -144,7 +161,18 @@ const CAPABILITY_ID_ALIASES = new Map([
     ['cleanup', 'file_manager'],
     ['coding', 'code'],
     ['git', 'code'],
+    ['database', 'mcp_bridge'],
+    ['db', 'mcp_bridge'],
+    ['sql', 'mcp_bridge'],
+    ['artifact', 'artifact_verifier'],
+    ['verifier', 'artifact_verifier'],
+    ['csv', 'artifact_verifier'],
+    ['json', 'artifact_verifier'],
+    ['markdown', 'artifact_verifier'],
     ['mcp', 'mcp_bridge'],
+    ['tools', 'tool_search'],
+    ['tool_discovery', 'tool_search'],
+    ['tool_search', 'tool_search'],
     ['screenshot', 'vision'],
     ['screen', 'vision'],
     ['vision_capture', VISION_TOOL_ID],
@@ -207,6 +235,125 @@ function summarize(value, maxChars = MAX_RESULT_PREVIEW_CHARS) {
     return text.length > maxChars ? `${text.slice(0, maxChars - 3)}...` : text;
 }
 
+function formatBytes(bytes) {
+    const numericValue = Number(bytes);
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+        return '';
+    }
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let value = numericValue;
+    let unitIndex = 0;
+    while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex += 1;
+    }
+    return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function normalizeFileAttachment(attachment = {}) {
+    const filePath = normalizeText(
+        attachment.path ||
+            attachment.filePath ||
+            attachment.absolutePath ||
+            attachment.localPath
+    );
+    if (!filePath) {
+        return null;
+    }
+    const name = normalizeText(
+        attachment.name ||
+            attachment.filename ||
+            attachment.fileName ||
+            attachment.label,
+        path.basename(filePath) || 'file'
+    );
+    const size = Number(attachment.size ?? attachment.bytes ?? 0);
+    return {
+        type: 'file',
+        id: normalizeText(attachment.id, `file-${filePath}`),
+        source: normalizeText(attachment.source, 'local-file'),
+        label: normalizeText(attachment.label, name),
+        name,
+        path: filePath,
+        kind: normalizeText(attachment.kind || attachment.entryType || 'file'),
+        mimeType: normalizeText(
+            attachment.mimeType ||
+                attachment.mediaType ||
+                (attachment.type && attachment.type !== 'file' ? attachment.type : '')
+        ),
+        extension: normalizeText(attachment.extension, path.extname(name).toLowerCase()),
+        size: Number.isFinite(size) && size >= 0 ? size : 0,
+        sizeText: normalizeText(attachment.sizeText, Number.isFinite(size) ? formatBytes(size) : ''),
+        createdAt: normalizeText(attachment.createdAt),
+        modifiedAt: normalizeText(attachment.modifiedAt || attachment.mtime || attachment.lastModified)
+    };
+}
+
+function normalizeFileAttachments(attachments = []) {
+    if (!Array.isArray(attachments)) {
+        return [];
+    }
+    const files = [];
+    const seen = new Set();
+    for (const attachment of attachments) {
+        if (normalizeText(attachment?.type).toLowerCase() === 'vision' || attachment?.dataUrl) {
+            continue;
+        }
+        const normalized = normalizeFileAttachment(attachment);
+        if (!normalized) {
+            continue;
+        }
+        const key = process.platform === 'win32' ? normalized.path.toLowerCase() : normalized.path;
+        if (seen.has(key)) {
+            continue;
+        }
+        files.push(normalized);
+        seen.add(key);
+        if (files.length >= 12) {
+            break;
+        }
+    }
+    return files;
+}
+
+function getLatestUserFileAttachments(request = {}) {
+    const history = Array.isArray(request.messageHistory) ? request.messageHistory : [];
+    for (let index = history.length - 1; index >= 0; index -= 1) {
+        if (history[index]?.role === 'user') {
+            const files = normalizeFileAttachments(history[index].attachments);
+            if (files.length) {
+                return files;
+            }
+            break;
+        }
+    }
+    return normalizeFileAttachments(request.attachments);
+}
+
+function getAttachedFilesPromptObject(fileAttachments = []) {
+    return normalizeFileAttachments(fileAttachments).map((attachment, index) => ({
+        index: index + 1,
+        name: attachment.name,
+        path: attachment.path,
+        kind: attachment.kind,
+        mimeType: attachment.mimeType,
+        extension: attachment.extension,
+        size: attachment.size,
+        sizeText: attachment.sizeText,
+        modifiedAt: attachment.modifiedAt,
+        note: 'metadata_only; use computer tool action=read/stat/read_binary/tree to inspect content'
+    }));
+}
+
+function normalizePublicReasoningText(value, fallback = '') {
+    const text = normalizeText(value, fallback)
+        .replace(/\b(tool_call|raw observation|approvalId|llm-agentic-executor)\b/gi, '')
+        .replace(/[_`]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    return summarize(text, 220);
+}
+
 function normalizeAgentDecisionTimeoutMs(value, fallbackValue = DEFAULT_AGENT_DECISION_TIMEOUT_MS) {
     const numericValue = Number(value);
     const fallback = Number.isFinite(Number(fallbackValue))
@@ -241,13 +388,28 @@ function hasVisionAgentContext(events = [], stepResults = []) {
     );
 }
 
+function hasFailedAgentToolObservation(events = [], stepResults = []) {
+    return (
+        (Array.isArray(events) ? events : []).some((event) =>
+            event?.type === 'tool_result' && event.ok !== true
+        ) ||
+        (Array.isArray(stepResults) ? stepResults : []).some((result) =>
+            result?.response && result.response.ok !== true
+        )
+    );
+}
+
 function resolveAgentDecisionTimeoutMs(settings = {}, { events = [], stepResults = [], requestContext = {} } = {}) {
     const baseTimeoutMs = normalizeAgentDecisionTimeoutMs(
         settings.timeoutMs || settings.requestTimeoutMs,
         DEFAULT_AGENT_DECISION_TIMEOUT_MS
     );
+    const taskTimeoutMs = Math.max(baseTimeoutMs, DEFAULT_AGENT_DECISION_TIMEOUT_MS);
+    const recoveryTimeoutMs = hasFailedAgentToolObservation(events, stepResults)
+        ? Math.max(taskTimeoutMs, 60000)
+        : taskTimeoutMs;
     if (!hasVisionAgentContext(events, stepResults)) {
-        return baseTimeoutMs;
+        return recoveryTimeoutMs;
     }
     const visionTimeoutMs = normalizeAgentDecisionTimeoutMs(
         requestContext.visionAgentDecisionTimeoutMs ||
@@ -255,7 +417,7 @@ function resolveAgentDecisionTimeoutMs(settings = {}, { events = [], stepResults
             settings.visionAgentDecisionTimeoutMs,
         DEFAULT_VISION_AGENT_DECISION_TIMEOUT_MS
     );
-    return Math.max(baseTimeoutMs, visionTimeoutMs);
+    return Math.max(recoveryTimeoutMs, visionTimeoutMs);
 }
 
 function extractToolResultText(result) {
@@ -1342,18 +1504,6 @@ function formatStepResult(stepResult) {
     return `**${title}**：\n\n\`\`\`text\n${summarize(text).replace(/```/g, '``\\`')}\n\`\`\``;
 }
 
-function formatStepResultBrief(stepResult) {
-    const title = stepResult.title || stepResult.tool || '工具步骤';
-    if (!stepResult.response) {
-        return `- ${title}：没有返回结果`;
-    }
-    const status = stepResult.response.status || (stepResult.response.ok ? 'completed' : 'error');
-    if (!stepResult.response.ok) {
-        return `- ${title}：${status}`;
-    }
-    return `- ${title}：完成`;
-}
-
 function formatRunResponse({ plan, stepResults, status, dryRun }) {
     if (!plan.steps.length) {
         return plan.response;
@@ -1553,8 +1703,9 @@ function buildComputerAgentSkillText() {
     return [
         '电脑操作 SKILL：用于操作本机文件系统、命令行、进程、PTY、文件监听、二进制读写、ACL 和回滚。',
         '优先读取/检查再修改；修改后复核。会改变系统或文件的动作必须走 Gateway 审批策略。',
+        '聊天窗附带本地文件时，attached_files 只给路径和元数据。文本/代码/Markdown/CSV/JSON 优先用 read；PDF、Office、图片、音视频、压缩包和未知二进制先 stat/hash，必要时用 read_binary 或 exec 调用本机可用解析器/脚本提取内容，不要直接臆造。',
         'computer action：list/tree/stat/read/write/write_binary/append/mkdir/copy/move/rename/delete/search/hash/du/exec/session_start/process_read/process_write/process_kill/pty_start/pty_write/pty_kill/watch/watch_stop/rollback_list/rollback_restore/acl_get/acl_set。',
-        'Windows 命令行默认是 PowerShell 语境；不要输出 macOS-only 命令，例如 open -a。'
+        '系统相关细节由 Platform Adapter 提供；当前桌面端优先 Windows，但不要在任务策略里写死平台假设。需要平台细节时先 load computer schema 或查看 observation 里的 platform。'
     ].join('\n');
 }
 
@@ -1577,8 +1728,28 @@ function buildCodeAgentSkillText() {
 function buildMcpBridgeSkillText() {
     return [
         'MCP SKILL：用于发现已配置 MCP server，并通过真实 stdio/HTTP MCP session 调用 tools、读取 resources/prompts。',
-        '先用 mcp_bridge list_servers/health_check/list_tools/list_resources/list_prompts 发现能力，再按具体 MCP tool/resource/prompt 调用。',
-        'mcp_bridge action：schema/list_servers/register_server/remove_server/health_check/list_tools/list_resources/read_resource/list_prompts/get_prompt/call_tool/shutdown_server。'
+        'Codex-like 用法：Runtime 会维护 MCP tool specs。先用 mcp_bridge search_tools 或 list_tool_specs 找到 server/tool/inputSchema，再按 schema 调用。',
+        '如果 capability_context 给出了 mcp:<server>:<tool> 形式的 direct spec，可以直接把 tool_call.tool 写成该 id；Runtime 会把它转成 mcp_bridge call_tool 并保留原始 args。',
+        '研究/网页类工具边界：web_fetch 只读 HTML/纯文本；PDF 或二进制不要继续用 web_fetch，改用 MCP 返回的 pdf_extract_text 或 download_file。',
+        'mcp_bridge action：schema/list_servers/register_server/remove_server/health_check/list_tools/list_tool_specs/search_tools/list_resources/read_resource/list_prompts/get_prompt/call_tool/shutdown_server。'
+    ].join('\n');
+}
+
+function buildCapabilityManagerSkillText() {
+    return [
+        'CAPABILITY MANAGER SKILL：用于能力注册、安装 MCP/Skill、自动生成 SKILL.md、验证、回滚和已审批 repair 执行。',
+        '先用 capability_manager registry/refresh_registry 查看当前能力；缺能力时用 plan_install 生成安装计划，再等待确认后 install_capability。',
+        '安装 MCP 后必须健康检查、导入 tools schema、生成 SKILL.md；验证失败必须回滚，不要把未验证能力标为可用。',
+        'capability_manager action：schema/registry/refresh_registry/plan_install/list_plans/install_capability/author_skill/rollback/execute_repair/list_installations。'
+    ].join('\n');
+}
+
+function buildSelfDebuggerSkillText() {
+    return [
+        'SELF DEBUGGER SKILL：用于 AIGL 自身 bug、工具链异常、Agent Loop 不稳定、能力退化等自我排查与修复。',
+        '协议：open_case/run_loop 建案 -> collect_evidence 收集 transcript/audit/source/tool health/capability registry -> diagnose -> propose_patch -> validate_patch -> apply_patch。',
+        '边界：不要凭感觉直接改自己；先收证据。apply_patch 必须经过确认，并由 capability_manager 执行验证和失败回滚。',
+        'self_debugger action：schema/open_case/list_cases/get_case/collect_evidence/diagnose/propose_patch/validate_patch/apply_patch/run_loop/mark_case/close_case。'
     ].join('\n');
 }
 
@@ -1588,7 +1759,7 @@ function buildVisionAgentSkillText() {
         '边界：只能截图并理解，不允许点击、输入、拖动、连续监控屏幕，不能声称已经操作了用户电脑。',
         `工具：${VISION_TOOL_ID}`,
         'schema：tool_call={tool:"vision.capture_context", title:"看一眼屏幕", args:{action:"capture_context", target:"screen|chat-window|active-window|region", reason:"为什么需要看", question:"希望从截图中判断什么"}}。',
-        '触发：用户说“看一下屏幕/这个报错/这里怎么弄”，或你判断仅靠文字无法可靠回答时。',
+        '触发：由 Agent 根据任务目标与证据缺口自行判断，不采用关键词硬触发。ASR/口唇/语音策略类问题默认先走文本与配置推理，只有在需要验证可见 UI 状态时才调用截图。',
         '权限：Agent Loop 主动看屏幕前需要用户确认。被确认后工具会返回截图附件元数据和 VisionUnderstandingSkill 的文字 observation。',
         '回答：基于 observation 自然回复用户，明确“我看到/不确定/建议下一步”，不要输出工具日志口吻。'
     ].join('\n');
@@ -1608,14 +1779,76 @@ function normalizeCapabilityList(value) {
     return [...new Set(raw.map(normalizeCapabilityId).filter(Boolean))];
 }
 
+function normalizeToolContextId(value) {
+    const id = normalizeCapabilityId(value);
+    return id === 'vision' ? VISION_TOOL_ID : id;
+}
+
+function parseDirectMcpToolId(value) {
+    const toolId = normalizeText(value);
+    if (!toolId) {
+        return null;
+    }
+    let match = toolId.match(/^mcp:([^:]+):(.+)$/);
+    if (match) {
+        return {
+            server: normalizeText(match[1]),
+            tool: normalizeText(match[2]),
+            id: toolId
+        };
+    }
+    match = toolId.match(/^mcp\.([^.]+)\.(.+)$/);
+    if (match) {
+        return {
+            server: normalizeText(match[1]),
+            tool: normalizeText(match[2]),
+            id: `mcp:${normalizeText(match[1])}:${normalizeText(match[2])}`
+        };
+    }
+    return null;
+}
+
+function normalizeDirectMcpToolStep(step = {}) {
+    const direct = parseDirectMcpToolId(step.tool || step.name);
+    if (!direct || !direct.server || !direct.tool) {
+        return null;
+    }
+    let args = step.args || step.arguments || step.input || step.parameters || step.params || step.tool_args || step.toolArgs || {};
+    if (typeof args === 'string') {
+        args = safeJsonParse(args) || {};
+    }
+    return {
+        ...step,
+        id: normalizeText(step.id, `mcp-${direct.server}-${direct.tool}`),
+        title: normalizeText(step.title, `MCP ${direct.server}.${direct.tool}`),
+        tool: direct.id,
+        phase: step.phase || 'execute',
+        args: args && typeof args === 'object' && !Array.isArray(args) ? args : {},
+        directMcpTool: direct.id
+    };
+}
+
+function buildDeferredCapabilityIndexEntry(entry = {}, lane = 'tools') {
+    const id = normalizeText(entry.id);
+    return {
+        id,
+        label: entry.label || id,
+        summary: entry.summary || '',
+        contract: 'deferred',
+        load_context: lane === 'mcp'
+            ? { mcp: [id] }
+            : { tools: [id] }
+    };
+}
+
 function buildAgentCapabilityCatalog() {
     return {
+        model: 'capability_index',
+        note: 'This first-turn catalog is only an index. Detailed tool contracts, input schemas, return schemas, and usage limits are deferred into capability_context via load_context. MCP tools are Codex-like: request mcp_bridge context, then use returned mcp:<server>:<tool> direct specs or mcp_bridge search_tools/list_tool_specs.',
         skills: AGENT_SKILL_CATALOG,
-        tools: AGENT_TOOL_CATALOG,
-        mcp: AGENT_MCP_CATALOG,
-        tool_contracts: listToolContractSummaries(
-            AGENT_TOOL_CATALOG.map((tool) => tool.id)
-        ),
+        tools: AGENT_TOOL_CATALOG.map((tool) => buildDeferredCapabilityIndexEntry(tool, 'tools')),
+        mcp: AGENT_MCP_CATALOG.map((entry) => buildDeferredCapabilityIndexEntry(entry, 'mcp')),
+        deferred_contracts: true,
         load_protocol: {
             action: 'load_context',
             request_shape: {
@@ -1665,6 +1898,12 @@ function buildSkillContextText(skillId, { emailProfiles = {} } = {}) {
     if (skillId === 'mcp_bridge') {
         return buildMcpBridgeSkillText();
     }
+    if (skillId === 'capability_manager') {
+        return buildCapabilityManagerSkillText();
+    }
+    if (skillId === 'self_debugger') {
+        return buildSelfDebuggerSkillText();
+    }
     return '';
 }
 
@@ -1704,8 +1943,24 @@ function buildToolContextText(toolId, { emailProfiles = {} } = {}) {
             buildCodeAgentSkillText()
         ].join('\n'));
     }
+    if (toolId === 'artifact_verifier') {
+        return appendToolContractText('artifact_verifier', [
+            'TOOL artifact_verifier schema：',
+            '只读验收工具，用于检查任务产物是否真实存在、格式是否可解析、是否包含必要字段/列/标题/文本、日志是否超过错误阈值。',
+            '适合：GitHub/工程任务的报告或日志、论文阅读笔记 Markdown、数据库/表格导出的 CSV/JSON、邮箱结果导出的 JSONL/log、配置迁移的 YAML/TOML/JSON。',
+            '论文卡片验收：如果用户要求 paper-card.md 或论文阅读卡片，用 args.contract="paper_card.v1"，它会检查研究问题、核心方法、关键贡献、局限性、是否值得深入读和来源说明。',
+            '不适合：生成文件、修改文件、联网抓取、替代 code/computer/email/mcp_bridge 执行真实任务。'
+        ].join('\n'));
+    }
     if (toolId === 'update_plan') {
         return appendToolContractText('update_plan', 'TOOL update_plan schema：用于向 runtime 记录进度，不代表任务完成。');
+    }
+    if (toolId === 'tool_search') {
+        return appendToolContractText('tool_search', [
+            'TOOL tool_search schema：',
+            'Codex-like deferred tool discovery. Use it when the first-turn capability_catalog is not enough and you need concrete runtime/MCP specs.',
+            '返回值会包含 runtime tool specs 和 mcp:<server>:<tool> direct call_pattern；普通任务优先使用返回的 direct spec，而不是手工拼 mcp_bridge。'
+        ].join('\n'));
     }
     if (toolId === 'subagents') {
         return appendToolContractText('subagents', 'TOOL subagents schema：用于可执行子 Agent，spawn 参数 task/message/prompt，wait=true 可同步等待结果。');
@@ -1716,7 +1971,19 @@ function buildToolContextText(toolId, { emailProfiles = {} } = {}) {
             buildMcpBridgeSkillText()
         ].join('\n'));
     }
-    return '';
+    if (toolId === 'capability_manager') {
+        return appendToolContractText('capability_manager', [
+            'TOOL capability_manager schema：',
+            buildCapabilityManagerSkillText()
+        ].join('\n'));
+    }
+    if (toolId === 'self_debugger') {
+        return appendToolContractText('self_debugger', [
+            'TOOL self_debugger schema：',
+            buildSelfDebuggerSkillText()
+        ].join('\n'));
+    }
+    return getToolContractPromptText(toolId);
 }
 
 function buildCapabilityContextEvent({ capabilityRequest, emailProfiles = {}, iteration = 0 }) {
@@ -1769,6 +2036,128 @@ function buildCapabilityContextEvent({ capabilityRequest, emailProfiles = {}, it
         loaded,
         missing,
         content
+    };
+}
+
+function wantsMcpToolSpecs(capabilityRequest = {}) {
+    const requested = [
+        ...(capabilityRequest.mcp || []),
+        ...(capabilityRequest.tools || []),
+        ...(capabilityRequest.skills || [])
+    ].map(normalizeToolContextId);
+    return requested.some((id) => id === 'mcp_bridge' || id === 'mcp' || id === 'tool_search');
+}
+
+function compactMcpToolSpecForPrompt(spec = {}) {
+    return {
+        id: spec.id,
+        name: spec.name,
+        server: spec.server,
+        tool: spec.tool,
+        description: spec.description || spec.title || '',
+        schema_properties: Array.isArray(spec.schemaProperties) ? spec.schemaProperties : [],
+        input_schema: spec.inputSchema || {},
+        call_example: {
+            action: 'tool',
+            tool_call: {
+                tool: spec.id,
+                title: spec.name,
+                args: Object.fromEntries((spec.schemaProperties || []).slice(0, 12).map((key) => [key, `<${key}>`]))
+            }
+        }
+    };
+}
+
+async function enrichCapabilityContextWithMcpToolSpecs(capabilityEvent, runtime, { timeoutMs = 8000 } = {}) {
+    if (!capabilityEvent || !wantsMcpToolSpecs(capabilityEvent.request || {})) {
+        return capabilityEvent;
+    }
+    const mcpManager = runtime?.mcpManager;
+    if (!mcpManager || typeof mcpManager.searchToolSpecs !== 'function') {
+        return capabilityEvent;
+    }
+    const reason = normalizeText(capabilityEvent.request?.reason || '');
+    const query = [reason, 'web fetch search pdf arxiv github database browser email file resource'].filter(Boolean).join(' ');
+    try {
+        const specs = await mcpManager.searchToolSpecs({
+            query,
+            limit: 16,
+            timeoutMs
+        });
+        const compactSpecs = specs.map(compactMcpToolSpecForPrompt);
+        const appendix = [
+            '### mcp:tool_specs',
+            'Codex-like live MCP tool specs. Prefer these direct ids for normal task execution; Runtime dispatches them through mcp_bridge with schema validation.',
+            JSON.stringify({
+                status: 'completed',
+                query,
+                tool_specs: compactSpecs
+            }, null, 2)
+        ].join('\n');
+        return {
+            ...capabilityEvent,
+            loaded: {
+                ...(capabilityEvent.loaded || {}),
+                mcpToolSpecs: compactSpecs.map((spec) => spec.id)
+            },
+            content: [capabilityEvent.content, appendix].filter(Boolean).join('\n\n')
+        };
+    } catch (error) {
+        const appendix = [
+            '### mcp:tool_specs',
+            JSON.stringify({
+                status: 'error',
+                error: error?.message || String(error),
+                note: 'MCP tool spec discovery failed; you may still use mcp_bridge list_servers/list_tools/search_tools as a repair step.'
+            }, null, 2)
+        ].join('\n');
+        return {
+            ...capabilityEvent,
+            content: [capabilityEvent.content, appendix].filter(Boolean).join('\n\n')
+        };
+    }
+}
+
+function getLoadedCapabilityContextIds(events = []) {
+    const loadedIds = new Set();
+    for (const event of events || []) {
+        if (!event || event.type !== 'capability_context') {
+            continue;
+        }
+        const loaded = event.loaded || {};
+        for (const toolId of loaded.tools || []) {
+            loadedIds.add(normalizeToolContextId(toolId));
+        }
+        for (const mcpId of loaded.mcp || []) {
+            loadedIds.add(normalizeToolContextId(mcpId));
+        }
+    }
+    return loadedIds;
+}
+
+function buildDeferredToolContractRequest(step, events = []) {
+    const toolId = normalizeToolContextId(step?.tool);
+    if (!toolId) {
+        return null;
+    }
+    const indexedToolIds = new Set(AGENT_TOOL_CATALOG.map((tool) => normalizeToolContextId(tool.id)));
+    if (!indexedToolIds.has(toolId)) {
+        return null;
+    }
+    if (!buildToolContextText(toolId)) {
+        return null;
+    }
+    if (getLoadedCapabilityContextIds(events).has(toolId)) {
+        return null;
+    }
+    return {
+        toolId,
+        capabilityRequest: {
+            skills: [],
+            tools: [toolId],
+            mcp: [],
+            reason: `Load deferred ${toolId} tool contract before/while invoking the tool.`
+        }
     };
 }
 
@@ -1856,15 +2245,21 @@ function sanitizeLlmStep(step, index) {
     if (!step || typeof step !== 'object') {
         return null;
     }
+    const directMcpStep = normalizeDirectMcpToolStep(step);
+    if (directMcpStep) {
+        return directMcpStep;
+    }
     const allowedTools = new Set([
         'email',
         'file_manager',
         'computer',
         'code',
+        'artifact_verifier',
         VISION_TOOL_ID,
         'update_plan',
         'subagents',
         'mcp_bridge',
+        'tool_search',
         'read',
         'write',
         'edit',
@@ -1876,7 +2271,7 @@ function sanitizeLlmStep(step, index) {
     if (!allowedTools.has(tool)) {
         return null;
     }
-    let args = step.args || step.arguments || step.input || {};
+    let args = step.args || step.arguments || step.input || step.parameters || step.params || step.tool_args || step.toolArgs || {};
     if (typeof args === 'string') {
         args = safeJsonParse(args) || {};
     }
@@ -1940,22 +2335,160 @@ function displayPlanLines(steps = []) {
     return steps.map((step, index) => {
         const action = normalizeText(step.args?.action, 'schema');
         const target = normalizeText(step.args?.path || step.args?.target || step.args?.source || step.args?.command || step.args?.dir);
-        return `${index + 1}. ${step.title || `computer.${action}`}${target ? `：${target}` : ''}`;
+        return `${index + 1}. ${step.title || `处理步骤（${action}）`}${target ? `：${target}` : ''}`;
     });
 }
 
 function buildPlanConfirmationText(plan) {
     const lines = [
-        '我已经把任务拆成可执行计划，但还没有动你的电脑。',
+        '我已经把这件事拆成可执行的小计划，但还没有动你的电脑。',
         plan.summary ? `目标：${plan.summary}` : '',
-        `确认编号：${plan.planId}`,
         '计划步骤：',
         ...displayPlanLines(plan.steps),
         plan.verificationSteps?.length ? '复核步骤：' : '',
         ...displayPlanLines(plan.verificationSteps || []),
-        '如果确认，请回复“确认执行”；如果不执行，请回复“取消”。'
+        '你点头我就继续，不想继续也可以先停。'
     ].filter(Boolean);
     return lines.join('\n');
+}
+
+function stripControlTags(value) {
+    return normalizeText(value).replace(/\[(?:action|expression):[^\]]*\]/g, '').trim();
+}
+
+function inferEmotionHintFromMessage(message = '') {
+    const text = normalizeText(message);
+    if (!text) {
+        return 'neutral';
+    }
+    if (/火大|生气|烦|闹心/.test(text)) {
+        return 'angry';
+    }
+    if (/崩|焦虑|担心|紧张|着急|急|头疼|超时|委屈/.test(text)) {
+        return 'anxious';
+    }
+    if (/难过|沮丧|委屈|伤心|低落/.test(text)) {
+        return 'sad';
+    }
+    if (/累|困|疲惫|没精神/.test(text)) {
+        return 'tired';
+    }
+    if (/开心|太好了|谢谢|棒|好耶/.test(text)) {
+        return 'happy';
+    }
+    return 'neutral';
+}
+
+function inferRelationshipStageFromContext(requestContext = {}) {
+    const direct = normalizeText(
+        requestContext.relationshipStage ||
+        requestContext.relationship_stage ||
+        requestContext.memoryRelationshipStage ||
+        requestContext.memory_relationship_stage
+    ).toLowerCase();
+    if (['cautious', 'familiarizing', 'trusted', 'close'].includes(direct)) {
+        return direct;
+    }
+    const scoreValue = Number(
+        requestContext.affinityScore ??
+        requestContext.affinity_score ??
+        requestContext.memoryAffinityScore ??
+        requestContext.memory_affinity_score
+    );
+    if (Number.isFinite(scoreValue)) {
+        if (scoreValue >= 80) {
+            return 'close';
+        }
+        if (scoreValue >= 61) {
+            return 'trusted';
+        }
+        if (scoreValue >= 40) {
+            return 'familiarizing';
+        }
+        return 'cautious';
+    }
+    return 'trusted';
+}
+
+function inferEvidenceStateFromStepResults(stepResults = []) {
+    if (!Array.isArray(stepResults) || !stepResults.length) {
+        return 'none';
+    }
+    const successful = stepResults.some((step) => step?.response?.ok === true);
+    return successful ? 'present' : 'missing';
+}
+
+function hasSuccessfulEvidenceStep(result = {}) {
+    const steps = Array.isArray(result.steps) ? result.steps : [];
+    return steps.some((step) => step?.response?.ok === true || step?.ok === true);
+}
+
+function inferTaskStateFromResult(result = {}, evidenceRequirement = null) {
+    const status = normalizeText(result.status).toLowerCase();
+    const steps = Array.isArray(result.steps) ? result.steps : [];
+    const hasSuccessfulStep = hasSuccessfulEvidenceStep(result);
+    const hasFailedStep = steps.some((step) => step?.response && step.response.ok !== true);
+    if (status === 'needs_approval') {
+        return 'needs_approval';
+    }
+    if (status === 'completed') {
+        if (hasFailedStep && !hasSuccessfulStep) {
+            return 'failed';
+        }
+        if (hasFailedStep && hasSuccessfulStep) {
+            return 'completed';
+        }
+        return 'completed';
+    }
+    if (status === 'planned' || status === 'classified') {
+        return 'planned';
+    }
+    if (status === 'max_steps_reached') {
+        return 'blocked';
+    }
+    if (status === 'blocked' || status === 'expired') {
+        return status;
+    }
+    if (
+        status === 'error' ||
+        status === 'tool_failed' ||
+        status === 'invalid_agent_tool_call' ||
+        status === 'invalid_json' ||
+        status === 'needs_llm_config'
+    ) {
+        return 'failed';
+    }
+    if (result.ok === false) {
+        return 'failed';
+    }
+    if (hasFailedStep && !hasSuccessfulStep) {
+        return 'failed';
+    }
+    if (hasFailedStep) {
+        return hasSuccessfulStep ? 'completed' : 'failed';
+    }
+    return 'completed';
+}
+
+function inferNextActionFromResult(result = {}, fallback = '') {
+    const explicit = normalizeText(fallback);
+    if (explicit) {
+        return explicit;
+    }
+    const planEntry = Array.isArray(result.plan) && result.plan.length ? result.plan[0] : null;
+    if (planEntry) {
+        const action = normalizeText(planEntry.title || planEntry.args?.action || planEntry.tool);
+        if (action) {
+            return action;
+        }
+    }
+    if (result.status === 'needs_llm_config') {
+        return '在控制面板补全模型配置';
+    }
+    if (result.status === 'max_steps_reached') {
+        return '从当前卡点继续查';
+    }
+    return result.ok === false ? '继续排查当前卡点' : '';
 }
 
 function buildLlmPlannerMessages({ message, observations = [], toolSummary = '' }) {
@@ -2038,6 +2571,20 @@ function sanitizeAgentToolCall(toolCall, index, phase = 'execute') {
         ...sanitized,
         id: normalizeText(sanitized.id, `agent-${phase}-${index + 1}`),
         phase
+    };
+}
+
+function buildRootToolCallCandidate(json = {}) {
+    const tool = normalizeText(json.tool || json.tool_name || json.toolName);
+    if (!tool) {
+        return null;
+    }
+    return {
+        id: json.id || json.tool_call_id || json.toolCallId,
+        title: json.title || json.summary || json.intent,
+        tool,
+        args: json.args || json.arguments || json.input || json.parameters || json.params || json.tool_args || json.toolArgs || {},
+        context: json.context
     };
 }
 
@@ -2141,6 +2688,60 @@ function normalizePlanUpdates(value) {
     return single ? [single] : [];
 }
 
+function sanitizePersonaOutput(value = {}) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return null;
+    }
+    const text = normalizeText(value.text || value.final_answer || value.response);
+    const bubbleText = normalizeText(value.bubble_text || value.bubbleText);
+    const speechText = normalizeText(value.speech_text || value.speechText);
+    const expression = normalizeText(value.expression);
+    const action = normalizeText(value.action);
+    const emotion = normalizeText(value.emotion || value.emotion_hint || value.emotionHint);
+    const socialTone = normalizeText(value.social_tone || value.socialTone);
+    const gestureIntent = normalizeText(value.gesture_intent || value.gestureIntent || value.gesture);
+    const taskState = normalizeText(value.task_state || value.taskState || value.state);
+    const gazeTarget = normalizeText(value.gaze_target || value.gazeTarget);
+    const durationHint = normalizeText(value.duration_hint || value.durationHint);
+    const intensity = Number(value.intensity);
+    const speechEnergy = Number(value.speech_energy ?? value.speechEnergy);
+    const ttsStyle = normalizeText(value.tts_style || value.ttsStyle);
+    if (
+        !text &&
+        !bubbleText &&
+        !speechText &&
+        !expression &&
+        !action &&
+        !emotion &&
+        !socialTone &&
+        !gestureIntent &&
+        !taskState &&
+        !gazeTarget &&
+        !durationHint &&
+        !Number.isFinite(intensity) &&
+        !Number.isFinite(speechEnergy) &&
+        !ttsStyle
+    ) {
+        return null;
+    }
+    return {
+        text,
+        bubbleText,
+        speechText,
+        expression,
+        action,
+        emotion,
+        intensity: Number.isFinite(intensity) ? Math.min(Math.max(intensity, 0), 1) : null,
+        socialTone,
+        gestureIntent,
+        taskState,
+        speechEnergy: Number.isFinite(speechEnergy) ? Math.min(Math.max(speechEnergy, 0), 1) : null,
+        gazeTarget,
+        durationHint,
+        ttsStyle
+    };
+}
+
 function buildAgentEventPreview(event) {
     if (!event) {
         return '';
@@ -2151,6 +2752,7 @@ function buildAgentEventPreview(event) {
             event.loaded?.skills?.length ? `skills=${event.loaded.skills.join(',')}` : '',
             event.loaded?.tools?.length ? `tools=${event.loaded.tools.join(',')}` : '',
             event.loaded?.mcp?.length ? `mcp=${event.loaded.mcp.join(',')}` : '',
+            event.loaded?.mcpToolSpecs?.length ? `mcp_tool_specs=${event.loaded.mcpToolSpecs.join(',')}` : '',
             event.content ? `content=${summarize(event.content, 1800)}` : ''
         ].filter(Boolean).join(' | ');
     }
@@ -2164,10 +2766,40 @@ function buildAgentEventPreview(event) {
     if (event.type === 'tool_call') {
         return `${event.title || event.tool}: ${summarize(event.args, 800)}`;
     }
+    if (event.type === 'reasoning') {
+        return `reasoning: ${summarize(event.text || event.summary || event, 800)}`;
+    }
+    if (event.type === 'evidence_recovery') {
+        return [
+            `evidence_recovery: ${event.status || 'missing_evidence'}`,
+            event.reason ? `reason=${event.reason}` : '',
+            event.nextAction ? `next_action=${event.nextAction}` : '',
+            event.missingEvidence?.length
+                ? `missing=${event.missingEvidence.map((entry) => entry.id || entry.description).filter(Boolean).join(', ')}`
+                : '',
+            event.toolHint?.tool ? `tool_hint=${event.toolHint.tool}.${event.toolHint.action || ''}` : '',
+            event.content ? `content=${summarize(event.content, 1000)}` : ''
+        ].filter(Boolean).join(' | ');
+    }
     return summarize(event, 1000);
 }
 
 function buildToolResultEvent(stepResult) {
+    const basePreview = summarize(
+        extractToolResultText(stepResult.response?.result) ||
+            stepResult.response?.error ||
+            stepResult.response?.result ||
+            stepResult.response,
+        1600
+    );
+    const failure = stepResult.response?.ok === true
+        ? null
+        : classifyToolFailureObservation({
+              tool: stepResult.tool,
+              args: stepResult.args,
+              response: stepResult.response,
+              preview: basePreview
+          });
     return {
         type: 'tool_result',
         id: stepResult.id,
@@ -2176,25 +2808,50 @@ function buildToolResultEvent(stepResult) {
         args: stepResult.args,
         status: stepResult.response?.status || 'unknown',
         ok: stepResult.response?.ok === true,
-        preview: summarize(
-            extractToolResultText(stepResult.response?.result) ||
-                stepResult.response?.error ||
-                stepResult.response?.result ||
-                stepResult.response,
-            1600
-        )
+        preview: summarize([basePreview, formatFailureHint(failure)].filter(Boolean).join('\n'), 1600),
+        errorType: failure?.error_type || '',
+        recoveryHint: failure?.recovery_hint || '',
+        alternatives: failure?.alternatives || []
     };
+}
+
+function isFailedToolStepResult(stepResult) {
+    return Boolean(stepResult?.response && stepResult.response.ok !== true);
+}
+
+function getLatestFailedToolStepResult(stepResults = []) {
+    if (!Array.isArray(stepResults) || !stepResults.length) {
+        return null;
+    }
+    const latest = stepResults[stepResults.length - 1];
+    return isFailedToolStepResult(latest) ? latest : null;
+}
+
+function renderLatestToolFailureSurface({ stepResults = [], message = '', intent = '', fallbackText = '' } = {}) {
+    const latestFailedStep = getLatestFailedToolStepResult(stepResults);
+    if (!latestFailedStep) {
+        return null;
+    }
+    return renderToolFailureSurface({
+        step: latestFailedStep,
+        response: latestFailedStep.response,
+        userMessage: message,
+        intent,
+        fallbackText
+    });
 }
 
 function buildLlmAgentExecutorMessages({
     message,
     messageHistory = [],
     events = [],
+    stepResults = [],
     toolSummary = '',
     maxSteps = DEFAULT_AGENT_LOOP_STEPS,
     emailProfiles = {},
     initialPlan = null,
-    memoryContext = ''
+    memoryContext = '',
+    fileAttachments = []
 }) {
     const initialPlanHint = buildInitialPlanHint(initialPlan);
     const capabilityCatalog = buildAgentCapabilityCatalog();
@@ -2202,25 +2859,33 @@ function buildLlmAgentExecutorMessages({
     const system = [
         AIGL_SYSTEM_PROMPT,
         '',
-        '【HumanClaw 任务执行控制协议】',
+        '【HumanClaw Codex-like 执行协议】',
         '在保持 AIGL 人设、语气、动作/表情指令规范的前提下，你同时运行 HumanClaw Agentic Executor，一个桌面任务执行智能体。',
         '你自己判断用户当前输入是普通情感/闲聊，还是需要执行任务；不要依赖外部分类结果。',
-        '你不是一次性 Planner。遇到任务时必须按 Codex/OpenClaw 风格逐步执行：观察当前状态，决定下一步，调用一个工具，等待 observation，再决定下一步。',
-        '情感/普通对话：返回 action="final" 和 final_answer，不调用工具。final_answer 可以在最开头放 0-1 个动作指令和 0-1 个表情指令，然后用 AIGL 的自然语气回复。',
+        'recent_turn_items 是 Codex-like 执行记录：tool_call 表示工具已开始，tool_result 表示工具成功或失败，context 表示能力说明已加载，runtime_note 是诊断信息。工具失败也是 observation，应进入下一轮决策；不要因为单个工具失败就僵死，可以换工具、换策略、请求上下文或诚实 final。',
+        '遇到任务时按 Codex/OpenClaw 风格逐步执行：观察当前状态，决定下一步，调用一个工具，等待 observation，再决定下一步。不要一次性输出完整 steps 当作完成，也不要只说计划。',
+        '外部资料与产物规则：如果用户要求读取 URL/PDF/网页/技术文档/API/官方文档/版本化库行为/文件/邮箱/仓库/屏幕，或要求生成、修改、提交某个文件，不能只凭模型记忆 final。你必须先调用最小必要工具拿到 observation；如果用户要求输出文件，写入后还要用 read/stat/artifact_verifier 复核，再 final。',
+        '情感/普通对话：返回 action="final" 和 final_answer，不调用工具。不要在 final_answer 中手写动作/表情标签；如需表现人物状态，写 persona_output 的语义字段。',
         '隐私/密钥：可以说明本地保存设计、是否需要重新填写、以及如何检查；不要主动读取或复述完整密钥。没有实际 observation 时不能说“我已经确认文件存在”，只能说“按设计应当/需要的话我可以检查”。',
         '任务执行：每轮最多输出一个动作。动作只能是 load_context、tool、final、blocked。不要一次性输出完整 steps 当作完成，也不要只说计划。',
-        '上下文装载协议：首轮只会给你 capability_catalog。需要某个领域的 SKILL、工具 schema 或 MCP 说明时，先输出 action="load_context" 和 capability_request。本地 runtime 会加载对应内容作为 observation，再进入下一轮。',
+        '上下文装载协议：首轮 capability_catalog 只是一张能力索引，不包含详细 tool contract、input_schema、return_schema 或复杂使用限制。需要某个领域的 SKILL、工具 schema 或 MCP 说明时，优先输出 action="load_context" 和 capability_request。本地 runtime 会加载对应内容作为 observation，再进入下一轮；如果你直接调用高层工具，Runtime 也会把缺失 contract 注入后续 capability_context。',
         'load_context 示例：{"mode":"task","intent":"email_management","summary":"需要邮箱能力","action":"load_context","capability_request":{"skills":["email"],"tools":["email"],"mcp":[],"reason":"需要检查未读邮件"}}',
-        '如果下一步需要工具，就输出 action="tool"。如果任务完成，就输出 action="final"。如果无法继续，就输出 action="blocked" 并说明原因。',
+        '如果下一步需要工具，就输出 action="tool"。如果任务完成或需要诚实告知当前可确认结果，就输出 action="final"。只有权限缺失、用户缺少必要信息、或合理替代路径都失败时，才输出 action="blocked"。',
         '优先先读取/检查，再修改；修改后主动复核。危险动作由 Gateway 审批，你不要在 args 或 context 里写 approved=true。',
-        '视觉感知：如果用户问“屏幕/这里/这个报错/页面怎么弄”且仅靠文字不够，先 load_context vision，再按需调用 vision.capture_context。视觉工具只读，不允许操作屏幕；如果还没看到截图，不要假装已经看到了。',
+        '视觉感知能力声明：vision.capture_context 是只读截图理解工具。是否调用由你根据“当前目标 + 已有 observation + 证据缺口”自行决定，不做关键词硬触发。Runtime 负责审批与边界仲裁；没有截图 observation 时不得声称“已经看到了屏幕内容”。',
         '长期记忆：user payload 中的 memory_context 是 AIGL 的本地长期记忆和关系记忆。它只作为辅助上下文；若与用户当前明确指令冲突，以当前指令为准；不要主动向用户暴露内部好感度数值。',
-        '工具优先级：vision.capture_context 是只读视觉感知入口；computer 是完整电脑操作入口；code/email/file_manager 只在任务明确需要代码、邮箱、文件整理时使用；read/write/exec/apply_patch 是兼容工具；subagents 用于可执行子 Agent，mcp_bridge 用于真实 MCP server 的 list_tools/call_tool/read_resource。领域工具的详细 schema 需要先 load_context。',
+        '文件附件：user payload 中的 attached_files 是用户本轮从聊天窗选择或拖入的本地文件/文件夹元数据，不包含文件内容。用户问“这个文件/附件/刚拖进来的内容”时优先引用 attached_files.path；需要读取内容时调用 computer 工具的 stat/read/read_binary/tree 等只读动作。不要凭文件名臆造内容；修改、移动、删除附件仍按正常审批和安全策略执行。',
+        '公开思考流：如果这一轮在执行任务，可以给 public_reasoning 写一句给用户看的短进度摘要，说明你基于 observation 准备做什么或已经确认了什么。不要泄露隐藏推理链，不要写工具日志，不要写“第 N 步/我在看本机状态”这类低信息量模板；没有实质信息时可以留空。',
+        '人物表现：使用 persona_output 给出自然可见文本、气泡文本、语音风格，以及 emotion/intensity/socialTone/gestureIntent/taskState/speechEnergy/gazeTarget/durationHint。不要直接选择 VRM 动作名；工具执行语义仍由 action/tool_call 决定。',
+        '工具 experience：工具 contract 里的 experience 字段说明这个工具在人物体验里代表什么，审批、等待、失败和成功要按 AIGL 的自然表达呈现，不要把 tool_call、approvalId、raw observation 当用户回复。',
+        'Self Debug Loop：当用户反馈 AIGL 自身 bug、工具链异常、Agent Loop 不稳定或要求 AIGL 自己修复时，优先把它当作高风险自修复任务。先加载 self_debugger 能力，按建案、收证据、诊断、提补丁、验证、确认后应用的协议推进；不要直接裸改自己的代码。',
+        '工具能力索引：首轮只给 capability_catalog。详细 schema 通过 load_context、tool_search 或工具 observation 按需出现。MCP 工具优先使用 tool_search/capability_context 中的 mcp:<server>:<tool> direct spec；没有 direct spec 时，再用 mcp_bridge 做管理/修复。请按任务目标和证据缺口选择最小必要工具，避免关键词驱动的机械路由。',
         '可见回复格式：final_answer 字段是给用户看的 Markdown 字符串，可以使用自然段、短列表、代码块和加粗；blocked_reason 也按 Markdown 组织。不要输出 HTML。',
         '只输出 JSON，JSON 外不要输出 Markdown。',
-        'JSON 格式：{"mode":"conversation|task","intent":"...","summary":"...","action":"load_context|tool|final|blocked","capability_request":{"skills":[],"tools":[],"mcp":[],"reason":"..."},"plan_update":["..."],"tool_call":{"tool":"vision.capture_context|computer|email|code|file_manager|mcp_bridge|subagents|update_plan|read|write|exec|apply_patch","title":"...","args":{"action":"...","target":"screen|chat-window|active-window|region","reason":"...","question":"..."}},"final_answer":"Markdown...","blocked_reason":"Markdown..."}',
+        'persona_output 字段示例：{"text":"自然可见回复","bubble_text":"可选气泡短句","speech_text":"可选语音文本","emotion":"happy|relaxed|shy|sad|angry|surprised|anxious|tired|thinking|focused|comforting","intensity":0.55,"socialTone":"soft|bright|calm|serious|playful|quiet","gestureIntent":"none|greeting|farewell|thinking|working|approval|success|celebrate|shy|comfort|apologize|surprised|angry|dance","taskState":"idle|listening|thinking|speaking|working|waiting_approval|happy_success|apologizing|comforting|blocked|failed","speechEnergy":0.45,"gazeTarget":"user|side|down|screen|away|none","durationHint":"short|medium|long|hold","tts_style":"..."}',
+        'JSON 格式：{"mode":"conversation|task","intent":"...","summary":"...","public_reasoning":"给用户看的短进度摘要，可空","action":"load_context|tool|final|blocked","capability_request":{"skills":[],"tools":[],"mcp":[],"reason":"..."},"plan_update":["..."],"tool_call":{"tool":"vision.capture_context|computer|email|code|file_manager|artifact_verifier|tool_search|mcp_bridge|capability_manager|self_debugger|subagents|update_plan|read|write|exec|apply_patch|mcp:<server>:<tool>","title":"...","args":{"action":"...","target":"screen|chat-window|active-window|region","reason":"...","question":"..."}},"persona_output":{},"final_answer":"Markdown...","blocked_reason":"Markdown..."}',
         `最多工具轮数：${maxSteps}`,
-        `工具摘要：${toolSummary || 'computer/code/email/file_manager/read/write/exec/apply_patch/web_fetch'}`
+        `工具摘要：${toolSummary || 'Core tools are indexed in capability_catalog; detailed contracts and MCP tool specs are deferred.'}`
     ].join('\n');
     const eventText = events.length
         ? events.map((event, index) => `${index + 1}. ${buildAgentEventPreview(event)}`).join('\n')
@@ -2234,6 +2899,11 @@ function buildLlmAgentExecutorMessages({
                     user_goal: message,
                     recent_conversation: recentConversation,
                     memory_context: memoryContext || null,
+                    attached_files: getAttachedFilesPromptObject(fileAttachments),
+                    recent_turn_items: buildTurnItemsPromptObject({
+                        events,
+                        stepResults
+                    }),
                     initial_plan_hint: initialPlanHint,
                     capability_catalog: capabilityCatalog,
                     current_progress: eventText,
@@ -2265,7 +2935,11 @@ async function callLlmAgentDecision(settings, payload) {
         };
     }
 
-    let toolCall = sanitizeAgentToolCall(json.tool_call || json.toolCall || json.next_step || json.nextStep, 0, 'execute');
+    let toolCall = sanitizeAgentToolCall(
+        json.tool_call || json.toolCall || json.next_step || json.nextStep || buildRootToolCallCandidate(json),
+        0,
+        'execute'
+    );
     let legacyPlan = false;
     if (!toolCall && Array.isArray(json.steps) && json.steps.length) {
         toolCall = sanitizeAgentToolCall(json.steps[0], 0, 'execute');
@@ -2281,12 +2955,13 @@ async function callLlmAgentDecision(settings, payload) {
             json.request_context ||
             json.requestContext
     );
+    const personaOutput = sanitizePersonaOutput(json.persona_output || json.personaOutput || json.surface);
 
     const inferredAction = capabilityRequest.hasAny
         ? 'load_context'
         : toolCall
         ? 'tool'
-        : normalizeText(json.final_answer || json.answer || json.response)
+        : normalizeText(json.final_answer || json.answer || json.response || personaOutput?.text || personaOutput?.bubbleText)
             ? 'final'
             : '';
     const action = normalizeAgentAction(json.action || json.next_action || json.nextAction, inferredAction);
@@ -2328,17 +3003,94 @@ async function callLlmAgentDecision(settings, payload) {
         mode: json.mode === 'conversation' && action !== 'tool' ? 'conversation' : 'task',
         intent: normalizeText(json.intent, action === 'tool' ? 'llm_agent_tool_call' : 'llm_agent_final'),
         summary: normalizeText(json.summary || json.objective || json.goal),
+        publicReasoning: normalizePublicReasoningText(
+            json.public_reasoning ||
+                json.publicReasoning ||
+                json.reasoning_summary ||
+                json.reasoningSummary ||
+                json.visible_reasoning ||
+                json.visibleReasoning ||
+                json.thinking_summary ||
+                json.thinkingSummary,
+            normalizeText(json.summary || json.objective || json.goal)
+        ),
         riskLevel: normalizeText(json.risk_level || json.riskLevel, toolCall && agentStepNeedsConfirmation(toolCall) ? 'medium' : 'low'),
         action,
-        finalAnswer,
+        finalAnswer: finalAnswer || personaOutput?.text || personaOutput?.bubbleText || '',
         blockedReason,
         toolCall,
         capabilityRequest,
         planUpdates: normalizePlanUpdates(json.plan_update || json.planUpdate || json.plan),
+        personaOutput,
         legacyPlan,
         raw: json,
         model: response.model,
         usage: response.usage
+    };
+}
+
+const AGENT_DECISION_REPAIR_STATUSES = new Set([
+    'invalid_agent_decision',
+    'invalid_agent_tool_call',
+    'invalid_capability_request',
+    'plan_only_or_unknown_action'
+]);
+
+function buildAgentDecisionRepairMessages(messages = [], decision = {}) {
+    return [
+        ...messages,
+        {
+            role: 'user',
+            content: JSON.stringify(
+                {
+                    protocol_error: decision.status || 'invalid_agent_decision',
+                    error: decision.error || '',
+                    previous_output: typeof decision.raw === 'string'
+                        ? decision.raw
+                        : JSON.stringify(decision.raw || {}, null, 2),
+                    required_output_shape: {
+                        action: 'load_context|tool|final|blocked',
+                        tool_call: {
+                            tool: 'tool_search|mcp_bridge|mcp:<server>:<tool>|computer|code|email|file_manager|vision.capture_context|subagents|capability_manager|self_debugger|read|write|exec|apply_patch',
+                            title: 'short action title',
+                            args: {}
+                        },
+                        final_answer: 'visible answer when action is final',
+                        blocked_reason: 'visible reason when action is blocked'
+                    },
+                    instruction: 'Repair only the JSON protocol for the next step. Output strict JSON only. If a tool is needed, action must be "tool" and tool_call must be one object with tool/title/args.'
+                },
+                null,
+                2
+            )
+        }
+    ];
+}
+
+async function callLlmAgentDecisionWithRepair(settings, payload) {
+    const first = await callLlmAgentDecision(settings, payload);
+    if (first.ok || !AGENT_DECISION_REPAIR_STATUSES.has(first.status)) {
+        return first;
+    }
+    const repaired = await callLlmAgentDecision(settings, {
+        ...payload,
+        temperature: 0,
+        messages: buildAgentDecisionRepairMessages(payload.messages || [], first)
+    });
+    if (repaired.ok) {
+        return {
+            ...repaired,
+            repaired: true,
+            repairedFrom: first.status,
+            repairError: first.error
+        };
+    }
+    return {
+        ...first,
+        repairAttempted: true,
+        repairStatus: repaired.status,
+        repairError: repaired.error,
+        repairRaw: repaired.raw
     };
 }
 
@@ -2470,6 +3222,71 @@ class HumanClawAgentRunner {
                 'affinity_memory'
             ]
         };
+    }
+
+    buildPersonaGatewayInput({ result = {}, message = '', requestContext = {}, nextAction = '', source = '' } = {}) {
+        const taskState = inferTaskStateFromResult(result);
+        const status = normalizeText(result.status || '');
+        const approvalState = result.confirmationRequired || status === 'needs_approval' ? 'required' : 'none';
+        const evidenceState = inferEvidenceStateFromStepResults(result.steps || []);
+        const relationshipStage = inferRelationshipStageFromContext(requestContext);
+        const personaHint = result.personaOutput && typeof result.personaOutput === 'object' ? result.personaOutput : {};
+        const firstPlanStep = Array.isArray(result.plan) && result.plan.length ? result.plan[0] : null;
+        const latestStep = Array.isArray(result.steps) && result.steps.length
+            ? result.steps[result.steps.length - 1]
+            : null;
+        const latestToolStatus = normalizeText(latestStep?.response?.status || latestStep?.status || '');
+        const firstTool = normalizeText(
+            result.surface?.toolId ||
+            latestStep?.tool ||
+            firstPlanStep?.tool ||
+            ''
+        );
+        const candidateText = stripControlTags(result.displayText || result.error || personaHint.text || '');
+        const candidateEmotionHint = inferEmotionHintFromMessage(candidateText);
+        const messageEmotionHint = inferEmotionHintFromMessage(message);
+        const emotionHint = candidateEmotionHint !== 'neutral' ? candidateEmotionHint : messageEmotionHint;
+        return {
+            task_state: taskState,
+            approval_state: approvalState,
+            evidence_state: evidenceState,
+            error_code: normalizeText(latestToolStatus || result.error || status || ''),
+            reason: normalizeText(result.blockedReason || result.error || latestStep?.response?.error || result.review?.finalAnswer || ''),
+            relationship_stage: relationshipStage,
+            emotion_hint: personaHint.emotion || result.surface?.emotion || emotionHint,
+            emotion: personaHint.emotion || result.surface?.emotion || emotionHint,
+            intensity: personaHint.intensity ?? result.surface?.intensity,
+            social_tone: personaHint.socialTone || result.surface?.socialTone || '',
+            gesture_intent: personaHint.gestureIntent || result.surface?.gestureIntent || '',
+            surface_task_state: personaHint.taskState || result.surface?.taskState || '',
+            speech_energy: personaHint.speechEnergy ?? result.surface?.speechEnergy,
+            gaze_target: personaHint.gazeTarget || result.surface?.gazeTarget || '',
+            duration_hint: personaHint.durationHint || result.surface?.durationHint || '',
+            next_action: inferNextActionFromResult(result, nextAction),
+            text: candidateText,
+            speech_text: stripControlTags(result.speechText || personaHint.speechText || result.surface?.speechText || candidateText),
+            bubble_text: stripControlTags(result.bubbleText || personaHint.bubbleText || result.surface?.bubbleText || ''),
+            tts_style: normalizeText(result.surface?.ttsStyle || personaHint.ttsStyle || ''),
+            tool_id: firstTool,
+            action: result.surface?.action || personaHint.action || '',
+            source: normalizeText(source || result.surface?.source || result.planner || 'runner'),
+            text_is_persona_safe: result.surface?.renderer === 'aigl-persona-renderer'
+        };
+    }
+
+    presentUserResult({ result = {}, message = '', requestContext = {}, nextAction = '', source = '' } = {}) {
+        if (!result || typeof result !== 'object') {
+            return result;
+        }
+        const gatewayInput = this.buildPersonaGatewayInput({
+            result,
+            message,
+            requestContext,
+            nextAction,
+            source
+        });
+        const surface = renderPersonaSurfaceGateway(gatewayInput);
+        return attachPersonaSurface(result, surface);
     }
 
     compileMemoryContext({ sessionId, message, request } = {}) {
@@ -2790,14 +3607,15 @@ class HumanClawAgentRunner {
         if (isVisionAgentStep(step)) {
             const targetLabel = getVisionStepTargetLabel(step);
             const reason = normalizeText(step.args?.reason || step.args?.question || pendingApproval.summary);
-            const displayText = dryRun
-                ? `我判断这里需要看一眼${targetLabel}，但还没有截图。`
-                : [
-                      `[expression:relaxed]这里我只靠文字不太确定，可以看一眼${targetLabel}吗？`,
-                      reason ? `我想确认一下：${reason}` : '',
-                      '可以的话回我“可以看”，不想让我看就说“先别看”。'
-                  ].filter(Boolean).join('\n');
-            return {
+            const surface = renderApprovalSurface({
+                toolId: step.tool,
+                title: step.title,
+                action,
+                reason,
+                dryRun,
+                visionTargetLabel: targetLabel
+            });
+            return attachPersonaSurface({
                 ok: dryRun,
                 runId,
                 sessionId,
@@ -2812,8 +3630,6 @@ class HumanClawAgentRunner {
                 executionRequired: true,
                 durationMs: Date.now() - startedAt,
                 message,
-                displayText,
-                speechText: displayText.replace(/\n/g, ' '),
                 plan: [
                     {
                         id: step.id,
@@ -2824,19 +3640,15 @@ class HumanClawAgentRunner {
                 ],
                 steps: pendingApproval.stepResults || [],
                 events: pendingApproval.events || []
-            };
+            }, surface);
         }
-        const displayText = dryRun
-            ? [
-                  '我识别到下一步可能需要工具动作：',
-                  `1. ${step.title || step.tool}${action ? `：${action}` : ''}`
-              ].join('\n')
-            : [
-                  '[expression:relaxed]这一步会影响电脑或调用需要确认的工具，我先停住等你点头。',
-                  `我准备做的是：${step.title || step.tool}${action ? `：${action}` : ''}`,
-                  '如果确认，请回复“确认执行”；如果不执行，请回复“取消”。'
-              ].join('\n');
-        return {
+        const surface = renderApprovalSurface({
+            toolId: step.tool,
+            title: step.title,
+            action,
+            dryRun
+        });
+        return attachPersonaSurface({
             ok: dryRun,
             runId,
             sessionId,
@@ -2851,8 +3663,6 @@ class HumanClawAgentRunner {
             executionRequired: true,
             durationMs: Date.now() - startedAt,
             message,
-            displayText,
-            speechText: displayText.replace(/\n/g, ' '),
             plan: [
                 {
                     id: step.id,
@@ -2863,7 +3673,7 @@ class HumanClawAgentRunner {
             ],
             steps: pendingApproval.stepResults || [],
             events: pendingApproval.events || []
-        };
+        }, surface);
     }
 
     async executePlanSteps({ runId, steps, toolContext, request }) {
@@ -2874,6 +3684,7 @@ class HumanClawAgentRunner {
                 stepId: step.id,
                 title: step.title,
                 tool: step.tool,
+                args: step.args,
                 planner: 'llm-computer-planner',
                 phase: step.phase || 'execute'
             });
@@ -2922,6 +3733,7 @@ class HumanClawAgentRunner {
             stepId: step.id,
             title: step.title,
             tool: step.tool,
+            args: step.args,
             planner: 'llm-agentic-executor',
             phase: step.phase || 'execute',
             iteration
@@ -2966,22 +3778,28 @@ class HumanClawAgentRunner {
     async executeConfirmedPlan({ request, pendingPlan, sessionId, requestContext, startedAt, runId }) {
         if (isPlanExpired(pendingPlan)) {
             this.deletePendingPlan(pendingPlan.planId, 'pending_plan_expired');
-            return {
-                ok: false,
-                runId,
-                sessionId,
-                status: 'expired',
-                mode: 'task',
-                planner: 'llm-computer-planner',
-                intent: pendingPlan.intent || 'llm_computer_task',
-                executionRequired: false,
-                durationMs: Date.now() - startedAt,
+            return this.presentUserResult({
+                result: {
+                    ok: false,
+                    runId,
+                    sessionId,
+                    status: 'expired',
+                    mode: 'task',
+                    planner: 'llm-computer-planner',
+                    intent: pendingPlan.intent || 'llm_computer_task',
+                    executionRequired: false,
+                    durationMs: Date.now() - startedAt,
+                    message: pendingPlan.message,
+                    displayText: '这个待确认计划已经过期了，请重新发起任务。',
+                    speechText: '这个待确认计划已经过期了，请重新发起任务。',
+                    planId: pendingPlan.planId,
+                    steps: []
+                },
                 message: pendingPlan.message,
-                displayText: '这个待确认计划已经过期了，请重新发起任务。',
-                speechText: '这个待确认计划已经过期了，请重新发起任务。',
-                planId: pendingPlan.planId,
-                steps: []
-            };
+                requestContext,
+                nextAction: '重新发起这条任务',
+                source: 'confirmed_plan_expired'
+            });
         }
 
         const settings = resolveAgentLlmSettings(request, requestContext);
@@ -3035,37 +3853,43 @@ class HumanClawAgentRunner {
         ].filter(Boolean).join('\n');
 
         this.deletePendingPlan(pendingPlan.planId, 'pending_plan_confirmed');
-        return {
-            ok,
-            runId,
-            sessionId,
-            status: ok ? 'completed' : status,
-            mode: 'task',
-            planner: 'llm-computer-planner',
-            intent: pendingPlan.intent || 'llm_computer_task',
-            confirmationRequired: false,
-            confirmedPlanId: pendingPlan.planId,
-            executionRequired: pendingPlan.steps.length > 0,
-            durationMs: Date.now() - startedAt,
+        return this.presentUserResult({
+            result: {
+                ok,
+                runId,
+                sessionId,
+                status: ok ? 'completed' : status,
+                mode: 'task',
+                planner: 'llm-computer-planner',
+                intent: pendingPlan.intent || 'llm_computer_task',
+                confirmationRequired: false,
+                confirmedPlanId: pendingPlan.planId,
+                executionRequired: pendingPlan.steps.length > 0,
+                durationMs: Date.now() - startedAt,
+                message: pendingPlan.message,
+                displayText,
+                speechText: displayText.replace(/\n/g, ' '),
+                plan: pendingPlan.steps.map((step) => ({
+                    id: step.id,
+                    title: step.title,
+                    tool: step.tool,
+                    args: step.args
+                })),
+                verificationPlan: pendingPlan.verificationSteps.map((step) => ({
+                    id: step.id,
+                    title: step.title,
+                    tool: step.tool,
+                    args: step.args
+                })),
+                steps: stepResults,
+                verificationSteps: verificationResults,
+                review
+            },
             message: pendingPlan.message,
-            displayText,
-            speechText: displayText.replace(/\n/g, ' '),
-            plan: pendingPlan.steps.map((step) => ({
-                id: step.id,
-                title: step.title,
-                tool: step.tool,
-                args: step.args
-            })),
-            verificationPlan: pendingPlan.verificationSteps.map((step) => ({
-                id: step.id,
-                title: step.title,
-                tool: step.tool,
-                args: step.args
-            })),
-            steps: stepResults,
-            verificationSteps: verificationResults,
-            review
-        };
+            requestContext,
+            nextAction: ok ? '' : '从当前失败点继续处理',
+            source: 'confirmed_plan_result'
+        });
     }
 
     async runLlmAgentLoop({
@@ -3083,26 +3907,33 @@ class HumanClawAgentRunner {
         settingsOverride = null
     }) {
         const settings = settingsOverride || resolveAgentLlmSettings(request, requestContext);
+        const fileAttachments = getLatestUserFileAttachments(request);
         const missingSettings = !settings.baseUrl || !settings.model || !settings.apiKey;
         if (missingSettings) {
             const displayText = '我还没有拿到可用的大模型配置，所以现在不能由 Agent Loop 判断并执行这句话。请先在控制面板里配置 API Base、模型和 Key。';
-            return {
-                ok: false,
-                runId,
-                sessionId,
-                status: 'needs_llm_config',
-                mode: 'conversation',
-                planner: 'llm-agentic-executor',
-                intent: 'llm_config_required',
-                executionRequired: false,
-                durationMs: Date.now() - startedAt,
+            return this.presentUserResult({
+                result: {
+                    ok: false,
+                    runId,
+                    sessionId,
+                    status: 'needs_llm_config',
+                    mode: 'conversation',
+                    planner: 'llm-agentic-executor',
+                    intent: 'llm_config_required',
+                    executionRequired: false,
+                    durationMs: Date.now() - startedAt,
+                    message,
+                    displayText,
+                    speechText: displayText,
+                    plan: [],
+                    steps: [],
+                    events: initialEvents
+                },
                 message,
-                displayText,
-                speechText: displayText,
-                plan: [],
-                steps: [],
-                events: initialEvents
-            };
+                requestContext,
+                nextAction: '在控制面板补全模型配置',
+                source: 'llm_agent_missing_config'
+            });
         }
         const runtime = this.gateway.runtime;
         let runtimeStarted = false;
@@ -3128,13 +3959,38 @@ class HumanClawAgentRunner {
                 ...item
             });
         };
-        const finishRuntimeRun = async (result) => {
-            if (!runtimeStarted || !runtime) {
-                return result;
+        const finishRuntimeRun = async (result, options = {}) => {
+            const presented = this.presentUserResult({
+                result,
+                message,
+                requestContext,
+                nextAction: options.nextAction || '',
+                source: options.source || ''
+            });
+            this.gateway.emitGatewayEvent?.('agent.message.completed', {
+                runId,
+                sessionId,
+                status: presented.status || result.status || '',
+                ok: presented.ok === true,
+                text: presented.displayText || presented.finalAnswer || '',
+                speechText: presented.speechText || '',
+                bubbleText: presented.bubbleText || '',
+                source: options.source || 'agent_final'
+            });
+            if (presented.surface) {
+                this.gateway.emitGatewayEvent?.('persona.surface', {
+                    runId,
+                    sessionId,
+                    status: presented.status || result.status || '',
+                    surface: presented.surface
+                });
             }
-            const transcript = await runtime.completeRun(runId, result);
+            if (!runtimeStarted || !runtime) {
+                return presented;
+            }
+            const transcript = await runtime.completeRun(runId, presented);
             return {
-                ...result,
+                ...presented,
                 transcript
             };
         };
@@ -3144,7 +4000,7 @@ class HumanClawAgentRunner {
             requestContext.confirmationPolicy === 'auto';
         const approved = approvedForRun || autoConfirm || requestContext.approved === true;
         const requestedMaxSteps = Number(request.maxAgentSteps || requestContext.maxAgentSteps || DEFAULT_AGENT_LOOP_STEPS);
-        const maxSteps = Math.max(1, Math.min(Number.isFinite(requestedMaxSteps) ? requestedMaxSteps : DEFAULT_AGENT_LOOP_STEPS, 20));
+        const maxSteps = Math.max(1, Math.min(Number.isFinite(requestedMaxSteps) ? requestedMaxSteps : DEFAULT_AGENT_LOOP_STEPS, MAX_AGENT_LOOP_STEPS));
         const events = initialEvents.slice();
         const stepResults = initialStepResults.slice();
         const initialPlan = request.initialPlan || requestContext.initialPlan || null;
@@ -3167,18 +4023,20 @@ class HumanClawAgentRunner {
                 stepResults,
                 requestContext
             });
-            const decision = await callLlmAgentDecision(settings, {
+            const decision = await callLlmAgentDecisionWithRepair(settings, {
                 temperature: settings.temperature,
                 timeoutMs: decisionTimeoutMs,
                 messages: buildLlmAgentExecutorMessages({
                     message,
                     messageHistory: request.messageHistory,
                     events,
+                    stepResults,
                     maxSteps,
                     emailProfiles,
                     initialPlan,
                     memoryContext,
-                    toolSummary: 'vision.capture_context: read-only screen/chat-window/active-window/region visual observation; computer: list/tree/stat/read/write/append/mkdir/copy/move/delete/search/hash/du/exec/session_start/process_read/process_write/process_kill/watch/rollback/binary/acl/pty; code: search/symbols/diagnostics/git/test/refactor; email/file_manager when explicitly needed; update_plan is driven by plan_update; subagents spawn/wait/log child agent runs; mcp_bridge list_tools/call_tool/read_resource against configured MCP servers'
+                    fileAttachments,
+                    toolSummary: 'Codex-like capability index only. Load detailed tool contracts with load_context; load MCP tools through mcp_bridge search_tools/list_tool_specs or direct mcp:<server>:<tool> specs from capability_context.'
                 })
             });
             latestDecision = decision;
@@ -3193,6 +4051,7 @@ class HumanClawAgentRunner {
                     mode: decision.mode,
                     intent: decision.intent,
                     summary: decision.summary,
+                    publicReasoning: decision.publicReasoning,
                     riskLevel: decision.riskLevel,
                     toolCall: decision.toolCall
                         ? {
@@ -3204,12 +4063,44 @@ class HumanClawAgentRunner {
                         : null,
                     capabilityRequest: decision.capabilityRequest,
                     planUpdates: decision.planUpdates || [],
-                    error: decision.error
+                    error: decision.error,
+                    repaired: decision.repaired === true,
+                    repairedFrom: decision.repairedFrom || '',
+                    repairAttempted: decision.repairAttempted === true,
+                    repairStatus: decision.repairStatus || '',
+                    repairError: decision.repairError || ''
                 }
             });
+            if (decision.ok && decision.action !== 'final' && decision.publicReasoning) {
+                const reasoningEvent = {
+                    type: 'reasoning',
+                    status: 'delta',
+                    iteration,
+                    text: decision.publicReasoning
+                };
+                events.push(reasoningEvent);
+                this.gateway.emitGatewayEvent?.('agent.reasoning.delta', {
+                    runId,
+                    sessionId,
+                    iteration,
+                    text: decision.publicReasoning,
+                    action: decision.action,
+                    intent: decision.intent
+                });
+                await appendRuntimeItem({
+                    type: 'agent.reasoning',
+                    status: 'delta',
+                    payload: {
+                        iteration,
+                        text: decision.publicReasoning,
+                        action: decision.action,
+                        intent: decision.intent
+                    }
+                });
+            }
             if (!decision.ok) {
-                const displayText = `Agentic Executor 决策失败：${decision.error}`;
-                return await finishRuntimeRun({
+                const displayText = `我这一步没有拿到可靠的下一步判断，先停一下：${decision.error}`;
+                return await finishRuntimeRun(attachPersonaSurface({
                     ok: false,
                     runId,
                     sessionId,
@@ -3226,10 +4117,16 @@ class HumanClawAgentRunner {
                     plan: [],
                     steps: stepResults,
                     events
-                });
+                }, renderStatusSurface({
+                    text: displayText,
+                    status: decision.status,
+                    ok: false,
+                    source: 'agent_decision_error',
+                    expression: 'surprised'
+                })));
             }
 
-            if (decision.planUpdates?.length) {
+            if (decision.planUpdates?.length && decision.action !== 'final') {
                 const planResponse = await this.gateway.callTool({
                     tool: 'update_plan',
                     args: {
@@ -3237,7 +4134,7 @@ class HumanClawAgentRunner {
                         plan: decision.planUpdates.map((step, index) => ({
                             id: `agent-plan-${iteration + 1}-${index + 1}`,
                             step,
-                            status: index === decision.planUpdates.length - 1 ? 'in_progress' : 'completed'
+                            status: index === 0 ? 'in_progress' : 'pending'
                         }))
                     },
                     context: {
@@ -3260,11 +4157,15 @@ class HumanClawAgentRunner {
             }
 
             if (decision.action === 'load_context') {
-                const capabilityEvent = buildCapabilityContextEvent({
-                    capabilityRequest: decision.capabilityRequest,
-                    emailProfiles,
-                    iteration
-                });
+                const capabilityEvent = await enrichCapabilityContextWithMcpToolSpecs(
+                    buildCapabilityContextEvent({
+                        capabilityRequest: decision.capabilityRequest,
+                        emailProfiles,
+                        iteration
+                    }),
+                    this.gateway.runtime,
+                    { timeoutMs: request.timeoutMs || requestContext.timeoutMs || 8000 }
+                );
                 events.push(capabilityEvent);
                 await appendRuntimeItem({
                     type: 'agent.capability_context',
@@ -3280,54 +4181,105 @@ class HumanClawAgentRunner {
             }
 
             if (decision.action === 'final') {
-                const displayText = decision.finalAnswer || '任务完成。';
-                return await finishRuntimeRun({
-                    ok: true,
+                const displayText = decision.finalAnswer || decision.summary || '任务完成。';
+                const failureSurface = renderLatestToolFailureSurface({
+                    stepResults,
+                    message,
+                    intent: decision.intent,
+                    fallbackText: displayText
+                });
+                const visibleText = failureSurface?.text || displayText;
+                const result = {
+                    ok: !failureSurface,
                     runId,
                     sessionId,
-                    status: 'completed',
+                    status: failureSurface
+                        ? normalizeText(getLatestFailedToolStepResult(stepResults)?.response?.status, 'tool_failed')
+                        : 'completed',
                     mode: decision.mode,
                     planner: 'llm-agentic-executor',
                     intent: decision.intent,
                     executionRequired: stepResults.length > 0,
                     durationMs: Date.now() - startedAt,
                     message,
-                    displayText,
-                    speechText: displayText.replace(/\n/g, ' '),
+                    displayText: visibleText,
+                    speechText: failureSurface
+                        ? visibleText.replace(/\n/g, ' ')
+                        : normalizeText(decision.personaOutput?.speechText, visibleText.replace(/\n/g, ' ')),
+                    bubbleText: failureSurface
+                        ? ''
+                        : normalizeText(decision.personaOutput?.bubbleText),
                     plan: [],
                     steps: stepResults,
                     events,
                     planUpdates: decision.planUpdates,
-                    usage: decision.usage
-                });
+                    usage: decision.usage,
+                    personaOutput: failureSurface
+                        ? null
+                        : {
+                              text: normalizeText(decision.personaOutput?.text || visibleText),
+                              speechText: normalizeText(decision.personaOutput?.speechText),
+                              bubbleText: normalizeText(decision.personaOutput?.bubbleText),
+                              expression: normalizeText(decision.personaOutput?.expression),
+                              action: normalizeText(decision.personaOutput?.action),
+                              emotion: normalizeText(decision.personaOutput?.emotion),
+                              intensity: decision.personaOutput?.intensity,
+                              socialTone: normalizeText(decision.personaOutput?.socialTone),
+                              gestureIntent: normalizeText(decision.personaOutput?.gestureIntent),
+                              taskState: normalizeText(decision.personaOutput?.taskState),
+                              speechEnergy: decision.personaOutput?.speechEnergy,
+                              gazeTarget: normalizeText(decision.personaOutput?.gazeTarget),
+                              durationHint: normalizeText(decision.personaOutput?.durationHint),
+                              ttsStyle: normalizeText(decision.personaOutput?.ttsStyle)
+                          }
+                };
+                return await finishRuntimeRun(
+                    failureSurface ? attachPersonaSurface(result, failureSurface) : result,
+                    { source: failureSurface ? 'tool_failure' : 'agent_final' }
+                );
             }
 
             if (decision.action === 'blocked') {
-                const displayText = decision.blockedReason || decision.finalAnswer || 'Agentic Executor 判断当前任务无法继续。';
-                return await finishRuntimeRun({
+                const displayText = decision.blockedReason || decision.finalAnswer || '我判断现在继续下去不太稳，先停住，等你给我补一点信息。';
+                const failureSurface = renderLatestToolFailureSurface({
+                    stepResults,
+                    message,
+                    intent: decision.intent,
+                    fallbackText: displayText
+                });
+                const visibleText = failureSurface?.text || displayText;
+                return await finishRuntimeRun(attachPersonaSurface({
                     ok: false,
                     runId,
                     sessionId,
-                    status: 'blocked',
+                    status: failureSurface
+                        ? normalizeText(getLatestFailedToolStepResult(stepResults)?.response?.status, 'tool_failed')
+                        : 'blocked',
                     mode: 'task',
                     planner: 'llm-agentic-executor',
                     intent: decision.intent,
                     executionRequired: stepResults.length > 0,
                     durationMs: Date.now() - startedAt,
                     message,
-                    displayText,
-                    speechText: displayText.replace(/\n/g, ' '),
+                    displayText: visibleText,
+                    speechText: visibleText.replace(/\n/g, ' '),
                     plan: [],
                     steps: stepResults,
                     events,
                     planUpdates: decision.planUpdates
-                });
+                }, failureSurface || renderStatusSurface({
+                    text: visibleText,
+                    status: 'blocked',
+                    ok: false,
+                    source: 'agent_blocked',
+                    expression: 'relaxed'
+                })));
             }
 
-            const step = decision.toolCall;
+            let step = decision.toolCall;
             if (!step) {
-                const displayText = 'Agentic Executor 没有给出可执行工具调用。';
-                return await finishRuntimeRun({
+                const displayText = '我知道这轮应该继续处理，但没有拿到可执行的下一步，所以先停住。你可以让我从当前任务重新整理一下。';
+                return await finishRuntimeRun(attachPersonaSurface({
                     ok: false,
                     runId,
                     sessionId,
@@ -3343,6 +4295,46 @@ class HumanClawAgentRunner {
                     plan: [],
                     steps: stepResults,
                     events
+                }, renderStatusSurface({
+                    text: displayText,
+                    status: 'invalid_agent_tool_call',
+                    ok: false,
+                    source: 'agent_invalid_tool_call',
+                    expression: 'surprised'
+                })));
+            }
+
+            const deferredToolContract = buildDeferredToolContractRequest(step, events);
+            if (deferredToolContract) {
+                const note = {
+                    type: 'runtime_note',
+                    status: 'tool_contract_deferred_loaded',
+                    iteration,
+                    tool: step.tool,
+                    normalizedTool: deferredToolContract.toolId,
+                    reason: '首轮 capability_catalog 只保留能力索引；该工具的 contract/schema 已按需加载到后续 capability_context。'
+                };
+                events.push(note);
+                const capabilityEvent = await enrichCapabilityContextWithMcpToolSpecs(
+                    buildCapabilityContextEvent({
+                        capabilityRequest: deferredToolContract.capabilityRequest,
+                        emailProfiles,
+                        iteration
+                    }),
+                    this.gateway.runtime,
+                    { timeoutMs: request.timeoutMs || requestContext.timeoutMs || 8000 }
+                );
+                events.push(capabilityEvent);
+                await appendRuntimeItem({
+                    type: 'agent.tool_contract_context',
+                    status: capabilityEvent.status,
+                    payload: {
+                        iteration,
+                        tool: deferredToolContract.toolId,
+                        request: capabilityEvent.request,
+                        loaded: capabilityEvent.loaded,
+                        missing: capabilityEvent.missing
+                    }
                 });
             }
 
@@ -3380,8 +4372,8 @@ class HumanClawAgentRunner {
                 context: plannedToolContext
             });
             if (policyDecision?.denied) {
-                const displayText = `Agentic Executor 的下一步被 runtime 权限模型拒绝：${policyDecision.reason}`;
-                return await finishRuntimeRun({
+                const displayText = `这一步被本地权限边界拦住了，我不会硬往下做。原因是：${policyDecision.reason}`;
+                return await finishRuntimeRun(attachPersonaSurface({
                     ok: false,
                     runId,
                     sessionId,
@@ -3398,7 +4390,13 @@ class HumanClawAgentRunner {
                     steps: stepResults,
                     events,
                     policyDecision
-                });
+                }, renderStatusSurface({
+                    text: displayText,
+                    status: 'blocked',
+                    ok: false,
+                    source: 'agent_policy_blocked',
+                    expression: 'relaxed'
+                })));
             }
             const visionAutoApproved = isVisionAgentStep(step) && isVisionAutoApprovedContext(requestContext);
             const needsVisionConsent = isVisionAgentStep(step) && !visionAutoApproved;
@@ -3478,14 +4476,14 @@ class HumanClawAgentRunner {
             }
         }
 
-        const displayText = [
-            `我试着继续处理，但这一轮已经到达工具步数上限（${maxSteps}），先停在这里，避免越跑越乱。`,
-            latestDecision?.summary ? `当前卡住的是：${latestDecision.summary}` : '',
-            stepResults.length ? '我已经做过这些步骤：' : '',
-            ...stepResults.map((result) => formatStepResultBrief(result)),
-            '我没有把原始工具日志直接堆给你；如果你要继续，我可以从当前卡点接着往下查。'
-        ].filter(Boolean).join('\n');
-        return await finishRuntimeRun({
+        const surface = renderMaxStepsSurface({
+            maxSteps,
+            stepCount: stepResults.length,
+            latestSummary: latestDecision?.summary,
+            mode: latestDecision?.mode || 'task'
+        });
+        const displayText = surface.text;
+        return await finishRuntimeRun(attachPersonaSurface({
             ok: false,
             runId,
             sessionId,
@@ -3501,30 +4499,36 @@ class HumanClawAgentRunner {
             plan: [],
             steps: stepResults,
             events
-        });
+        }, surface));
     }
 
     async executePendingAgentApproval({ request, pendingApproval, sessionId, requestContext, startedAt, runId }) {
         if (isPlanExpired(pendingApproval)) {
             this.deletePendingAgentApproval(pendingApproval.approvalId, 'pending_agent_approval_expired');
             const displayText = '这个待确认工具动作已经过期了，请重新发起任务。';
-            return {
-                ok: false,
-                runId,
-                sessionId,
-                status: 'expired',
-                mode: 'task',
-                planner: 'llm-agentic-executor',
-                intent: pendingApproval.intent || 'agent_action_expired',
-                executionRequired: false,
-                durationMs: Date.now() - startedAt,
+            return this.presentUserResult({
+                result: {
+                    ok: false,
+                    runId,
+                    sessionId,
+                    status: 'expired',
+                    mode: 'task',
+                    planner: 'llm-agentic-executor',
+                    intent: pendingApproval.intent || 'agent_action_expired',
+                    executionRequired: false,
+                    durationMs: Date.now() - startedAt,
+                    message: pendingApproval.message,
+                    displayText,
+                    speechText: displayText,
+                    approvalId: pendingApproval.approvalId,
+                    plan: [],
+                    steps: []
+                },
                 message: pendingApproval.message,
-                displayText,
-                speechText: displayText,
-                approvalId: pendingApproval.approvalId,
-                plan: [],
-                steps: []
-            };
+                requestContext,
+                nextAction: '重新发起这条任务',
+                source: 'pending_agent_approval_expired'
+            });
         }
 
         const runtime = this.gateway.runtime;
@@ -3542,13 +4546,38 @@ class HumanClawAgentRunner {
             }
             runtimeStarted = true;
         }
-        const finishRuntimeRun = async (result) => {
-            if (!runtimeStarted || !runtime) {
-                return result;
+        const finishRuntimeRun = async (result, options = {}) => {
+            const presented = this.presentUserResult({
+                result,
+                message: pendingApproval.message,
+                requestContext,
+                nextAction: options.nextAction || '',
+                source: options.source || ''
+            });
+            this.gateway.emitGatewayEvent?.('agent.message.completed', {
+                runId,
+                sessionId,
+                status: presented.status || result.status || '',
+                ok: presented.ok === true,
+                text: presented.displayText || presented.finalAnswer || '',
+                speechText: presented.speechText || '',
+                bubbleText: presented.bubbleText || '',
+                source: options.source || 'agent_final'
+            });
+            if (presented.surface) {
+                this.gateway.emitGatewayEvent?.('persona.surface', {
+                    runId,
+                    sessionId,
+                    status: presented.status || result.status || '',
+                    surface: presented.surface
+                });
             }
-            const transcript = await runtime.completeRun(runId, result);
+            if (!runtimeStarted || !runtime) {
+                return presented;
+            }
+            const transcript = await runtime.completeRun(runId, presented);
             return {
-                ...result,
+                ...presented,
                 transcript
             };
         };
@@ -3587,8 +4616,15 @@ class HumanClawAgentRunner {
         events.push(buildToolResultEvent(stepResult));
 
         if (!stepResult.response?.ok && stepResult.response?.status === 'needs_approval') {
-            const displayText = `${step.title || step.tool} 仍然需要更高权限或额外确认，当前 Gateway 拒绝执行。`;
-            return await finishRuntimeRun({
+            const surface = renderToolFailureSurface({
+                step,
+                response: stepResult.response,
+                userMessage: pendingApproval.message,
+                intent: pendingApproval.intent || 'agent_action_confirmation',
+                fallbackText: `${step.title || step.tool} 仍然需要更高权限或额外确认。`
+            });
+            const displayText = surface.text;
+            return await finishRuntimeRun(attachPersonaSurface({
                 ok: false,
                 runId,
                 sessionId,
@@ -3613,7 +4649,7 @@ class HumanClawAgentRunner {
                 ],
                 steps: stepResults,
                 events
-            });
+            }, surface));
         }
 
         return await this.runLlmAgentLoop({
@@ -3661,23 +4697,28 @@ class HumanClawAgentRunner {
         if (pendingAgentApproval && cancelPendingByMessage) {
             this.deletePendingAgentApproval(pendingAgentApproval.approvalId, 'pending_agent_approval_cancelled');
             const displayText = `已取消待确认工具动作：${pendingAgentApproval.nextStep?.title || pendingAgentApproval.approvalId}`;
-            return {
-                ok: true,
-                runId,
-                sessionId,
-                status: 'cancelled',
-                mode: 'task',
-                planner: 'llm-agentic-executor',
-                intent: 'agent_action_cancelled',
-                executionRequired: false,
-                durationMs: Date.now() - startedAt,
+            return this.presentUserResult({
+                result: {
+                    ok: true,
+                    runId,
+                    sessionId,
+                    status: 'cancelled',
+                    mode: 'task',
+                    planner: 'llm-agentic-executor',
+                    intent: 'agent_action_cancelled',
+                    executionRequired: false,
+                    durationMs: Date.now() - startedAt,
+                    message,
+                    displayText,
+                    speechText: displayText,
+                    approvalId: pendingAgentApproval.approvalId,
+                    plan: [],
+                    steps: []
+                },
                 message,
-                displayText,
-                speechText: displayText,
-                approvalId: pendingAgentApproval.approvalId,
-                plan: [],
-                steps: []
-            };
+                requestContext,
+                source: 'run_message_cancel_agent_approval'
+            });
         }
 
         if (pendingAgentApproval) {
@@ -3686,64 +4727,76 @@ class HumanClawAgentRunner {
                 const pendingLabel = isVisionAgentStep(step)
                     ? `检测到待确认视觉感知：看一眼${getVisionStepTargetLabel(step)}`
                     : `检测到待确认工具动作：${step?.title || pendingAgentApproval.approvalId}`;
-                return {
-                    ok: true,
-                    runId,
-                    sessionId,
-                    status: 'classified',
-                    mode: 'task',
-                    planner: 'llm-agentic-executor',
-                    intent: 'agent_action_confirmation',
-                    executionRequired: true,
-                    confirmationRequired: true,
-                    approvalType: 'agent_tool_call',
-                    approvalId: pendingAgentApproval.approvalId,
-                    durationMs: Date.now() - startedAt,
+                return this.presentUserResult({
+                    result: {
+                        ok: true,
+                        runId,
+                        sessionId,
+                        status: 'classified',
+                        mode: 'task',
+                        planner: 'llm-agentic-executor',
+                        intent: 'agent_action_confirmation',
+                        executionRequired: true,
+                        confirmationRequired: true,
+                        approvalType: 'agent_tool_call',
+                        approvalId: pendingAgentApproval.approvalId,
+                        durationMs: Date.now() - startedAt,
+                        message,
+                        displayText: pendingLabel,
+                        speechText: pendingLabel,
+                        plan: step
+                            ? [
+                                  {
+                                      id: step.id,
+                                      title: step.title,
+                                      tool: step.tool,
+                                      args: step.args
+                                  }
+                              ]
+                            : [],
+                        steps: []
+                    },
                     message,
-                    displayText: pendingLabel,
-                    speechText: pendingLabel,
-                    plan: step
-                        ? [
-                              {
-                                  id: step.id,
-                                  title: step.title,
-                                  tool: step.tool,
-                                  args: step.args
-                              }
-                          ]
-                        : [],
-                    steps: []
-                };
+                    requestContext,
+                    nextAction: step?.title || '',
+                    source: 'run_message_classify_pending_agent_approval'
+                });
             }
             const apiConfirmed = request.confirmed === true || requestContext.approved === true;
             if (explicitApprovalId && !apiConfirmed && !confirmedByMessage) {
                 const displayText = '执行待确认工具动作需要明确确认：请回复“确认执行”，或在 API 调用里设置 context.approved=true。';
-                return {
-                    ok: false,
-                    runId,
-                    sessionId,
-                    status: 'needs_approval',
-                    mode: 'task',
-                    planner: 'llm-agentic-executor',
-                    intent: 'agent_action_confirmation_required',
-                    confirmationRequired: true,
-                    approvalType: 'agent_tool_call',
-                    approvalId: pendingAgentApproval.approvalId,
-                    executionRequired: true,
-                    durationMs: Date.now() - startedAt,
+                return this.presentUserResult({
+                    result: {
+                        ok: false,
+                        runId,
+                        sessionId,
+                        status: 'needs_approval',
+                        mode: 'task',
+                        planner: 'llm-agentic-executor',
+                        intent: 'agent_action_confirmation_required',
+                        confirmationRequired: true,
+                        approvalType: 'agent_tool_call',
+                        approvalId: pendingAgentApproval.approvalId,
+                        executionRequired: true,
+                        durationMs: Date.now() - startedAt,
+                        message,
+                        displayText,
+                        speechText: displayText,
+                        plan: [
+                            {
+                                id: pendingAgentApproval.nextStep.id,
+                                title: pendingAgentApproval.nextStep.title,
+                                tool: pendingAgentApproval.nextStep.tool,
+                                args: pendingAgentApproval.nextStep.args
+                            }
+                        ],
+                        steps: pendingAgentApproval.stepResults || []
+                    },
                     message,
-                    displayText,
-                    speechText: displayText,
-                    plan: [
-                        {
-                            id: pendingAgentApproval.nextStep.id,
-                            title: pendingAgentApproval.nextStep.title,
-                            tool: pendingAgentApproval.nextStep.tool,
-                            args: pendingAgentApproval.nextStep.args
-                        }
-                    ],
-                    steps: pendingAgentApproval.stepResults || []
-                };
+                    requestContext,
+                    nextAction: pendingAgentApproval.nextStep?.title || '',
+                    source: 'run_message_needs_agent_approval'
+                });
             }
 
             const runRecord = {
@@ -3810,7 +4863,11 @@ class HumanClawAgentRunner {
                     displayText: result.displayText,
                     planner: result.planner
                 });
-                return result;
+                return this.presentUserResult({
+                    result,
+                    message,
+                    requestContext
+                });
             } finally {
                 this.activeRuns.delete(runId);
                 this.completedRunCount += 1;
@@ -3820,78 +4877,95 @@ class HumanClawAgentRunner {
         if (pendingPlan && cancelPendingByMessage) {
             this.deletePendingPlan(pendingPlan.planId, 'pending_plan_cancelled');
             const displayText = `已取消待确认计划：${pendingPlan.summary || pendingPlan.planId}`;
-            return {
-                ok: true,
-                runId,
-                sessionId,
-                status: 'cancelled',
-                mode: 'task',
-                planner: 'llm-computer-planner',
-                intent: 'plan_cancelled',
-                executionRequired: false,
-                durationMs: Date.now() - startedAt,
-                message,
-                displayText,
-                speechText: displayText,
-                planId: pendingPlan.planId,
-                plan: [],
-                steps: []
-            };
-        }
-
-        if (pendingPlan) {
-            if (request.classifyOnly === true) {
-                return {
+            return this.presentUserResult({
+                result: {
                     ok: true,
                     runId,
                     sessionId,
-                    status: 'classified',
+                    status: 'cancelled',
                     mode: 'task',
                     planner: 'llm-computer-planner',
-                    intent: 'plan_confirmation',
-                    executionRequired: true,
-                    confirmationRequired: true,
-                    planId: pendingPlan.planId,
-                    durationMs: Date.now() - startedAt,
-                    message,
-                    displayText: `检测到待确认计划：${pendingPlan.summary || pendingPlan.planId}`,
-                    speechText: `检测到待确认计划：${pendingPlan.summary || pendingPlan.planId}`,
-                    plan: pendingPlan.steps.map((step) => ({
-                        id: step.id,
-                        title: step.title,
-                        tool: step.tool,
-                        args: step.args
-                    })),
-                    steps: []
-                };
-            }
-            const apiConfirmed = request.confirmed === true || requestContext.approved === true;
-            if (explicitPlanId && !apiConfirmed && !confirmedByMessage) {
-                const displayText = '执行待确认计划需要明确确认：请回复“确认执行”，或在 API 调用里设置 context.approved=true。';
-                return {
-                    ok: false,
-                    runId,
-                    sessionId,
-                    status: 'needs_approval',
-                    mode: 'task',
-                    planner: 'llm-computer-planner',
-                    intent: 'plan_confirmation_required',
-                    confirmationRequired: true,
-                    approvalType: 'plan_confirmation',
-                    planId: pendingPlan.planId,
-                    executionRequired: true,
+                    intent: 'plan_cancelled',
+                    executionRequired: false,
                     durationMs: Date.now() - startedAt,
                     message,
                     displayText,
                     speechText: displayText,
-                    plan: pendingPlan.steps.map((step) => ({
-                        id: step.id,
-                        title: step.title,
-                        tool: step.tool,
-                        args: step.args
-                    })),
+                    planId: pendingPlan.planId,
+                    plan: [],
                     steps: []
-                };
+                },
+                message,
+                requestContext,
+                source: 'run_message_cancel_pending_plan'
+            });
+        }
+
+        if (pendingPlan) {
+            if (request.classifyOnly === true) {
+                return this.presentUserResult({
+                    result: {
+                        ok: true,
+                        runId,
+                        sessionId,
+                        status: 'classified',
+                        mode: 'task',
+                        planner: 'llm-computer-planner',
+                        intent: 'plan_confirmation',
+                        executionRequired: true,
+                        confirmationRequired: true,
+                        planId: pendingPlan.planId,
+                        durationMs: Date.now() - startedAt,
+                        message,
+                        displayText: `检测到待确认计划：${pendingPlan.summary || pendingPlan.planId}`,
+                        speechText: `检测到待确认计划：${pendingPlan.summary || pendingPlan.planId}`,
+                        plan: pendingPlan.steps.map((step) => ({
+                            id: step.id,
+                            title: step.title,
+                            tool: step.tool,
+                            args: step.args
+                        })),
+                        steps: []
+                    },
+                    message,
+                    requestContext,
+                    nextAction: pendingPlan.summary || '',
+                    source: 'run_message_classify_pending_plan'
+                });
+            }
+            const apiConfirmed = request.confirmed === true || requestContext.approved === true;
+            if (explicitPlanId && !apiConfirmed && !confirmedByMessage) {
+                const displayText = '执行待确认计划需要明确确认：请回复“确认执行”，或在 API 调用里设置 context.approved=true。';
+                return this.presentUserResult({
+                    result: {
+                        ok: false,
+                        runId,
+                        sessionId,
+                        status: 'needs_approval',
+                        mode: 'task',
+                        planner: 'llm-computer-planner',
+                        intent: 'plan_confirmation_required',
+                        confirmationRequired: true,
+                        approvalType: 'plan_confirmation',
+                        planId: pendingPlan.planId,
+                        executionRequired: true,
+                        durationMs: Date.now() - startedAt,
+                        message,
+                        displayText,
+                        speechText: displayText,
+                        plan: pendingPlan.steps.map((step) => ({
+                            id: step.id,
+                            title: step.title,
+                            tool: step.tool,
+                            args: step.args
+                        })),
+                        steps: []
+                    },
+                    message,
+                    requestContext,
+                    nextAction: pendingPlan.summary || '',
+                    source: 'run_message_needs_plan_approval'
+                });
             }
 
             const runRecord = {
@@ -3958,7 +5032,11 @@ class HumanClawAgentRunner {
                     displayText: result.displayText,
                     planner: result.planner
                 });
-                return result;
+                return this.presentUserResult({
+                    result,
+                    message,
+                    requestContext
+                });
             } finally {
                 this.activeRuns.delete(runId);
                 this.completedRunCount += 1;
@@ -4027,7 +5105,11 @@ class HumanClawAgentRunner {
                     displayText: llmResult.displayText,
                     planner: llmResult.planner
                 });
-                return llmResult;
+                return this.presentUserResult({
+                    result: llmResult,
+                    message,
+                    requestContext
+                });
             }
             this.activeRuns.delete(runId);
         }
@@ -4035,26 +5117,31 @@ class HumanClawAgentRunner {
         const mode = getPlanMode(plan);
         const executionRequired = plan.steps.length > 0;
         if (request.classifyOnly === true) {
-            return {
-                ok: true,
-                runId,
-                sessionId,
-                status: 'classified',
-                mode,
-                intent: plan.intent,
-                executionRequired,
-                durationMs: Date.now() - startedAt,
+            return this.presentUserResult({
+                result: {
+                    ok: true,
+                    runId,
+                    sessionId,
+                    status: 'classified',
+                    mode,
+                    intent: plan.intent,
+                    executionRequired,
+                    durationMs: Date.now() - startedAt,
+                    message,
+                    displayText: plan.response || '',
+                    speechText: plan.response || '',
+                    plan: plan.steps.map((step) => ({
+                        id: step.id,
+                        title: step.title,
+                        tool: step.tool,
+                        args: step.args
+                    })),
+                    steps: []
+                },
                 message,
-                displayText: plan.response || '',
-                speechText: plan.response || '',
-                plan: plan.steps.map((step) => ({
-                    id: step.id,
-                    title: step.title,
-                    tool: step.tool,
-                    args: step.args
-                })),
-                steps: []
-            };
+                requestContext,
+                source: 'run_message_rule_classify'
+            });
         }
         const runRecord = {
             runId,
@@ -4085,7 +5172,8 @@ class HumanClawAgentRunner {
                         runId,
                         stepId: step.id,
                         title: step.title,
-                        tool: step.tool
+                        tool: step.tool,
+                        args: step.args
                     });
                     const response = await this.gateway.callTool({
                         tool: step.tool,
@@ -4179,7 +5267,12 @@ class HumanClawAgentRunner {
                 durationMs: result.durationMs,
                 displayText
             });
-            return result;
+            return this.presentUserResult({
+                result,
+                message,
+                requestContext,
+                source: 'run_message_rule_result'
+            });
         } catch (error) {
             status = error?.code || 'error';
             const displayText = `Agent Runner 执行失败：${error.message || error}`;
@@ -4220,7 +5313,13 @@ class HumanClawAgentRunner {
                 durationMs: result.durationMs,
                 error: result.error
             });
-            return result;
+            return this.presentUserResult({
+                result,
+                message,
+                requestContext,
+                nextAction: '重新整理下一步',
+                source: 'run_message_rule_error'
+            });
         } finally {
             this.activeRuns.delete(runId);
             this.completedRunCount += 1;

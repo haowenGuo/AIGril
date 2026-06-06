@@ -63,6 +63,17 @@ const elements = {
     openclawRuntimeText: document.getElementById('openclaw-runtime-text'),
     openclawStatusText: document.getElementById('openclaw-status-text'),
     packageStateText: document.getElementById('package-state-text'),
+    petMouseHitTestEnabled: document.getElementById('pet-mouse-hit-test-enabled'),
+    petMouseHitTestShape: document.getElementById('pet-mouse-hit-test-shape'),
+    petMouseHitTestWidth: document.getElementById('pet-mouse-hit-test-width'),
+    petMouseHitTestWidthValue: document.getElementById('pet-mouse-hit-test-width-value'),
+    petMouseHitTestHeight: document.getElementById('pet-mouse-hit-test-height'),
+    petMouseHitTestHeightValue: document.getElementById('pet-mouse-hit-test-height-value'),
+    petMouseHitTestOffsetX: document.getElementById('pet-mouse-hit-test-offset-x'),
+    petMouseHitTestOffsetXValue: document.getElementById('pet-mouse-hit-test-offset-x-value'),
+    petMouseHitTestOffsetY: document.getElementById('pet-mouse-hit-test-offset-y'),
+    petMouseHitTestOffsetYValue: document.getElementById('pet-mouse-hit-test-offset-y-value'),
+    petMouseHitTestDebug: document.getElementById('pet-mouse-hit-test-debug'),
     petScale: document.getElementById('pet-scale'),
     preferredMic: document.getElementById('preferred-mic'),
     petShowTaskbar: document.getElementById('pet-show-taskbar'),
@@ -72,6 +83,24 @@ const elements = {
     refreshMicsBtn: document.getElementById('refresh-mics-btn'),
     resetAffinityBtn: document.getElementById('reset-affinity-btn'),
     resetBtn: document.getElementById('reset-btn'),
+    renderAmbientFill: document.getElementById('render-ambient-fill'),
+    renderAmbientFillValue: document.getElementById('render-ambient-fill-value'),
+    renderAntialiasEnabled: document.getElementById('render-antialias-enabled'),
+    renderFpsLimit: document.getElementById('render-fps-limit'),
+    renderFpsLimitValue: document.getElementById('render-fps-limit-value'),
+    renderKeyLight: document.getElementById('render-key-light'),
+    renderKeyLightValue: document.getElementById('render-key-light-value'),
+    renderLightYaw: document.getElementById('render-light-yaw'),
+    renderLightYawValue: document.getElementById('render-light-yaw-value'),
+    renderOutlineEnabled: document.getElementById('render-outline-enabled'),
+    renderOutlineScale: document.getElementById('render-outline-scale'),
+    renderOutlineScaleValue: document.getElementById('render-outline-scale-value'),
+    renderProfile: document.getElementById('render-profile'),
+    renderResolutionScale: document.getElementById('render-resolution-scale'),
+    renderResolutionScaleValue: document.getElementById('render-resolution-scale-value'),
+    renderShadowEnabled: document.getElementById('render-shadow-enabled'),
+    renderShadowQuality: document.getElementById('render-shadow-quality'),
+    renderShadowQualityValue: document.getElementById('render-shadow-quality-value'),
     saveBtn: document.getElementById('save-btn'),
     speechMode: document.getElementById('speech-mode'),
     statusText: document.getElementById('status-text'),
@@ -103,8 +132,17 @@ const llmProviderLabels = {
     'openai-compatible': 'OpenAI-compatible'
 };
 
-const PET_BASE_WIDTH = 360;
-const PET_BASE_HEIGHT = 560;
+const renderProfileLabels = {
+    aigl_soft_anime_mtoon: '柔和动漫 MToon',
+    aigl_bright_companion_mtoon: '明亮陪伴 MToon',
+    aigl_cinematic_rim_toon: '电影感边缘光 Toon',
+    aigl_material_hybrid_npr: '材质混合 NPR',
+    aigl_hard_cel_mtoon: '硬边赛璐璐 MToon'
+};
+
+const PET_BASE_WIDTH = 720;
+const PET_BASE_HEIGHT = 960;
+const FPS_LIMIT_OPTIONS = [24, 30, 45, 60];
 const BUBBLE_PREVIEW_BASE_WIDTH = 158;
 const BUBBLE_PREVIEW_BASE_HEIGHT = 58;
 
@@ -153,6 +191,77 @@ function formatValue(value) {
 
 function formatPixelValue(value) {
     return `${Math.round(Number(value) || 0)}px`;
+}
+
+function formatHitTestScale(value, neutral, strength) {
+    const scale = 1 + (Number(value) - neutral) * strength;
+    return `${Math.round(scale * 100)}%`;
+}
+
+function formatNeutralOffset(value, neutral = 0) {
+    const offset = Number(value) - neutral;
+    const sign = offset > 0 ? '+' : '';
+    return `${sign}${Math.round(offset * 100)}%`;
+}
+
+function formatPercentScale(value) {
+    return `${Math.round(Number(value || 1) * 100)}%`;
+}
+
+function formatLightYaw(value) {
+    const numericValue = Math.round(Number(value || 0));
+    if (numericValue === 0) {
+        return '正面';
+    }
+    return `${numericValue > 0 ? '右' : '左'} ${Math.abs(numericValue)}°`;
+}
+
+function normalizeQualityLevel(value, fallbackValue = 3) {
+    const numericValue = Math.round(Number(value));
+    if (![1, 2, 3].includes(numericValue)) {
+        return fallbackValue;
+    }
+    return numericValue;
+}
+
+function formatQualityLevel(value) {
+    return ['低', '中', '高'][normalizeQualityLevel(value) - 1];
+}
+
+function normalizeRenderResolutionScale(value, fallbackValue = 2) {
+    return clampNumber(value, 0.5, 3, fallbackValue, 2);
+}
+
+function normalizeRenderFpsLimit(value, fallbackValue = 60) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+        return fallbackValue;
+    }
+    return FPS_LIMIT_OPTIONS.reduce((closestValue, optionValue) => (
+        Math.abs(optionValue - numericValue) < Math.abs(closestValue - numericValue)
+            ? optionValue
+            : closestValue
+    ), fallbackValue);
+}
+
+function getFpsSliderIndex(value) {
+    const fpsLimit = normalizeRenderFpsLimit(value);
+    const optionIndex = FPS_LIMIT_OPTIONS.indexOf(fpsLimit);
+    return optionIndex >= 0 ? optionIndex + 1 : FPS_LIMIT_OPTIONS.length;
+}
+
+function getFpsFromSliderIndex(value) {
+    const optionIndex = Math.round(Number(value)) - 1;
+    return FPS_LIMIT_OPTIONS[Math.min(Math.max(optionIndex, 0), FPS_LIMIT_OPTIONS.length - 1)];
+}
+
+function formatResolutionScale(value) {
+    const normalizedValue = normalizeRenderResolutionScale(value);
+    return `${normalizedValue.toFixed(2).replace(/\.?0+$/, '')}x`;
+}
+
+function formatFpsLimit(value) {
+    return `${normalizeRenderFpsLimit(value)} FPS`;
 }
 
 function clampNumber(value, minimum, maximum, fallbackValue, digits = 2) {
@@ -225,6 +334,30 @@ function updateRangeLabels() {
     elements.cameraDistanceValue.textContent = formatValue(elements.cameraDistance.value);
     elements.cameraHeightValue.textContent = formatValue(elements.cameraHeight.value);
     elements.cameraTargetYValue.textContent = formatValue(elements.cameraTargetY.value);
+    elements.renderLightYawValue.textContent = formatLightYaw(elements.renderLightYaw.value);
+    elements.renderKeyLightValue.textContent = formatPercentScale(elements.renderKeyLight.value);
+    elements.renderAmbientFillValue.textContent = formatPercentScale(elements.renderAmbientFill.value);
+    elements.renderOutlineScaleValue.textContent = formatPercentScale(elements.renderOutlineScale.value);
+    elements.renderResolutionScaleValue.textContent = formatResolutionScale(elements.renderResolutionScale.value);
+    elements.renderFpsLimitValue.textContent = formatFpsLimit(getFpsFromSliderIndex(elements.renderFpsLimit.value));
+    elements.renderShadowQualityValue.textContent = formatQualityLevel(elements.renderShadowQuality.value);
+    elements.petMouseHitTestWidthValue.textContent = formatHitTestScale(
+        elements.petMouseHitTestWidth.value || 0.58,
+        0.58,
+        0.85
+    );
+    elements.petMouseHitTestHeightValue.textContent = formatHitTestScale(
+        elements.petMouseHitTestHeight.value || 0.78,
+        0.78,
+        0.72
+    );
+    elements.petMouseHitTestOffsetXValue.textContent = formatNeutralOffset(
+        elements.petMouseHitTestOffsetX.value || 0
+    );
+    elements.petMouseHitTestOffsetYValue.textContent = formatNeutralOffset(
+        elements.petMouseHitTestOffsetY.value || 0.08,
+        0.08
+    );
     elements.ttsRateValue.textContent = formatValue(elements.ttsRate.value);
     elements.ttsPitchValue.textContent = formatValue(elements.ttsPitch.value);
     elements.ttsVolumeValue.textContent = formatValue(elements.ttsVolume.value);
@@ -274,6 +407,22 @@ function normalizePreferences(preferences = {}) {
         cameraDistance: Number(preferences.cameraDistance ?? 1.1),
         cameraHeight: Number(preferences.cameraHeight ?? 1.3),
         cameraTargetY: Number(preferences.cameraTargetY ?? 1),
+        renderProfileId: Object.prototype.hasOwnProperty.call(
+            renderProfileLabels,
+            String(preferences.renderProfileId || '')
+        )
+            ? String(preferences.renderProfileId)
+            : 'aigl_soft_anime_mtoon',
+        renderLightYawDeg: clampNumber(preferences.renderLightYawDeg, -75, 75, 0, 0),
+        renderKeyLightScale: clampNumber(preferences.renderKeyLightScale, 0.65, 1.45, 1, 2),
+        renderAmbientFillScale: clampNumber(preferences.renderAmbientFillScale, 0.55, 1.35, 1, 2),
+        renderOutlineScale: clampNumber(preferences.renderOutlineScale, 0.25, 1.2, 0.72, 2),
+        renderShadowEnabled: preferences.renderShadowEnabled !== false,
+        renderResolutionScale: normalizeRenderResolutionScale(preferences.renderResolutionScale, 2),
+        renderFpsLimit: normalizeRenderFpsLimit(preferences.renderFpsLimit, 60),
+        renderShadowQuality: normalizeQualityLevel(preferences.renderShadowQuality, 3),
+        renderOutlineEnabled: preferences.renderOutlineEnabled !== false,
+        renderAntialiasEnabled: preferences.renderAntialiasEnabled !== false,
         desktopNativeTtsRate: Number(preferences.desktopNativeTtsRate ?? 0.96),
         desktopNativeTtsPitch: Number(preferences.desktopNativeTtsPitch ?? 1.12),
         desktopNativeTtsVolume: Number(preferences.desktopNativeTtsVolume ?? 1),
@@ -295,7 +444,40 @@ function normalizePreferences(preferences = {}) {
         ),
         avatarDialogueBubbleExtraTop: Math.round(
             clampNumber(preferences.avatarDialogueBubbleExtraTop, 0, 360, 190, 0)
-        )
+        ),
+        petMouseHitTestEnabled: preferences.petMouseHitTestEnabled !== false,
+        petMouseHitTestShape: ['ellipse', 'rectangle'].includes(String(preferences.petMouseHitTestShape || '').trim().toLowerCase())
+            ? String(preferences.petMouseHitTestShape).trim().toLowerCase()
+            : 'ellipse',
+        petMouseHitTestWidthRatio: clampNumber(
+            preferences.petMouseHitTestWidthRatio,
+            0.2,
+            1,
+            0.58,
+            2
+        ),
+        petMouseHitTestHeightRatio: clampNumber(
+            preferences.petMouseHitTestHeightRatio,
+            0.25,
+            1,
+            0.78,
+            2
+        ),
+        petMouseHitTestOffsetXRatio: clampNumber(
+            preferences.petMouseHitTestOffsetXRatio,
+            -0.5,
+            0.5,
+            0,
+            2
+        ),
+        petMouseHitTestOffsetYRatio: clampNumber(
+            preferences.petMouseHitTestOffsetYRatio,
+            -0.5,
+            0.5,
+            0.08,
+            2
+        ),
+        petMouseHitTestDebug: Boolean(preferences.petMouseHitTestDebug)
     };
 }
 
@@ -324,7 +506,9 @@ function readFormPreferences({ includeSecret = false } = {}) {
         speechMode: elements.speechMode.value,
         recognitionMode: elements.recognitionMode.value,
         preferredMicDeviceId: elements.preferredMic.value,
-        humanClawStateDir: elements.humanClawStateDir.value.trim(),
+        humanClawStateDir: elements.humanClawStateDir
+            ? elements.humanClawStateDir.value.trim()
+            : currentPreferences?.humanClawStateDir || '',
         humanClawResolvedStateDir: currentPreferences?.humanClawResolvedStateDir || '',
         humanClawDefaultStateDir: currentPreferences?.humanClawDefaultStateDir || '',
         llmProvider: elements.llmProvider.value,
@@ -354,6 +538,17 @@ function readFormPreferences({ includeSecret = false } = {}) {
         cameraDistance: Number(elements.cameraDistance.value),
         cameraHeight: Number(elements.cameraHeight.value),
         cameraTargetY: Number(elements.cameraTargetY.value),
+        renderProfileId: elements.renderProfile.value,
+        renderLightYawDeg: Number(elements.renderLightYaw.value),
+        renderKeyLightScale: Number(elements.renderKeyLight.value),
+        renderAmbientFillScale: Number(elements.renderAmbientFill.value),
+        renderOutlineScale: Number(elements.renderOutlineScale.value),
+        renderShadowEnabled: elements.renderShadowEnabled.checked,
+        renderResolutionScale: normalizeRenderResolutionScale(elements.renderResolutionScale.value, 2),
+        renderFpsLimit: getFpsFromSliderIndex(elements.renderFpsLimit.value),
+        renderShadowQuality: Number(elements.renderShadowQuality.value),
+        renderOutlineEnabled: elements.renderOutlineEnabled.checked,
+        renderAntialiasEnabled: elements.renderAntialiasEnabled.checked,
         desktopNativeTtsRate: Number(elements.ttsRate.value),
         desktopNativeTtsPitch: Number(elements.ttsPitch.value),
         desktopNativeTtsVolume: Number(elements.ttsVolume.value),
@@ -361,7 +556,14 @@ function readFormPreferences({ includeSecret = false } = {}) {
         avatarDialogueBubbleTop: Number(elements.avatarBubbleTop.value),
         avatarDialogueBubbleScale: Number(elements.avatarBubbleScale.value),
         avatarDialogueBubbleExtraWidth: Number(elements.avatarBubbleExtraWidth.value),
-        avatarDialogueBubbleExtraTop: Number(elements.avatarBubbleExtraTop.value)
+        avatarDialogueBubbleExtraTop: Number(elements.avatarBubbleExtraTop.value),
+        petMouseHitTestEnabled: elements.petMouseHitTestEnabled.checked,
+        petMouseHitTestShape: elements.petMouseHitTestShape.value,
+        petMouseHitTestWidthRatio: Number(elements.petMouseHitTestWidth.value),
+        petMouseHitTestHeightRatio: Number(elements.petMouseHitTestHeight.value),
+        petMouseHitTestOffsetXRatio: Number(elements.petMouseHitTestOffsetX.value),
+        petMouseHitTestOffsetYRatio: Number(elements.petMouseHitTestOffsetY.value),
+        petMouseHitTestDebug: elements.petMouseHitTestDebug.checked
     });
 
     if (includeSecret) {
@@ -472,6 +674,16 @@ function fillLlmProviderOptions(providerOptions = []) {
     });
 }
 
+function fillRenderProfileOptions(profileOptions = []) {
+    elements.renderProfile.innerHTML = '';
+    profileOptions.forEach((profileId) => {
+        const option = document.createElement('option');
+        option.value = profileId;
+        option.textContent = renderProfileLabels[profileId] || profileId;
+        elements.renderProfile.appendChild(option);
+    });
+}
+
 function syncLlmKeyState() {
     if (pendingClearLlmKey) {
         elements.llmKeyState.textContent = '保存后会清除已保存 Key。';
@@ -548,8 +760,13 @@ function fillForm(preferences) {
     elements.petShowTaskbar.checked = !normalized.petSkipTaskbar;
     elements.speechMode.value = normalized.speechMode;
     elements.recognitionMode.value = normalized.recognitionMode;
-    elements.recognitionModeText.textContent = recognitionModeLabels[normalized.recognitionMode] || normalized.recognitionMode;
-    elements.humanClawStateDir.value = normalized.humanClawStateDir;
+    if (elements.recognitionModeText) {
+        elements.recognitionModeText.textContent = recognitionModeLabels[normalized.recognitionMode] ||
+            normalized.recognitionMode;
+    }
+    if (elements.humanClawStateDir) {
+        elements.humanClawStateDir.value = normalized.humanClawStateDir;
+    }
     if (elements.humanClawStateDirHelp) {
         elements.humanClawStateDirHelp.textContent = normalized.humanClawStateDir
             ? `当前解析目录：${normalized.humanClawResolvedStateDir || normalized.humanClawStateDir}`
@@ -580,6 +797,17 @@ function fillForm(preferences) {
     elements.cameraDistance.value = String(normalized.cameraDistance);
     elements.cameraHeight.value = String(normalized.cameraHeight);
     elements.cameraTargetY.value = String(normalized.cameraTargetY);
+    elements.renderProfile.value = normalized.renderProfileId;
+    elements.renderLightYaw.value = String(normalized.renderLightYawDeg);
+    elements.renderKeyLight.value = String(normalized.renderKeyLightScale);
+    elements.renderAmbientFill.value = String(normalized.renderAmbientFillScale);
+    elements.renderOutlineScale.value = String(normalized.renderOutlineScale);
+    elements.renderShadowEnabled.checked = normalized.renderShadowEnabled;
+    elements.renderResolutionScale.value = String(normalized.renderResolutionScale);
+    elements.renderFpsLimit.value = String(getFpsSliderIndex(normalized.renderFpsLimit));
+    elements.renderShadowQuality.value = String(normalized.renderShadowQuality);
+    elements.renderOutlineEnabled.checked = normalized.renderOutlineEnabled;
+    elements.renderAntialiasEnabled.checked = normalized.renderAntialiasEnabled;
     elements.ttsRate.value = String(normalized.desktopNativeTtsRate);
     elements.ttsPitch.value = String(normalized.desktopNativeTtsPitch);
     elements.ttsVolume.value = String(normalized.desktopNativeTtsVolume);
@@ -588,6 +816,13 @@ function fillForm(preferences) {
     elements.avatarBubbleScale.value = String(normalized.avatarDialogueBubbleScale);
     elements.avatarBubbleExtraWidth.value = String(normalized.avatarDialogueBubbleExtraWidth);
     elements.avatarBubbleExtraTop.value = String(normalized.avatarDialogueBubbleExtraTop);
+    elements.petMouseHitTestEnabled.checked = normalized.petMouseHitTestEnabled;
+    elements.petMouseHitTestShape.value = normalized.petMouseHitTestShape;
+    elements.petMouseHitTestWidth.value = String(normalized.petMouseHitTestWidthRatio);
+    elements.petMouseHitTestHeight.value = String(normalized.petMouseHitTestHeightRatio);
+    elements.petMouseHitTestOffsetX.value = String(normalized.petMouseHitTestOffsetXRatio);
+    elements.petMouseHitTestOffsetY.value = String(normalized.petMouseHitTestOffsetYRatio);
+    elements.petMouseHitTestDebug.checked = normalized.petMouseHitTestDebug;
 
     updateRangeLabels();
     syncLlmKeyState();
@@ -598,6 +833,10 @@ function fillForm(preferences) {
 }
 
 function renderHumanClawStatus(status = {}) {
+    if (!elements.openclawStatusText || !elements.openclawRuntimeText) {
+        return;
+    }
+
     assistantStatusCache = {
         ...(assistantStatusCache || {}),
         ...(status || {}),
@@ -647,6 +886,10 @@ function renderHumanClawStatus(status = {}) {
 }
 
 async function refreshOpenClawStatus() {
+    if (!elements.openclawStatusText || !elements.openclawRuntimeText) {
+        return;
+    }
+
     if (!window.aigrilDesktop?.gateway?.getStatus) {
         elements.openclawStatusText.textContent = '当前环境不支持 HumanClaw Gateway。';
         elements.openclawRuntimeText.textContent = '';
@@ -896,17 +1139,24 @@ async function initialize() {
         fillSpeechModeOptions(panelState.options?.speechModeOptions || []);
         fillRecognitionModeOptions(panelState.options?.recognitionModeOptions || ['auto-vad', 'continuous', 'manual']);
         fillLlmProviderOptions(panelState.options?.llmProviderOptions || ['openai-compatible']);
+        fillRenderProfileOptions(panelState.options?.renderProfileOptions || Object.keys(renderProfileLabels));
         fillForm(panelState.preferences || {});
         renderHumanClawStatus(panelState.assistant?.humanGateway || panelState.assistant || {});
 
         elements.appVersion.textContent = `v${panelState.environment?.version || '1.0.0'}`;
-        elements.userDataPath.textContent = panelState.environment?.userDataPath || '未知';
-        elements.recognitionModeText.textContent = recognitionModeLabels[panelState.preferences?.recognitionMode] ||
-            panelState.preferences?.recognitionMode ||
-            'auto-vad';
-        elements.packageStateText.textContent = panelState.environment?.isPackaged
-            ? '已从安装包或便携版启动'
-            : '开发模式运行中';
+        if (elements.userDataPath) {
+            elements.userDataPath.textContent = panelState.environment?.userDataPath || '未知';
+        }
+        if (elements.recognitionModeText) {
+            elements.recognitionModeText.textContent = recognitionModeLabels[panelState.preferences?.recognitionMode] ||
+                panelState.preferences?.recognitionMode ||
+                'auto-vad';
+        }
+        if (elements.packageStateText) {
+            elements.packageStateText.textContent = panelState.environment?.isPackaged
+                ? '已从安装包或便携版启动'
+                : '开发模式运行中';
+        }
 
         await refreshMicrophones();
         await refreshOpenClawStatus();
@@ -1025,9 +1275,27 @@ function endDialoguePreviewDrag(event) {
     elements.emailQqAccount,
     elements.emailGmailAccount,
     elements.emailOutlookAccount,
+    elements.petMouseHitTestDebug,
+    elements.petMouseHitTestEnabled,
+    elements.petMouseHitTestHeight,
+    elements.petMouseHitTestOffsetX,
+    elements.petMouseHitTestOffsetY,
+    elements.petMouseHitTestShape,
+    elements.petMouseHitTestWidth,
     elements.petScale,
     elements.preferredMic,
     elements.recognitionMode,
+    elements.renderAmbientFill,
+    elements.renderAntialiasEnabled,
+    elements.renderFpsLimit,
+    elements.renderKeyLight,
+    elements.renderLightYaw,
+    elements.renderOutlineEnabled,
+    elements.renderOutlineScale,
+    elements.renderProfile,
+    elements.renderResolutionScale,
+    elements.renderShadowEnabled,
+    elements.renderShadowQuality,
     elements.petShowTaskbar,
     elements.speechMode,
     elements.ttsPitch,

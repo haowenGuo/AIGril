@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFile, spawn } = require('child_process');
 const { randomUUID } = require('crypto');
+const { createHumanClawPlatformAdapter, getDefaultPlatformAdapter } = require('./humanclaw-platform-adapter.cjs');
 
 const COMPUTER_TOOL_ID = 'computer';
 const DEFAULT_MAX_BYTES = 128 * 1024;
@@ -34,6 +35,16 @@ const WRITE_ACTIONS = new Set([
     'pty_kill',
     'process_write',
     'process_kill',
+    'mouse_move',
+    'mouse_click',
+    'mouse_double_click',
+    'mouse_right_click',
+    'mouse_drag',
+    'scroll',
+    'keyboard_type',
+    'keyboard_press',
+    'keyboard_hotkey',
+    'clipboard_write',
     'watch_stop',
     'write_binary',
     'acl_set',
@@ -56,6 +67,9 @@ const READ_ONLY_ACTIONS = new Set([
     'watch_start',
     'watch_poll',
     'watch_list',
+    'screen_screenshot',
+    'clipboard_read',
+    'wait',
     'pty_status',
     'pty_read',
     'pty_resize',
@@ -111,30 +125,16 @@ function normalizeNumber(value, fallback, min, max) {
     return Math.min(Math.max(parsed, min), max);
 }
 
-function isPathInside(rootPath, targetPath) {
-    const root = path.resolve(rootPath);
-    const target = path.resolve(targetPath);
-    const rootComparable = process.platform === 'win32' ? root.toLowerCase() : root;
-    const targetComparable = process.platform === 'win32' ? target.toLowerCase() : target;
-    return targetComparable === rootComparable || targetComparable.startsWith(`${rootComparable}${path.sep}`);
+function getRuntimePlatform(runtime = {}) {
+    return runtime.platformAdapter || getDefaultPlatformAdapter();
 }
 
-function uniquePaths(paths) {
-    const seen = new Set();
-    const result = [];
-    for (const entry of paths) {
-        const normalized = normalizeString(entry);
-        if (!normalized) {
-            continue;
-        }
-        const resolved = path.resolve(normalized);
-        const key = process.platform === 'win32' ? resolved.toLowerCase() : resolved;
-        if (!seen.has(key)) {
-            seen.add(key);
-            result.push(resolved);
-        }
-    }
-    return result;
+function isPathInside(rootPath, targetPath, platformAdapter = getDefaultPlatformAdapter()) {
+    return platformAdapter.isPathInside(rootPath, targetPath);
+}
+
+function uniquePaths(paths, platformAdapter = getDefaultPlatformAdapter()) {
+    return platformAdapter.uniquePaths(paths);
 }
 
 function maybePath(...parts) {
@@ -146,6 +146,7 @@ function maybePath(...parts) {
 
 function commonUserRoots(runtime = {}) {
     const home = os.homedir();
+    const platformAdapter = getRuntimePlatform(runtime);
     return uniquePaths([
         runtime.workspaceRoot,
         runtime.workspaceDir,
@@ -161,22 +162,11 @@ function commonUserRoots(runtime = {}) {
         maybePath(home, 'Pictures'),
         maybePath(home, 'Videos'),
         maybePath(home, 'Music')
-    ]);
+    ], platformAdapter);
 }
 
-function protectedRoots() {
-    if (process.platform !== 'win32') {
-        return ['/', '/bin', '/boot', '/dev', '/etc', '/lib', '/proc', '/root', '/sbin', '/sys', '/usr'];
-    }
-    const systemDrive = process.env.SystemDrive || 'C:';
-    const windir = process.env.WINDIR || `${systemDrive}\\Windows`;
-    return uniquePaths([
-        `${systemDrive}\\`,
-        windir,
-        `${systemDrive}\\Program Files`,
-        `${systemDrive}\\Program Files (x86)`,
-        `${systemDrive}\\ProgramData`
-    ]);
+function protectedRoots(runtime = {}) {
+    return getRuntimePlatform(runtime).protectedRoots();
 }
 
 function resolveTargetPath(rawPath, runtime = {}) {
@@ -202,7 +192,8 @@ function guardPath(targetPath, action, context = {}, runtime = {}) {
     }
     const readOnly = READ_ONLY_ACTIONS.has(action);
     const commonRoots = commonUserRoots(runtime);
-    const insideCommon = commonRoots.some((root) => isPathInside(root, targetPath));
+    const platformAdapter = getRuntimePlatform(runtime);
+    const insideCommon = commonRoots.some((root) => isPathInside(root, targetPath, platformAdapter));
     if (insideCommon) {
         return null;
     }
@@ -218,7 +209,7 @@ function guardPath(targetPath, action, context = {}, runtime = {}) {
             }
         );
     }
-    const protectedHit = protectedRoots().find((root) => isPathInside(root, targetPath));
+    const protectedHit = protectedRoots(runtime).find((root) => isPathInside(root, targetPath, platformAdapter));
     if (protectedHit && !readOnly && context.allowSystemMutation !== true) {
         return createErrorResult(
             'blocked',
@@ -250,6 +241,27 @@ function createErrorResult(status, message, details = {}) {
             ...details
         }
     };
+}
+
+function normalizeGuiAction(action = '') {
+    const normalized = normalizeString(action).toLowerCase().replace(/[-\s]+/g, '_');
+    const aliases = {
+        screenshot: 'screen_screenshot',
+        capture_screen: 'screen_screenshot',
+        click: 'mouse_click',
+        double_click: 'mouse_double_click',
+        right_click: 'mouse_right_click',
+        drag: 'mouse_drag',
+        mouse_scroll: 'scroll',
+        type: 'keyboard_type',
+        type_text: 'keyboard_type',
+        press_key: 'keyboard_press',
+        hotkey: 'keyboard_hotkey',
+        read_clipboard: 'clipboard_read',
+        write_clipboard: 'clipboard_write',
+        sleep: 'wait'
+    };
+    return aliases[normalized] || normalized;
 }
 
 function formatBytes(bytes) {
@@ -409,6 +421,187 @@ async function runExecFile(command, args = [], options = {}) {
                 error: error ? error.message || String(error) : ''
             });
         });
+    });
+}
+
+function parseJsonObject(text = '') {
+    const trimmed = normalizeString(text);
+    if (!trimmed) {
+        return null;
+    }
+    try {
+        return JSON.parse(trimmed);
+    } catch {
+        const line = trimmed
+            .split(/\r?\n/)
+            .reverse()
+            .find((entry) => entry.trim().startsWith('{') && entry.trim().endsWith('}'));
+        if (!line) {
+            return null;
+        }
+        try {
+            return JSON.parse(line);
+        } catch {
+            return null;
+        }
+    }
+}
+
+function defaultScreenshotPath(runtime = {}) {
+    const root = runtime.screenshotDir ||
+        path.join(os.tmpdir(), 'humanclaw-screenshots');
+    return path.join(root, `screen-${Date.now()}-${crypto.randomBytes(3).toString('hex')}.png`);
+}
+
+async function actionWait(args = {}) {
+    const durationMs = normalizeNumber(args.durationMs || args.ms || args.timeoutMs, 1000, 0, 60000);
+    await new Promise((resolve) => setTimeout(resolve, durationMs));
+    return createTextResult(`wait completed: ${durationMs}ms`, {
+        status: 'completed',
+        action: 'wait',
+        durationMs
+    });
+}
+
+async function actionScreenScreenshot(args, context, runtime) {
+    const platformAdapter = getRuntimePlatform(runtime);
+    const targetPath = resolveTargetPath(args.path || args.outputPath || defaultScreenshotPath(runtime), runtime);
+    const guard = guardPath(targetPath, 'write', context, runtime);
+    if (guard) {
+        return guard;
+    }
+    const command = platformAdapter.desktopScreenshotCommand?.({ outputPath: targetPath });
+    if (!command?.supported) {
+        return createErrorResult('not_supported', command?.reason || 'screen_screenshot is not supported by this platform adapter.', {
+            action: 'screen_screenshot',
+            platform: platformAdapter.getStatus()
+        });
+    }
+    const result = await runExecFile(command.command, command.args || [], {
+        timeout: normalizeNumber(args.timeoutMs, 15000, 1000, 120000),
+        windowsHide: command.windowsHide !== false
+    });
+    if (!result.ok) {
+        return createErrorResult('computer_exec_failed', '屏幕截图失败。', {
+            action: 'screen_screenshot',
+            ...result
+        });
+    }
+    const parsed = parseJsonObject(result.stdout) || {};
+    const stat = await safeStat(targetPath);
+    return {
+        content: [
+            { type: 'text', text: `screen_screenshot saved: ${targetPath}` },
+            { type: 'image', uri: targetPath, mimeType: 'image/png' }
+        ],
+        details: {
+            status: 'completed',
+            action: 'screen_screenshot',
+            path: targetPath,
+            width: parsed.width || null,
+            height: parsed.height || null,
+            size: stat?.size || null,
+            sizeText: stat ? formatBytes(stat.size) : 'unknown',
+            stdout: result.stdout,
+            stderr: result.stderr
+        }
+    };
+}
+
+async function actionClipboardRead(args, context, runtime) {
+    const platformAdapter = getRuntimePlatform(runtime);
+    const command = platformAdapter.clipboardReadCommand?.();
+    if (!command?.supported) {
+        return createErrorResult('not_supported', command?.reason || 'clipboard_read is not supported by this platform adapter.', {
+            action: 'clipboard_read',
+            platform: platformAdapter.getStatus()
+        });
+    }
+    const result = await runExecFile(command.command, command.args || [], {
+        timeout: normalizeNumber(args.timeoutMs, 10000, 1000, 60000),
+        windowsHide: command.windowsHide !== false
+    });
+    if (!result.ok) {
+        return createErrorResult('computer_exec_failed', '读取剪贴板失败。', {
+            action: 'clipboard_read',
+            ...result
+        });
+    }
+    const parsed = parseJsonObject(result.stdout);
+    const text = parsed && typeof parsed.text === 'string' ? parsed.text : result.stdout;
+    return createTextResult(text, {
+        status: 'completed',
+        action: 'clipboard_read',
+        text,
+        bytes: Buffer.byteLength(text, 'utf8')
+    });
+}
+
+async function actionClipboardWrite(args, context, runtime) {
+    const action = 'clipboard_write';
+    const guard = approvalRequired(action, args, context);
+    if (guard) {
+        return guard;
+    }
+    const platformAdapter = getRuntimePlatform(runtime);
+    const text = typeof args.text === 'string' ? args.text : String(args.content || '');
+    const command = platformAdapter.clipboardWriteCommand?.({ text });
+    if (!command?.supported) {
+        return createErrorResult('not_supported', command?.reason || 'clipboard_write is not supported by this platform adapter.', {
+            action,
+            platform: platformAdapter.getStatus()
+        });
+    }
+    const result = await runExecFile(command.command, command.args || [], {
+        timeout: normalizeNumber(args.timeoutMs, 10000, 1000, 60000),
+        windowsHide: command.windowsHide !== false
+    });
+    if (!result.ok) {
+        return createErrorResult('computer_exec_failed', '写入剪贴板失败。', {
+            action,
+            ...result
+        });
+    }
+    return createTextResult('clipboard_write completed', {
+        status: 'completed',
+        action,
+        bytes: Buffer.byteLength(text, 'utf8'),
+        stdout: result.stdout,
+        stderr: result.stderr
+    });
+}
+
+async function actionGuiInput(args, context, runtime) {
+    const action = normalizeGuiAction(args.action || args.operation || args.intent);
+    const guard = approvalRequired(action, args, context);
+    if (guard) {
+        return guard;
+    }
+    const platformAdapter = getRuntimePlatform(runtime);
+    const command = platformAdapter.guiInputCommand?.({ ...args, action });
+    if (!command?.supported) {
+        return createErrorResult('not_supported', command?.reason || `${action} is not supported by this platform adapter.`, {
+            action,
+            platform: platformAdapter.getStatus()
+        });
+    }
+    const result = await runExecFile(command.command, command.args || [], {
+        timeout: normalizeNumber(args.timeoutMs, 10000, 1000, 120000),
+        windowsHide: command.windowsHide !== false
+    });
+    if (!result.ok) {
+        return createErrorResult('computer_exec_failed', `${action} 执行失败。`, {
+            action,
+            ...result
+        });
+    }
+    const parsed = parseJsonObject(result.stdout) || {};
+    return createTextResult(`${action} completed`, {
+        status: 'completed',
+        action,
+        observation: parsed,
+        stdout: result.stdout,
+        stderr: result.stderr
     });
 }
 
@@ -997,9 +1190,9 @@ async function actionAclGet(args, context, runtime) {
     if (!stat) {
         return createErrorResult('not_found', `路径不存在：${target}`, { path: target });
     }
-    const result = process.platform === 'win32'
-        ? await runExecFile('icacls.exe', [target])
-        : await runExecFile('ls', ['-ld', target]);
+    const platformAdapter = getRuntimePlatform(runtime);
+    const aclCommand = platformAdapter.aclReadCommand(target);
+    const result = await runExecFile(aclCommand.command, aclCommand.args);
     if (!result.ok) {
         return createErrorResult('error', result.stderr || result.error || '读取 ACL 失败。', {
             action: 'acl_get',
@@ -1011,7 +1204,7 @@ async function actionAclGet(args, context, runtime) {
         status: 'completed',
         action: 'acl_get',
         path: target,
-        platform: process.platform,
+        platform: platformAdapter.getStatus(),
         stdout: result.stdout
     });
 }
@@ -1022,15 +1215,18 @@ async function actionAclSet(args, context, runtime) {
     if (guard) {
         return guard;
     }
-    if (process.platform !== 'win32') {
-        return createErrorResult('not_supported', 'acl_set 当前只实现了 Windows icacls 安全封装。', {
-            action: 'acl_set',
-            platform: process.platform
-        });
-    }
+    const platformAdapter = getRuntimePlatform(runtime);
     const icaclsArgs = Array.isArray(args.icaclsArgs)
         ? args.icaclsArgs.map((entry) => normalizeString(entry)).filter(Boolean)
         : [];
+    const aclCommand = platformAdapter.aclSetCommand(target, icaclsArgs);
+    if (!aclCommand.supported) {
+        return createErrorResult('not_supported', 'acl_set 当前只实现了 Windows icacls 安全封装。', {
+            action: 'acl_set',
+            platform: platformAdapter.getStatus(),
+            reason: aclCommand.reason
+        });
+    }
     if (!icaclsArgs.length) {
         return createErrorResult('needs_config', 'acl_set 需要 icaclsArgs，例如 ["/grant", "User:(R)"]。', {
             action: 'acl_set',
@@ -1048,7 +1244,7 @@ async function actionAclSet(args, context, runtime) {
     }
     const before = await actionAclGet({ path: target }, context, runtime);
     const rollback = await createRollbackSnapshot('acl_set', [target], args, runtime);
-    const result = await runExecFile('icacls.exe', [target, ...icaclsArgs]);
+    const result = await runExecFile(aclCommand.command, aclCommand.args);
     if (!result.ok) {
         return createErrorResult('error', result.stderr || result.error || '设置 ACL 失败。', {
             action: 'acl_set',
@@ -1162,6 +1358,7 @@ class ComputerRuntime {
         this.ptySessions = new Map();
         this.watchers = new Map();
         this.workspaceRoot = options.workspaceRoot || process.cwd();
+        this.platformAdapter = createHumanClawPlatformAdapter(options.platformAdapter || options.platform || {});
     }
 
     createWatchRecord(target, args = {}) {
@@ -1388,40 +1585,26 @@ class ComputerRuntime {
                 workdir
             });
         }
-        const executable = normalizeString(
-            args.executable || args.shell,
-            process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : process.env.SHELL || 'bash'
-        );
-        const ptyArgs = Array.isArray(args.args)
-            ? args.args.map((entry) => String(entry))
-            : command
-                ? process.platform === 'win32'
-                    ? ['/d', '/s', '/c', command]
-                    : ['-lc', command]
-                : [];
         const cols = normalizeNumber(args.cols, 100, 20, 400);
         const rows = normalizeNumber(args.rows, 30, 5, 200);
-        const terminal = ptyLoad.pty.spawn(executable, ptyArgs, {
-            name: normalizeString(args.term, 'xterm-256color'),
+        const ptySpec = getRuntimePlatform(runtime).ptySpawnOptions({
+            command,
+            executable: args.executable || args.shell,
+            args: args.args,
+            cwd: workdir,
+            env: args.env,
+            term: normalizeString(args.term, 'xterm-256color'),
             cols,
             rows,
-            cwd: workdir,
-            ...(process.platform === 'win32'
-                ? {
-                      useConpty: args.useConpty === undefined ? true : normalizeBoolean(args.useConpty, true),
-                      useConptyDll: normalizeBoolean(args.useConptyDll, false)
-                  }
-                : {}),
-            env: {
-                ...process.env,
-                ...(args.env && typeof args.env === 'object' ? args.env : {})
-            }
+            useConpty: args.useConpty,
+            useConptyDll: args.useConptyDll
         });
+        const terminal = ptyLoad.pty.spawn(ptySpec.executable, ptySpec.args, ptySpec.options);
         const record = {
             id: randomUUID(),
             command,
-            executable,
-            args: ptyArgs,
+            executable: ptySpec.executable,
+            args: ptySpec.args,
             workdir,
             pid: terminal.pid,
             status: 'running',
@@ -1597,27 +1780,23 @@ class ComputerRuntime {
         const timeoutMs = normalizeNumber(args.timeoutMs || args.timeout, DEFAULT_EXEC_TIMEOUT_MS, 1000, 10 * 60 * 1000);
         const startedAt = Date.now();
         return await new Promise((resolve) => {
-            const child = spawn(command, {
+            const child = spawn(command, getRuntimePlatform(runtime).shellSpawnOptions({
                 cwd: workdir,
-                shell: true,
-                windowsHide: true,
-                env: {
-                    ...process.env,
-                    ...(args.env && typeof args.env === 'object' ? args.env : {})
-                }
-            });
+                env: args.env
+            }));
             let stdout = '';
             let stderr = '';
             const timer = setTimeout(() => {
-                child.kill('SIGTERM');
-                resolve(createErrorResult('timeout', `命令超时：${command}`, {
-                    action: 'exec',
-                    command,
-                    workdir,
-                    stdout,
-                    stderr,
-                    durationMs: Date.now() - startedAt
-                }));
+                getRuntimePlatform(runtime).killProcessTree(child, 'SIGTERM').finally(() => {
+                    resolve(createErrorResult('timeout', `命令超时：${command}`, {
+                        action: 'exec',
+                        command,
+                        workdir,
+                        stdout,
+                        stderr,
+                        durationMs: Date.now() - startedAt
+                    }));
+                });
             }, timeoutMs);
             child.stdout?.on('data', (chunk) => {
                 stdout = appendBounded(stdout, chunk, normalizeNumber(args.maxOutputBytes, DEFAULT_PROCESS_BUFFER_BYTES, 1024, 5 * 1024 * 1024));
@@ -1675,15 +1854,10 @@ class ComputerRuntime {
             });
         }
         const timeoutMs = normalizeNumber(args.timeoutMs || args.timeout, DEFAULT_SESSION_TIMEOUT_MS, 1000, 24 * 60 * 60 * 1000);
-        const child = spawn(command, {
+        const child = spawn(command, getRuntimePlatform(runtime).shellSpawnOptions({
             cwd: workdir,
-            shell: true,
-            windowsHide: true,
-            env: {
-                ...process.env,
-                ...(args.env && typeof args.env === 'object' ? args.env : {})
-            }
-        });
+            env: args.env
+        }));
         const record = this.createSessionRecord({ command, workdir, child, timeoutMs });
         return createTextResult(JSON.stringify(this.publicSession(record), null, 2), {
             status: 'completed',
@@ -1731,7 +1905,7 @@ class ComputerRuntime {
         });
     }
 
-    processKill(args, context) {
+    async processKill(args, context) {
         const id = normalizeString(args.sessionId || args.id);
         const record = this.sessions.get(id);
         if (!record) {
@@ -1742,14 +1916,16 @@ class ComputerRuntime {
             return approval;
         }
         const signal = normalizeString(args.signal, 'SIGTERM');
-        record.child.kill(signal);
+        const killed = await this.platformAdapter.killProcessTree(record.child, signal);
         record.status = record.status === 'running' ? 'killed' : record.status;
         record.updatedAt = Date.now();
         return createTextResult(`killed ${id}`, {
             status: 'completed',
             action: 'process_kill',
             sessionId: id,
-            signal
+            signal,
+            platform: this.platformAdapter.getStatus(),
+            kill: killed
         });
     }
 
@@ -1772,7 +1948,7 @@ class ComputerRuntime {
         for (const record of this.sessions.values()) {
             if (record.status === 'running') {
                 try {
-                    record.child.kill('SIGTERM');
+                    await this.platformAdapter.killProcessTree(record.child, 'SIGTERM');
                 } catch {}
             }
             if (record.timeout) {
@@ -1803,6 +1979,19 @@ function schemaResult(runtime) {
             'search',
             'hash',
             'du',
+            'screen_screenshot',
+            'mouse_move',
+            'mouse_click',
+            'mouse_double_click',
+            'mouse_right_click',
+            'mouse_drag',
+            'scroll',
+            'keyboard_type',
+            'keyboard_press',
+            'keyboard_hotkey',
+            'clipboard_read',
+            'clipboard_write',
+            'wait',
             'acl_get',
             'acl_set',
             'watch_start',
@@ -1826,13 +2015,17 @@ function schemaResult(runtime) {
         ],
         safety: {
             readDefaultRoots: commonUserRoots(runtime),
-            protectedRoots: protectedRoots(),
+            protectedRoots: protectedRoots(runtime),
+            platform: getRuntimePlatform(runtime).getStatus(),
             mutationsRequireApproval: true,
             outsideWorkspaceRequires: 'context.allowOutsideWorkspace=true',
             protectedMutationRequires: 'context.allowSystemMutation=true plus approval',
             deleteDefault: 'trash/quarantine; permanent delete requires allowPermanentDelete=true and dangerous=true',
             rollbackJournal: rollbackJournalPath(runtime),
-            ptyOptional: loadNodePty().ok
+            ptyOptional: loadNodePty().ok,
+            guiInput: getRuntimePlatform(runtime).getStatus().capabilities.guiInput,
+            screenCapture: getRuntimePlatform(runtime).getStatus().capabilities.screenCapture,
+            clipboard: getRuntimePlatform(runtime).getStatus().capabilities.clipboard
         }
     };
     return createTextResult(JSON.stringify(schema, null, 2), {
@@ -1852,63 +2045,94 @@ class HumanClawComputerTool {
     }
 
     async execute(args = {}, context = {}, runtime = {}) {
-        const action = normalizeString(args.action || args.operation || args.intent, 'schema').toLowerCase();
+        const action = normalizeGuiAction(args.action || args.operation || args.intent || 'schema');
+        const effectiveRuntime = {
+            ...runtime,
+            platformAdapter: runtime.platformAdapter || this.runtime.platformAdapter
+        };
         if (action === 'schema' || action === 'help') {
-            return schemaResult(runtime);
+            return schemaResult(effectiveRuntime);
         }
         if (action === 'ls' || action === 'list') {
-            return await actionList(args, context, runtime);
+            return await actionList(args, context, effectiveRuntime);
         }
         if (action === 'tree') {
-            return await actionTree(args, context, runtime);
+            return await actionTree(args, context, effectiveRuntime);
         }
         if (action === 'stat') {
-            return await actionStat(args, context, runtime);
+            return await actionStat(args, context, effectiveRuntime);
         }
         if (action === 'read' || action === 'cat') {
-            return await actionRead(args, context, runtime);
+            return await actionRead(args, context, effectiveRuntime);
         }
         if (action === 'read_binary') {
-            return await actionReadBinary(args, context, runtime);
+            return await actionReadBinary(args, context, effectiveRuntime);
         }
         if (action === 'write') {
-            return await actionWrite(args, context, runtime, false);
+            return await actionWrite(args, context, effectiveRuntime, false);
         }
         if (action === 'write_binary') {
-            return await actionWriteBinary(args, context, runtime);
+            return await actionWriteBinary(args, context, effectiveRuntime);
         }
         if (action === 'append') {
-            return await actionWrite(args, context, runtime, true);
+            return await actionWrite(args, context, effectiveRuntime, true);
         }
         if (action === 'mkdir') {
-            return await actionMkdir(args, context, runtime);
+            return await actionMkdir(args, context, effectiveRuntime);
         }
         if (action === 'copy' || action === 'cp') {
-            return await actionCopyMove(args, context, runtime, false);
+            return await actionCopyMove(args, context, effectiveRuntime, false);
         }
         if (action === 'move' || action === 'rename' || action === 'mv') {
-            return await actionCopyMove(args, context, runtime, true);
+            return await actionCopyMove(args, context, effectiveRuntime, true);
         }
         if (action === 'delete' || action === 'rm' || action === 'trash') {
-            return await actionDelete(args, context, runtime);
+            return await actionDelete(args, context, effectiveRuntime);
         }
         if (action === 'search' || action === 'find') {
-            return await actionSearch(args, context, runtime);
+            return await actionSearch(args, context, effectiveRuntime);
         }
         if (action === 'hash' || action === 'checksum') {
-            return await actionHash(args, context, runtime);
+            return await actionHash(args, context, effectiveRuntime);
         }
         if (action === 'du' || action === 'disk_usage') {
-            return await actionDu(args, context, runtime);
+            return await actionDu(args, context, effectiveRuntime);
+        }
+        if (action === 'wait') {
+            return await actionWait(args);
+        }
+        if (action === 'screen_screenshot') {
+            return await actionScreenScreenshot(args, context, effectiveRuntime);
+        }
+        if (action === 'clipboard_read') {
+            return await actionClipboardRead(args, context, effectiveRuntime);
+        }
+        if (action === 'clipboard_write') {
+            return await actionClipboardWrite(args, context, effectiveRuntime);
+        }
+        if (
+            [
+                'mouse_move',
+                'mouse_click',
+                'mouse_double_click',
+                'mouse_right_click',
+                'mouse_drag',
+                'scroll',
+                'keyboard_type',
+                'keyboard_press',
+                'keyboard_hotkey'
+            ].includes(action)
+        ) {
+            return await actionGuiInput({ ...args, action }, context, effectiveRuntime);
         }
         if (action === 'acl_get') {
-            return await actionAclGet(args, context, runtime);
+            return await actionAclGet(args, context, effectiveRuntime);
         }
         if (action === 'acl_set') {
-            return await actionAclSet(args, context, runtime);
+            return await actionAclSet(args, context, effectiveRuntime);
         }
         if (action === 'watch_start') {
-            return this.runtime.watchStart(args, context, runtime);
+            return this.runtime.watchStart(args, context, effectiveRuntime);
         }
         if (action === 'watch_list') {
             return this.runtime.watchList();
@@ -1920,22 +2144,22 @@ class HumanClawComputerTool {
             return this.runtime.watchStop(args, context);
         }
         if (action === 'rollback_list') {
-            return await actionRollbackList(args, context, runtime);
+            return await actionRollbackList(args, context, effectiveRuntime);
         }
         if (action === 'rollback_restore') {
-            return await actionRollbackRestore(args, context, runtime);
+            return await actionRollbackRestore(args, context, effectiveRuntime);
         }
         if (action === 'exec' || action === 'run') {
-            return await this.runtime.exec({ ...args, action }, context, runtime);
+            return await this.runtime.exec({ ...args, action }, context, effectiveRuntime);
         }
         if (action === 'session_start' || action === 'spawn') {
-            return await this.runtime.sessionStart({ ...args, action }, context, runtime);
+            return await this.runtime.sessionStart({ ...args, action }, context, effectiveRuntime);
         }
         if (action === 'pty_status') {
             return this.runtime.ptyStatus();
         }
         if (action === 'pty_start') {
-            return await this.runtime.ptyStart({ ...args, action }, context, runtime);
+            return await this.runtime.ptyStart({ ...args, action }, context, effectiveRuntime);
         }
         if (action === 'pty_read') {
             return this.runtime.ptyRead(args);
@@ -1964,10 +2188,10 @@ class HumanClawComputerTool {
             return this.runtime.processWrite(args, context);
         }
         if (action === 'process_kill') {
-            return this.runtime.processKill(args, context);
+            return await this.runtime.processKill(args, context);
         }
         return createErrorResult('needs_config', `不支持的 computer action：${action}`, {
-            supportedActions: schemaResult(runtime).details.schema.actions
+            supportedActions: schemaResult(effectiveRuntime).details.schema.actions
         });
     }
 }
@@ -1978,5 +2202,6 @@ module.exports = {
     ComputerRuntime,
     commonUserRoots,
     protectedRoots,
-    resolveTargetPath
+    resolveTargetPath,
+    getRuntimePlatform
 };

@@ -1,4 +1,9 @@
 import { CONFIG } from './config.js';
+import {
+    buildAttachmentHint,
+    getDefaultMessageForAttachments,
+    normalizeChatAttachments
+} from './chat-attachments.js';
 import { markdownToPlainText, setMarkdownContent, setPlainTextContent } from './markdown-renderer.js';
 import { AVATAR_SPEECH_EVENT_NAME } from './avatar-dialogue-bubble.js';
 
@@ -199,7 +204,7 @@ export class ChatTTSSystem {
     }
 
     getAvatarSpeechText(payload, displayText) {
-        const source = payload?.speech_text || displayText || payload?.display_text || '';
+        const source = payload?.bubble_text || payload?.speech_text || displayText || payload?.display_text || '';
         return markdownToPlainText(source)
             .replace(/[ \t]+/g, ' ')
             .replace(/\n{3,}/g, '\n\n')
@@ -299,6 +304,22 @@ export class ChatTTSSystem {
             .map((element) => this.serializeMessageElement(element));
     }
 
+    clearConversation() {
+        if (this.isBusy) {
+            this.addSystemMessage('AIGL 正在执行当前请求，完成后再清空会话。');
+            return false;
+        }
+        this.messageHistory = [];
+        this.messageListEl.innerHTML = '';
+        this.addSystemMessage('当前会话已清空。');
+        this.emitChatUiEvent({
+            type: 'snapshot',
+            messages: this.getTranscriptSnapshot(),
+            isBusy: this.isBusy
+        });
+        return true;
+    }
+
     async sendExternalMessage(content, options = {}) {
         return this.sendMessage(content, options);
     }
@@ -350,11 +371,11 @@ export class ChatTTSSystem {
 
         const hasOverride = typeof contentOverride === 'string';
         const content = String(hasOverride ? contentOverride : this.inputEl.value).trim();
-        const attachments = normalizeVisionAttachments(options.attachments);
+        const attachments = normalizeChatAttachments(options.attachments);
         if (!content && !attachments.length) {
             return;
         }
-        const messageContent = content || '帮我看一下这张截图。';
+        const messageContent = content || getDefaultMessageForAttachments(attachments);
 
         this.setBusy(true);
         this.startAutoChatTimer();
@@ -455,19 +476,30 @@ export class ChatTTSSystem {
     renderStreamingAssistantReply(payload, aiMessageDiv) {
         const displayText = payload.display_text || payload.speech_text || '';
 
+        this.executeAvatarCue(payload, aiMessageDiv);
         this.updateMessageContent(aiMessageDiv, displayText);
         this.scrollToBottom();
     }
 
     executeAvatarCue(payload, aiMessageDiv) {
-        if (payload.action && aiMessageDiv?.dataset.actionCue !== payload.action) {
-            this.vrmSystem.playAction(payload.action);
-            aiMessageDiv.dataset.actionCue = payload.action;
+        const cueSignature = JSON.stringify({
+            surface: payload.surface || payload.personaSurface || null,
+            action: payload.action || null,
+            expression: payload.expression || null
+        });
+        if (aiMessageDiv?.dataset.surfaceCue === cueSignature) {
+            return;
         }
 
-        if (payload.expression && aiMessageDiv?.dataset.expressionCue !== payload.expression) {
-            this.vrmSystem.applyExpressionPreset(payload.expression);
-            aiMessageDiv.dataset.expressionCue = payload.expression;
+        this.vrmSystem.applyPersonaSurfacePayload?.(payload, {
+            messageId: aiMessageDiv?.dataset?.messageId || '',
+            source: 'chat_tts'
+        });
+
+        if (aiMessageDiv) {
+            aiMessageDiv.dataset.surfaceCue = cueSignature;
+            aiMessageDiv.dataset.actionCue = payload.action || '';
+            aiMessageDiv.dataset.expressionCue = payload.expression || '';
         }
     }
 
@@ -605,6 +637,7 @@ export class ChatTTSSystem {
     createAIMessage() {
         const div = document.createElement('div');
         div.className = 'message-item message-ai';
+        div.dataset.surfaceCue = '';
         div.dataset.actionCue = '';
         div.dataset.expressionCue = '';
         div.dataset.contentFormat = 'markdown';
@@ -618,8 +651,8 @@ export class ChatTTSSystem {
     addUserMessage(content, attachments = []) {
         const div = document.createElement('div');
         div.className = 'message-item message-user';
-        div.__aigrilAttachments = normalizeVisionAttachments(attachments);
-        this.renderMessageContent(div, appendAttachmentHint(content, div.__aigrilAttachments), 'markdown');
+        div.__aigrilAttachments = normalizeChatAttachments(attachments);
+        this.renderMessageContent(div, buildAttachmentHint(content, div.__aigrilAttachments), 'markdown');
         this.messageListEl.appendChild(div);
         this.notifyMessageAdded(div, 'user');
         this.scrollToBottom();

@@ -14,7 +14,13 @@ const {
     validateOpenClawToolSurface
 } = require('./openclaw-tool-surface.cjs');
 const { OpenClawRuntimeSupervisor } = require('./openclaw-runtime.cjs');
-const { HumanClawRuntime, RUNTIME_TOOL_IDS } = require('./humanclaw-runtime.cjs');
+const { HumanClawRuntime } = require('./humanclaw-runtime.cjs');
+const {
+    TOOL_EXPOSURE,
+    HumanClawRuntimeTool,
+    HumanClawToolRuntimeRegistry
+} = require('./humanclaw-tool-runtime.cjs');
+const { createHumanClawPlatformAdapter } = require('./humanclaw-platform-adapter.cjs');
 const { HumanClawAgentRunner } = require('./humanclaw-agent-runner.cjs');
 const { HumanClawMemoryRuntime } = require('./humanclaw-memory-store.cjs');
 const {
@@ -25,6 +31,7 @@ const { EMAIL_TOOL_ID, executeEmailTool, listProviderDetails } = require('./huma
 const { FILE_MANAGER_TOOL_ID, executeFileManagerTool } = require('./humanclaw-file-manager-tool.cjs');
 const { COMPUTER_TOOL_ID, HumanClawComputerTool } = require('./humanclaw-computer-tool.cjs');
 const { CODE_TOOL_ID, executeCodeTool } = require('./humanclaw-code-tool.cjs');
+const { ARTIFACT_VERIFIER_TOOL_ID, executeArtifactVerifierTool } = require('./humanclaw-artifact-verifier-tool.cjs');
 const {
     HUMANCLAW_VISION_TOOL_DEFINITION,
     VISION_TOOL_ID,
@@ -141,6 +148,16 @@ const HUMANCLAW_LOCAL_TOOL_DEFINITIONS = Object.freeze([
         status: 'available',
         needsApprovalActions: Object.freeze(['git_commit', 'rename_symbol', 'test', 'pr_create'])
     }),
+    Object.freeze({
+        id: ARTIFACT_VERIFIER_TOOL_ID,
+        label: 'artifact_verifier',
+        description: 'Read-only structured artifact verification for JSON/JSONL/CSV/TSV/YAML/TOML/Markdown/log/text files.',
+        sectionId: 'artifact-verification',
+        route: 'humanclaw-local',
+        materialized: true,
+        status: 'available',
+        needsApprovalActions: Object.freeze([])
+    }),
     HUMANCLAW_VISION_TOOL_DEFINITION
 ]);
 
@@ -185,14 +202,7 @@ function formatSseEvent(event) {
 }
 
 function isPathInside(rootPath, targetPath) {
-    const root = path.resolve(rootPath);
-    const target = path.resolve(targetPath);
-    const rootComparable = process.platform === 'win32' ? root.toLowerCase() : root;
-    const targetComparable = process.platform === 'win32' ? target.toLowerCase() : target;
-    return (
-        targetComparable === rootComparable ||
-        targetComparable.startsWith(`${rootComparable}${path.sep}`)
-    );
+    return createHumanClawPlatformAdapter().isPathInside(rootPath, targetPath);
 }
 
 function summarize(value, maxChars = 600) {
@@ -389,10 +399,12 @@ class HumanClawGateway extends EventEmitter {
         );
         this.auditLogPath = path.join(this.auditDir, 'audit.jsonl');
         this.smokeReportPath = path.join(this.projectRoot, 'tmp', 'openclaw-tool-smoke', 'last-report.json');
+        this.platformAdapter = createHumanClawPlatformAdapter(options.platformAdapter || options.platform || {});
         this.runtime = new HumanClawRuntime({
             auditDir: this.auditDir,
             workspaceRoot: this.workspaceRoot,
             projectRoot: this.projectRoot,
+            platformAdapter: this.platformAdapter,
             emitGatewayEvent: (type, payload) => this.emitGatewayEvent(type, payload),
             mcpServers: options.mcpServers,
             mcpConfigPath: options.mcpConfigPath || path.join(this.auditDir, 'mcp-servers.json'),
@@ -411,7 +423,8 @@ class HumanClawGateway extends EventEmitter {
         this.toolSets = new Map();
         this.toolRuntimeSupervisor = null;
         this.computerTool = new HumanClawComputerTool({
-            workspaceRoot: this.workspaceRoot
+            workspaceRoot: this.workspaceRoot,
+            platformAdapter: this.platformAdapter
         });
         this.getEmailProfiles = typeof options.getEmailProfiles === 'function'
             ? options.getEmailProfiles
@@ -424,7 +437,117 @@ class HumanClawGateway extends EventEmitter {
             rootDir: path.join(this.auditDir, 'memory'),
             workspaceRoot: this.workspaceRoot
         });
+        this.gatewayToolRuntimeRegistry = this.createGatewayToolRuntimeRegistry();
         this.agentRunner = null;
+    }
+
+    createGatewayToolRuntimeRegistry() {
+        const registry = new HumanClawToolRuntimeRegistry({ runtime: this.runtime });
+        const localDefinitions = [
+            ...HUMANCLAW_LOCAL_TOOL_DEFINITIONS.map((definition) => ({
+                ...definition,
+                exposure: TOOL_EXPOSURE.DIRECT
+            })),
+            ...['read', 'write', 'exec'].map((id) => {
+                const openClawDefinition = OPENCLAW_CORE_TOOL_DEFINITIONS.find((tool) => tool.id === id) || {};
+                return {
+                    id,
+                    label: openClawDefinition.label || id,
+                    description: openClawDefinition.description || `Local core ${id} tool.`,
+                    sectionId: openClawDefinition.sectionId || 'local-core',
+                    route: 'humanclaw-local-core',
+                    materialized: true,
+                    status: 'available',
+                    needsApprovalActions: id === 'exec' ? Object.freeze(['exec']) : Object.freeze([]),
+                    exposure: TOOL_EXPOSURE.DIRECT
+                };
+            })
+        ];
+        for (const definition of localDefinitions) {
+            registry.register(new HumanClawRuntimeTool({
+                definition,
+                handle: async (args, context) => this.executeGatewayLocalTool(definition.id, args, context)
+            }));
+        }
+        for (const definition of this.runtime.getRuntimeToolDefinitions()) {
+            if (definition.id === 'tool_search') {
+                registry.register(new HumanClawRuntimeTool({
+                    definition: {
+                        ...definition,
+                        route: 'humanclaw-gateway',
+                        description: 'Search all Gateway, Runtime, and MCP tools and return Codex-like loadable specs.',
+                        exposure: TOOL_EXPOSURE.DIRECT
+                    },
+                    handle: async (args) => this.executeGatewayToolSearch(args)
+                }));
+                continue;
+            }
+            registry.register(new HumanClawRuntimeTool({
+                definition: {
+                    ...definition,
+                    route: definition.route || 'humanclaw-runtime'
+                },
+                handle: async (args, context) => this.runtime.executeTool(definition.id, args, context)
+            }));
+        }
+        return registry;
+    }
+
+    async executeGatewayToolSearch(args = {}) {
+        const query = normalizeString(args.query || args.q);
+        const limit = Math.max(1, Math.min(Number(args.limit || 12), 50));
+        const local = this.gatewayToolRuntimeRegistry.search(query, limit).map((entry) => ({
+            id: entry.id,
+            type: 'gateway_or_runtime_tool',
+            exposure: entry.exposure,
+            spec: entry.spec
+        }));
+        let mcp = [];
+        if (args.includeMcp !== false && this.runtime?.mcpManager?.searchToolSpecs) {
+            try {
+                mcp = (await this.runtime.mcpManager.searchToolSpecs({
+                    query,
+                    limit,
+                    timeoutMs: args.timeoutMs
+                })).map((spec) => ({
+                    id: spec.id,
+                    type: 'mcp_tool',
+                    server: spec.server,
+                    tool: spec.tool,
+                    name: spec.name,
+                    description: spec.description || spec.title || '',
+                    input_schema: spec.inputSchema || {},
+                    call_pattern: {
+                        tool: spec.id,
+                        args: Object.fromEntries((spec.schemaProperties || []).map((key) => [key, `<${key}>`]))
+                    }
+                }));
+            } catch (error) {
+                mcp = [{
+                    type: 'mcp_tool_search_error',
+                    error: error?.message || String(error)
+                }];
+            }
+        }
+        const tools = [...local, ...mcp].slice(0, limit);
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: JSON.stringify({ status: 'completed', query, tools }, null, 2)
+                }
+            ],
+            details: {
+                status: 'completed',
+                query,
+                tools
+            },
+            structuredContent: {
+                status: 'completed',
+                query,
+                tools
+            }
+        };
     }
 
     resolveDefaultContext() {
@@ -524,6 +647,8 @@ class HumanClawGateway extends EventEmitter {
 
     getStatus() {
         const address = this.getAddress();
+        const gatewayToolDefinitions = this.gatewayToolRuntimeRegistry?.listDefinitions?.() || [];
+        const directGatewayTools = this.gatewayToolRuntimeRegistry?.modelVisibleSpecs?.() || [];
         return {
             enabled: true,
             running: Boolean(this.server),
@@ -532,6 +657,7 @@ class HumanClawGateway extends EventEmitter {
             port: address.port,
             url: address.url,
             workspaceRoot: this.workspaceRoot,
+            platform: this.platformAdapter.getStatus(),
             auditLogPath: this.auditLogPath,
             toolGatewayUrl: this.toolGatewayUrl,
             openClawToolSurface: getOpenClawToolSurfaceSummary(),
@@ -539,6 +665,12 @@ class HumanClawGateway extends EventEmitter {
             toolContracts: {
                 version: 1,
                 count: listToolContracts().length
+            },
+            toolRuntime: {
+                model: 'codex_like_gateway_tool_registry',
+                registeredToolCount: gatewayToolDefinitions.length,
+                directToolCount: directGatewayTools.length,
+                deferredToolCount: gatewayToolDefinitions.filter((tool) => tool.exposure === TOOL_EXPOSURE.DEFERRED).length
             },
             defaultContext: redactObject(this.resolveDefaultContext()),
             runtime: this.runtime.getStatus(),
@@ -921,9 +1053,10 @@ class HumanClawGateway extends EventEmitter {
             params.includeMaterialized === true ||
             context.materialize === true ||
             context.includeMaterialized === true;
+        const registeredToolIds = new Set(this.gatewayToolRuntimeRegistry?.toolIds?.() || []);
         const materialized = shouldMaterialize
             ? await this.listMaterializedToolIds().catch(() => [])
-            : [...RUNTIME_TOOL_IDS];
+            : [...registeredToolIds];
         const materializedSet = new Set(materialized);
         const coreTools = OPENCLAW_CORE_TOOL_DEFINITIONS.map((tool) => ({
             id: tool.id,
@@ -931,11 +1064,11 @@ class HumanClawGateway extends EventEmitter {
             description: tool.description,
             sectionId: tool.sectionId,
             route: this.resolveToolRoute(tool.id),
-            status: RUNTIME_TOOL_IDS.has(tool.id)
+            status: registeredToolIds.has(tool.id)
                 ? 'available'
                 : smoke.map.get(tool.id)?.status || this.defaultToolStatus(tool.id, materializedSet),
             materialized:
-                RUNTIME_TOOL_IDS.has(tool.id) ||
+                registeredToolIds.has(tool.id) ||
                 materializedSet.has(tool.id) ||
                 Boolean(smoke.map.get(tool.id)?.materialized),
             needsApproval: tool.id === 'exec' || tool.id === 'subagents',
@@ -956,8 +1089,17 @@ class HumanClawGateway extends EventEmitter {
             status: smoke.map.get(tool.id)?.status || 'needs_pairing',
             materialized: Boolean(smoke.map.get(tool.id)?.materialized)
         }));
-        const runtimeTools = this.runtime.getRuntimeToolDefinitions();
-        const localTools = HUMANCLAW_LOCAL_TOOL_DEFINITIONS.map((tool) => ({
+        const gatewayDefinitions = this.gatewayToolRuntimeRegistry.listDefinitions();
+        const runtimeTools = gatewayDefinitions
+            .filter((tool) => ['humanclaw-runtime', 'humanclaw-gateway'].includes(tool.route))
+            .map((tool) => ({
+                ...tool,
+                status: tool.status || 'available',
+                materialized: true
+            }));
+        const localTools = this.gatewayToolRuntimeRegistry.listDefinitions()
+            .filter((tool) => tool.route === 'humanclaw-local')
+            .map((tool) => ({
             ...tool,
             providers: tool.id === EMAIL_TOOL_ID ? listProviderDetails() : undefined
         }));
@@ -987,6 +1129,10 @@ class HumanClawGateway extends EventEmitter {
     }
 
     resolveToolRoute(toolId) {
+        const gatewayTool = this.gatewayToolRuntimeRegistry?.definition(toolId);
+        if (gatewayTool?.route) {
+            return gatewayTool.route;
+        }
         if (this.runtime.canExecuteTool(toolId)) {
             return 'humanclaw-runtime';
         }
@@ -1000,6 +1146,9 @@ class HumanClawGateway extends EventEmitter {
     }
 
     defaultToolStatus(toolId, materializedSet) {
+        if (this.gatewayToolRuntimeRegistry?.has(toolId)) {
+            return 'available';
+        }
         if (this.runtime.canExecuteTool(toolId)) {
             return 'available';
         }
@@ -1017,7 +1166,10 @@ class HumanClawGateway extends EventEmitter {
 
     async listMaterializedToolIds() {
         const tools = await this.getToolSet({ workspace: this.workspaceRoot });
-        return [...new Set([...tools.keys(), ...RUNTIME_TOOL_IDS])];
+        return [...new Set([
+            ...tools.keys(),
+            ...(this.gatewayToolRuntimeRegistry?.toolIds?.() || [])
+        ])];
     }
 
     async callTool(request = {}) {
@@ -1222,7 +1374,7 @@ class HumanClawGateway extends EventEmitter {
             sessionId: subagent?.childSessionId || context.sessionId || context.sessionKey,
             agentLoop: 'llm',
             planner: 'llm',
-            maxAgentSteps: Number(args.maxAgentSteps || context.maxAgentSteps || 6),
+            maxAgentSteps: Number(args.maxAgentSteps || context.maxAgentSteps || 50),
             context: this.mergeDefaultContext({
                 ...context,
                 parentRunId: subagent?.runId,
@@ -1233,7 +1385,7 @@ class HumanClawGateway extends EventEmitter {
                 sessionKey: subagent?.childSessionId || context.sessionKey,
                 agentLoop: 'llm',
                 planner: 'llm',
-                maxAgentSteps: Number(args.maxAgentSteps || context.maxAgentSteps || 6)
+                maxAgentSteps: Number(args.maxAgentSteps || context.maxAgentSteps || 50)
             })
         });
         const result = signal
@@ -1281,46 +1433,11 @@ class HumanClawGateway extends EventEmitter {
     }
 
     async callOpenClawTool({ toolId, args, context, workspaceDir }) {
-        if (toolId === EMAIL_TOOL_ID) {
-            return await executeEmailTool(args, {
+        if (this.gatewayToolRuntimeRegistry?.has(toolId)) {
+            return await this.gatewayToolRuntimeRegistry.dispatch(toolId, args, {
                 ...context,
-                emailProfiles: {
-                    ...(this.getEmailProfiles() || {}),
-                    ...(context.emailProfiles || context.emailAccounts || {})
-                }
-            });
-        }
-        if (toolId === FILE_MANAGER_TOOL_ID) {
-            return await executeFileManagerTool(args, context, {
-                workspaceDir,
-                workspaceRoot: this.workspaceRoot,
-                projectRoot: this.projectRoot
-            });
-        }
-        if (toolId === COMPUTER_TOOL_ID) {
-            return await this.computerTool.execute(args, context, {
-                workspaceDir,
-                workspaceRoot: this.workspaceRoot,
-                projectRoot: this.projectRoot
-            });
-        }
-        if (toolId === CODE_TOOL_ID) {
-            return await executeCodeTool(args, context, {
-                workspaceDir,
-                workspaceRoot: this.workspaceRoot,
-                projectRoot: this.projectRoot
-            });
-        }
-        if (toolId === VISION_TOOL_ID) {
-            return await executeVisionTool(args, context, this.visionServices);
-        }
-        if (LOCAL_CORE_TOOL_IDS.has(toolId)) {
-            return await this.executeLocalCoreTool({ toolId, args, context, workspaceDir });
-        }
-        if (this.runtime.canExecuteTool(toolId)) {
-            return await this.runtime.executeTool(toolId, args, {
-                ...context,
-                workspace: workspaceDir
+                workspace: workspaceDir,
+                workspaceDir
             });
         }
         if (PLUGIN_OR_TRIGGER_TOOL_IDS.has(toolId)) {
@@ -1350,6 +1467,55 @@ class HumanClawGateway extends EventEmitter {
             return await this.withDefaultOpenClawGatewayEnv(() => tool.execute(`humanclaw-${toolId}`, finalArgs));
         }
         return await tool.execute(`humanclaw-${toolId}`, finalArgs);
+    }
+
+    async executeGatewayLocalTool(toolId, args, context = {}) {
+        const workspaceDir = context.workspaceDir || this.resolveWorkspace(context.workspace);
+        if (toolId === EMAIL_TOOL_ID) {
+            return await executeEmailTool(args, {
+                ...context,
+                emailProfiles: {
+                    ...(this.getEmailProfiles() || {}),
+                    ...(context.emailProfiles || context.emailAccounts || {})
+                }
+            });
+        }
+        if (toolId === FILE_MANAGER_TOOL_ID) {
+            return await executeFileManagerTool(args, context, {
+                workspaceDir,
+                workspaceRoot: this.workspaceRoot,
+                projectRoot: this.projectRoot
+            });
+        }
+        if (toolId === COMPUTER_TOOL_ID) {
+            return await this.computerTool.execute(args, context, {
+                workspaceDir,
+                workspaceRoot: this.workspaceRoot,
+                projectRoot: this.projectRoot,
+                platformAdapter: this.platformAdapter
+            });
+        }
+        if (toolId === CODE_TOOL_ID) {
+            return await executeCodeTool(args, context, {
+                workspaceDir,
+                workspaceRoot: this.workspaceRoot,
+                projectRoot: this.projectRoot
+            });
+        }
+        if (toolId === ARTIFACT_VERIFIER_TOOL_ID) {
+            return await executeArtifactVerifierTool(args, context, {
+                workspaceDir,
+                workspaceRoot: this.workspaceRoot,
+                projectRoot: this.projectRoot
+            });
+        }
+        if (toolId === VISION_TOOL_ID) {
+            return await executeVisionTool(args, context, this.visionServices);
+        }
+        if (LOCAL_CORE_TOOL_IDS.has(toolId)) {
+            return await this.executeLocalCoreTool({ toolId, args, context, workspaceDir });
+        }
+        return this.notAvailableResult(toolId, 'not-materialized');
     }
 
     notAvailableResult(toolId, reason) {
@@ -1619,12 +1785,13 @@ class HumanClawGateway extends EventEmitter {
 
     async appendAudit(entry) {
         await fsp.mkdir(this.auditDir, { recursive: true });
+        const safeEntry = redactObject(entry);
         const line = JSON.stringify({
             ts: Date.now(),
             iso: new Date().toISOString(),
-            ...entry,
-            argsPreview: summarize(entry.args),
-            contextPreview: summarize(entry.context)
+            ...safeEntry,
+            argsPreview: summarize(safeEntry.args),
+            contextPreview: summarize(safeEntry.context)
         });
         await fsp.appendFile(this.auditLogPath, `${line}\n`, 'utf8');
     }

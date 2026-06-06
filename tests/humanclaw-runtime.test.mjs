@@ -224,6 +224,41 @@ rl.on('line', (line) => {
         );
         assert.equal(call.details.status, 'completed');
         assert.match(call.content[0].text, /echo:hello/);
+        assert.equal(runtime.canExecuteTool('mcp:fixture:echo'), true);
+
+        const directCall = await runtime.executeTool(
+            'mcp:fixture:echo',
+            { text: 'direct' },
+            { runId: 'mcp-run' }
+        );
+        assert.equal(directCall.details.status, 'completed');
+        assert.equal(directCall.details.server, 'fixture');
+        assert.equal(directCall.details.tool, 'echo');
+        assert.match(directCall.content[0].text, /echo:direct/);
+
+        const searched = await runtime.executeTool(
+            'tool_search',
+            { query: 'echo fixture', limit: 8 },
+            { runId: 'mcp-run' }
+        );
+        assert.equal(searched.details.status, 'completed');
+        assert.ok(searched.details.tools.some((tool) => tool.id === 'mcp:fixture:echo'));
+
+        const aliasCall = await runtime.executeTool(
+            'mcp_bridge',
+            { action: 'call_tool', server: 'fixture', tool_name: 'echo', tool_args: { text: 'alias' } },
+            { runId: 'mcp-run' }
+        );
+        assert.equal(aliasCall.details.status, 'completed');
+        assert.match(aliasCall.content[0].text, /echo:alias/);
+
+        const topLevelArgCall = await runtime.executeTool(
+            'mcp_bridge',
+            { action: 'call_tool', server: 'fixture', tool: 'echo', text: 'top-level' },
+            { runId: 'mcp-run' }
+        );
+        assert.equal(topLevelArgCall.details.status, 'completed');
+        assert.match(topLevelArgCall.content[0].text, /echo:top-level/);
 
         const resource = await runtime.executeTool(
             'mcp_bridge',

@@ -115,6 +115,48 @@ function publicServerConfig(name, config = {}, session = null) {
     };
 }
 
+function schemaPropertyNames(schema = {}) {
+    const properties = normalizeObject(schema.properties);
+    return Object.keys(properties).filter(Boolean);
+}
+
+function makeMcpToolSpec(serverName, tool = {}) {
+    const server = normalizeString(serverName);
+    const toolName = normalizeString(tool?.name || tool?.id);
+    const inputSchema = normalizeObject(tool?.inputSchema || tool?.input_schema);
+    const schemaProperties = schemaPropertyNames(inputSchema);
+    return {
+        id: `mcp:${server}:${toolName}`,
+        name: `${server}.${toolName}`,
+        server,
+        tool: toolName,
+        title: normalizeString(tool?.title),
+        description: normalizeString(tool?.description),
+        inputSchema,
+        schemaProperties,
+        source: 'mcp',
+        callPattern: {
+            tool: `mcp:${server}:${toolName}`,
+            args: Object.fromEntries(schemaProperties.map((key) => [key, `<${key}>`]))
+        }
+    };
+}
+
+function buildMcpToolSearchText(spec = {}) {
+    return [
+        spec.id,
+        spec.name,
+        spec.server,
+        spec.tool,
+        spec.title,
+        spec.description,
+        Array.isArray(spec.schemaProperties) ? spec.schemaProperties.join(' ') : ''
+    ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+}
+
 function sanitizeServerConfig(config = {}) {
     const clean = normalizeObject(config);
     const next = { ...clean };
@@ -859,6 +901,35 @@ class HumanClawMcpManager {
             });
         }
         return results;
+    }
+
+    async listToolSpecs(serverName = '', timeoutMs = DEFAULT_MCP_TIMEOUT_MS) {
+        const grouped = await this.listTools(serverName, timeoutMs);
+        return grouped.flatMap((entry) =>
+            (Array.isArray(entry.tools) ? entry.tools : [])
+                .map((tool) => makeMcpToolSpec(entry.server, tool))
+                .filter((spec) => spec.server && spec.tool)
+        );
+    }
+
+    async searchToolSpecs({ query = '', server = '', limit = 8, timeoutMs = DEFAULT_MCP_TIMEOUT_MS } = {}) {
+        const specs = await this.listToolSpecs(server, timeoutMs);
+        const needle = normalizeString(query).toLowerCase();
+        const boundedLimit = Math.max(1, Math.min(Number(limit) || 8, 50));
+        if (!needle) {
+            return specs.slice(0, boundedLimit);
+        }
+        const terms = needle.split(/\s+/).filter(Boolean);
+        return specs
+            .map((spec) => {
+                const haystack = buildMcpToolSearchText(spec);
+                const score = terms.reduce((sum, term) => sum + (haystack.includes(term) ? 1 : 0), 0);
+                return { spec, score };
+            })
+            .filter((entry) => entry.score > 0)
+            .sort((a, b) => b.score - a.score || a.spec.name.localeCompare(b.spec.name))
+            .slice(0, boundedLimit)
+            .map((entry) => entry.spec);
     }
 
     cacheToolSchemas(serverName, tools = []) {
