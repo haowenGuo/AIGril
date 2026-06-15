@@ -2,6 +2,7 @@
   <h1>AIGril / AIGRIL</h1>
   <p><strong>An embodied AI companion project centered on AIGL: a 3D virtual character, a conversational runtime, a desktop pet, and an extensible set of education, memory, voice, and safety services.</strong></p>
   <p>
+    <a href="https://haowenGuo.github.io/AIGril/about-aigl.html"><img alt="AIGRIL Showcase" src="https://img.shields.io/badge/AIGRIL-Showcase%20%26%20Downloads-73b8e5?style=for-the-badge"></a>
     <a href="https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com"><img alt="Try AIGril" src="https://img.shields.io/badge/Try%20AIGril-Live%20Experience-2563eb?style=for-the-badge"></a>
     <a href="https://haowenGuo.github.io/AIGril/"><img alt="Frontend Demo" src="https://img.shields.io/badge/GitHub%20Pages-Frontend%20Demo-0f172a?style=for-the-badge"></a>
     <a href="https://airi-backend.onrender.com/docs"><img alt="Backend API" src="https://img.shields.io/badge/Backend-FastAPI%20Docs-059669?style=for-the-badge"></a>
@@ -61,11 +62,18 @@ AIGRIL is moving toward an embodied assistant platform rather than a single demo
 
 ## Experience Links
 
+- Project showcase and downloads: [https://haowenGuo.github.io/AIGril/about-aigl.html](https://haowenGuo.github.io/AIGril/about-aigl.html)
 - Full web experience: [https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com](https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com)
 - Frontend-only demo: [https://haowenGuo.github.io/AIGril/](https://haowenGuo.github.io/AIGril/)
 - Backend API docs: [https://airi-backend.onrender.com/docs](https://airi-backend.onrender.com/docs)
 - Simulated classroom: [https://airi-backend.onrender.com/edu](https://airi-backend.onrender.com/edu)
 - Project writing/blog: [https://airi-backend.onrender.com/blog](https://airi-backend.onrender.com/blog)
+
+## Downloads
+
+- Windows current mainline: [HumanClaw Setup 1.0.4](https://github.com/haowenGuo/AIGL-Assistant/releases/download/v1.0.4/HumanClaw-Setup-1.0.4-win-x64.exe) or [HumanClaw Portable 1.0.4](https://github.com/haowenGuo/AIGL-Assistant/releases/download/v1.0.4/HumanClaw-Portable-1.0.4-win-x64.exe).
+- Linux compatible packages: [AppImage](https://github.com/haowenGuo/AIGril/releases/download/v1.0.3/AIGril-1.0.3-linux-x86_64.AppImage), [Debian .deb](https://github.com/haowenGuo/AIGril/releases/download/v1.0.3/AIGril-1.0.3-linux-amd64.deb), or [tar.gz](https://github.com/haowenGuo/AIGril/releases/download/v1.0.3/AIGril-1.0.3-linux-x64.tar.gz).
+- Note: the latest AIGL-Assistant / HumanClaw release currently ships Windows assets; the Linux packages are from the earlier AIGril `v1.0.3` release.
 
 ## Architecture
 

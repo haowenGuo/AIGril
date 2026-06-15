@@ -487,6 +487,122 @@
             font-weight: 500;
         }
 
+        /* ===== 下载 ===== */
+        .download-section {
+            padding: 90px 24px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .download-panel {
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.94), rgba(245,250,255,0.9)),
+                radial-gradient(circle at 18% 16%, rgba(168,216,240,0.30), transparent 34%),
+                radial-gradient(circle at 88% 12%, rgba(240,168,200,0.20), transparent 32%);
+            border: 1px solid rgba(168, 216, 240, 0.22);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 18px 52px rgba(115, 184, 229, 0.16);
+        }
+
+        .download-grid {
+            display: grid;
+            grid-template-columns: 1.08fr 0.92fr;
+            gap: 18px;
+            margin-top: 26px;
+        }
+
+        .download-card {
+            background: rgba(255,255,255,0.74);
+            border: 1px solid rgba(168, 216, 240, 0.22);
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: 0 10px 28px rgba(168, 216, 240, 0.12);
+        }
+
+        .download-card.recommended {
+            border-color: rgba(115, 184, 229, 0.44);
+            box-shadow: 0 14px 36px rgba(115, 184, 229, 0.20);
+        }
+
+        .download-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .download-head h3 {
+            font-size: 1.16rem;
+            margin: 0;
+        }
+
+        .download-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            border-radius: 50px;
+            background: rgba(168, 216, 240, 0.16);
+            color: var(--primary-deep);
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .download-card p {
+            color: var(--text-light);
+            font-size: 0.92rem;
+            margin-bottom: 14px;
+        }
+
+        .download-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(156px, 1fr));
+            gap: 10px;
+        }
+
+        .download-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            min-height: 44px;
+            padding: 10px 13px;
+            border-radius: 14px;
+            border: 1px solid rgba(168, 216, 240, 0.28);
+            background: rgba(255,255,255,0.86);
+            color: var(--text);
+            font-size: 0.9rem;
+            font-weight: 700;
+            transition: transform .25s, border-color .25s, box-shadow .25s;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            border-color: rgba(115, 184, 229, 0.58);
+            box-shadow: 0 10px 24px rgba(115, 184, 229, 0.18);
+        }
+
+        .download-btn.primary {
+            background: var(--primary-gradient);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .download-meta {
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(168, 216, 240, 0.16);
+            color: var(--text-light);
+            font-size: 0.84rem;
+        }
+
+        .download-meta a {
+            font-weight: 700;
+        }
+
         /* ===== Benchmark ===== */
         .bench-section {
             padding: 90px 24px;
@@ -737,6 +853,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .download-grid {
+                grid-template-columns: 1fr;
+            }
+
             .bench-grid {
                 grid-template-columns: 1fr 1fr;
             }
@@ -774,6 +894,20 @@
                 padding: 60px 16px;
             }
 
+            .download-section {
+                padding: 60px 16px;
+            }
+
+            .download-panel {
+                padding: 22px 16px;
+                border-radius: 18px;
+            }
+
+            .download-head {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
             .bench-section {
                 padding: 60px 16px;
             }
@@ -798,6 +932,7 @@
             <li><a href="#about">关于我</a></li>
             <li><a href="#skills">能力</a></li>
             <li><a href="#project">项目</a></li>
+            <li><a href="#download">下载</a></li>
             <li><a href="#bench">评测</a></li>
             <li><a href="#arch">架构</a></li>
         </ul>
@@ -817,6 +952,7 @@
         <div class="hero-actions">
             <a href="#about" class="btn btn-primary">💬 认识我</a>
             <a href="#project" class="btn btn-secondary">🚀 了解项目</a>
+            <a href="#download" class="btn btn-secondary">⬇ 下载</a>
         </div>
         <div class="scroll-indicator">
             <span>向下滚动</span>
@@ -959,6 +1095,61 @@
                     <li>🔄 工具合约 &amp; 测试覆盖 逐步完善</li>
                     <li>💡 <strong>GitHub 持续维护</strong>，围绕 AIGL-Assistant 主线继续迭代！</li>
                 </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== 下载 ===== -->
+    <section class="download-section" id="download">
+        <div class="section-title">⬇ AIGRIL <span class="highlight">下载</span></div>
+        <p class="section-sub">Windows 使用当前 HumanClaw 主线版本；Linux 暂时提供 AIGril v1.0.3 兼容包。</p>
+
+        <div class="download-panel">
+            <div class="download-grid">
+                <div class="download-card recommended">
+                    <div class="download-head">
+                        <h3>Windows · HumanClaw 1.0.4</h3>
+                        <span class="download-chip">当前主线推荐</span>
+                    </div>
+                    <p>
+                        最新 AIGL-Assistant / HumanClaw 桌面版，包含任务执行、对话、控制面板与本地运行时。
+                    </p>
+                    <div class="download-actions">
+                        <a class="download-btn primary" href="https://github.com/haowenGuo/AIGL-Assistant/releases/download/v1.0.4/HumanClaw-Setup-1.0.4-win-x64.exe" target="_blank" rel="noopener noreferrer">
+                            <span>安装版 .exe</span><span>↗</span>
+                        </a>
+                        <a class="download-btn" href="https://github.com/haowenGuo/AIGL-Assistant/releases/download/v1.0.4/HumanClaw-Portable-1.0.4-win-x64.exe" target="_blank" rel="noopener noreferrer">
+                            <span>便携版 .exe</span><span>↗</span>
+                        </a>
+                    </div>
+                    <div class="download-meta">
+                        来源：<a href="https://github.com/haowenGuo/AIGL-Assistant/releases/tag/v1.0.4" target="_blank" rel="noopener noreferrer">AIGL-Assistant v1.0.4 Release</a>
+                    </div>
+                </div>
+
+                <div class="download-card">
+                    <div class="download-head">
+                        <h3>Linux · AIGril 1.0.3</h3>
+                        <span class="download-chip">兼容包</span>
+                    </div>
+                    <p>
+                        Linux 现有包来自 AIGril v1.0.3；HumanClaw 1.0.4 release 当前暂未提供 Linux 构建资产。
+                    </p>
+                    <div class="download-actions">
+                        <a class="download-btn primary" href="https://github.com/haowenGuo/AIGril/releases/download/v1.0.3/AIGril-1.0.3-linux-x86_64.AppImage" target="_blank" rel="noopener noreferrer">
+                            <span>AppImage</span><span>↗</span>
+                        </a>
+                        <a class="download-btn" href="https://github.com/haowenGuo/AIGril/releases/download/v1.0.3/AIGril-1.0.3-linux-amd64.deb" target="_blank" rel="noopener noreferrer">
+                            <span>Debian .deb</span><span>↗</span>
+                        </a>
+                        <a class="download-btn" href="https://github.com/haowenGuo/AIGril/releases/download/v1.0.3/AIGril-1.0.3-linux-x64.tar.gz" target="_blank" rel="noopener noreferrer">
+                            <span>tar.gz</span><span>↗</span>
+                        </a>
+                    </div>
+                    <div class="download-meta">
+                        来源：<a href="https://github.com/haowenGuo/AIGril/releases/tag/v1.0.3" target="_blank" rel="noopener noreferrer">AIGril v1.0.3 Release</a>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -1149,6 +1340,7 @@
             <a href="#about">关于我</a>
             <a href="#skills">能力</a>
             <a href="#project">项目</a>
+            <a href="#download">下载</a>
             <a href="#bench">评测</a>
             <a href="#arch">架构</a>
         </div>
