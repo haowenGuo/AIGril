@@ -1,879 +1,917 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>✨ AIGL · 你的可爱虚拟助手</title>
-    <style>
-        /* ===== 全局重置 & 变量 ===== */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary: #a8d8f0;
-            --primary-deep: #73b8e5;
-            --primary-gradient: linear-gradient(135deg, #a8d8f0 0%, #73b8e5 100%);
-            --accent: #f0a8c8;
-            --accent-gradient: linear-gradient(135deg, #f0a8c8 0%, #e887b0 100%);
-            --bg: #f5faff;
-            --card-bg: rgba(255, 255, 255, 0.85);
-            --text: #2c3e50;
-            --text-light: #6b7b8d;
-            --shadow: 0 8px 32px rgba(168, 216, 240, 0.20);
-            --radius: 16px;
-            --radius-sm: 10px;
-            --font: "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif;
-        }
-
-        html {
-            scroll-behavior: smooth;
-        }
-
-        body {
-            font-family: var(--font);
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.7;
-            overflow-x: hidden;
-        }
-
-        a {
-            color: var(--primary-deep);
-            text-decoration: none;
-            transition: color .25s;
-        }
-        a:hover {
-            color: #4a9fd4;
-        }
-
-        /* ===== 导航栏 ===== */
-        .navbar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 100;
-            background: rgba(255, 255, 255, 0.75);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(168, 216, 240, 0.25);
-            padding: 0 24px;
-            height: 64px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .navbar .logo {
-            font-size: 20px;
-            font-weight: 700;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .navbar .logo span {
-            background: var(--accent-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 28px;
-            list-style: none;
-        }
-
-        .nav-links a {
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-light);
-            transition: color .25s;
-            position: relative;
-        }
-
-        .nav-links a::after {
-            content: '';
-            position: absolute;
-            bottom: -4px;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: var(--primary-gradient);
-            border-radius: 2px;
-            transition: width .3s;
-        }
-
-        .nav-links a:hover {
-            color: var(--text);
-        }
-        .nav-links a:hover::after {
-            width: 100%;
-        }
-
-        /* ===== Hero ===== */
-        .hero {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 100px 24px 80px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: -30%;
-            left: -20%;
-            width: 70%;
-            height: 100%;
-            background: radial-gradient(ellipse at 30% 40%, rgba(168, 216, 240, 0.30) 0%, transparent 70%);
-            pointer-events: none;
-        }
-
-        .hero::after {
-            content: '';
-            position: absolute;
-            bottom: -20%;
-            right: -15%;
-            width: 60%;
-            height: 80%;
-            background: radial-gradient(ellipse at 70% 60%, rgba(240, 168, 200, 0.18) 0%, transparent 70%);
-            pointer-events: none;
-        }
-
-        .hero-badge {
-            display: inline-block;
-            background: rgba(168, 216, 240, 0.20);
-            border: 1px solid rgba(168, 216, 240, 0.30);
-            border-radius: 50px;
-            padding: 6px 18px;
-            font-size: 13px;
-            color: var(--primary-deep);
-            font-weight: 500;
-            margin-bottom: 24px;
-            letter-spacing: 1px;
-        }
-
-        .hero h1 {
-            font-size: clamp(2.6rem, 7vw, 4.5rem);
-            font-weight: 800;
-            line-height: 1.2;
-            margin-bottom: 12px;
-            position: relative;
-        }
-
-        .hero h1 .highlight {
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .hero h1 .highlight-pink {
-            background: var(--accent-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .hero-sub {
-            font-size: clamp(1.05rem, 2vw, 1.35rem);
-            color: var(--text-light);
-            max-width: 600px;
-            margin: 12px auto 36px;
-            position: relative;
-        }
-
-        .hero-actions {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-            justify-content: center;
-            position: relative;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 32px;
-            border-radius: 50px;
-            font-size: 15px;
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            transition: all .3s;
-            font-family: var(--font);
-        }
-
-        .btn-primary {
-            background: var(--primary-gradient);
-            color: #fff;
-            box-shadow: 0 4px 16px rgba(115, 184, 229, 0.35);
-        }
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(115, 184, 229, 0.45);
-        }
-
-        .btn-secondary {
-            background: var(--card-bg);
-            color: var(--text);
-            border: 1.5px solid rgba(168, 216, 240, 0.40);
-            box-shadow: var(--shadow);
-        }
-        .btn-secondary:hover {
-            transform: translateY(-2px);
-            border-color: var(--primary-deep);
-        }
-
-        .scroll-indicator {
-            position: absolute;
-            bottom: 32px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            color: var(--text-light);
-            font-size: 12px;
-            animation: bounce 2s infinite;
-        }
-
-        .scroll-indicator .arrow {
-            width: 20px;
-            height: 20px;
-            border-right: 2px solid var(--primary-deep);
-            border-bottom: 2px solid var(--primary-deep);
-            transform: rotate(45deg);
-            opacity: 0.6;
-        }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateX(-50%) translateY(0); }
-            50% { transform: translateX(-50%) translateY(8px); }
-        }
-
-        /* ===== 通用 section ===== */
-        .section {
-            padding: 90px 24px;
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        .section-title {
-            text-align: center;
-            font-size: clamp(1.8rem, 4vw, 2.6rem);
-            font-weight: 700;
-            margin-bottom: 12px;
-        }
-
-        .section-title .highlight {
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .section-sub {
-            text-align: center;
-            color: var(--text-light);
-            max-width: 600px;
-            margin: 0 auto 48px;
-            font-size: 1.05rem;
-        }
-
-        /* ===== 关于 AIGL ===== */
-        .about-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
-            align-items: center;
-        }
-
-        .about-avatar {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .avatar-circle {
-            width: 240px;
-            height: 240px;
-            border-radius: 50%;
-            background: var(--primary-gradient);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 90px;
-            color: #fff;
-            box-shadow: 0 12px 40px rgba(168, 216, 240, 0.35);
-            animation: float 4s ease-in-out infinite;
-            position: relative;
-        }
-
-        .avatar-circle::after {
-            content: '';
-            position: absolute;
-            inset: -6px;
-            border-radius: 50%;
-            border: 2px solid rgba(168, 216, 240, 0.30);
-            animation: pulse-ring 3s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-12px); }
-        }
-
-        @keyframes pulse-ring {
-            0%, 100% { transform: scale(1); opacity: 0.6; }
-            50% { transform: scale(1.06); opacity: 0; }
-        }
-
-        .about-text h2 {
-            font-size: 1.8rem;
-            margin-bottom: 6px;
-        }
-
-        .about-text .tagline {
-            color: var(--primary-deep);
-            font-weight: 500;
-            margin-bottom: 16px;
-            font-size: 0.95rem;
-        }
-
-        .about-text p {
-            color: var(--text-light);
-            margin-bottom: 12px;
-            font-size: 0.98rem;
-        }
-
-        .about-text .greeting {
-            font-size: 1.1rem;
-            color: var(--text);
-            font-weight: 500;
-            margin-bottom: 16px;
-        }
-
-        /* ===== 能力卡片 ===== */
-        .skills-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
-            margin-top: 12px;
-        }
-
-        .skill-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(168, 216, 240, 0.18);
-            border-radius: var(--radius);
-            padding: 28px 22px;
-            box-shadow: var(--shadow);
-            transition: transform .3s, box-shadow .3s;
-            text-align: center;
-        }
-
-        .skill-card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 12px 40px rgba(168, 216, 240, 0.28);
-        }
-
-        .skill-card .icon {
-            font-size: 36px;
-            margin-bottom: 14px;
-        }
-
-        .skill-card h3 {
-            font-size: 1.1rem;
-            margin-bottom: 8px;
-        }
-
-        .skill-card p {
-            color: var(--text-light);
-            font-size: 0.9rem;
-        }
-
-        /* ===== 项目介绍 ===== */
-        .project-header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .project-header .repo-badge {
-            display: inline-block;
-            background: rgba(168, 216, 240, 0.15);
-            padding: 4px 14px;
-            border-radius: 50px;
-            font-size: 13px;
-            color: var(--primary-deep);
-            font-weight: 500;
-            margin-bottom: 16px;
-        }
-
-        .project-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-        }
-
-        .project-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(168, 216, 240, 0.18);
-            border-radius: var(--radius);
-            padding: 32px 28px;
-            box-shadow: var(--shadow);
-        }
-
-        .project-card h3 {
-            font-size: 1.15rem;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .project-card p, .project-card li {
-            color: var(--text-light);
-            font-size: 0.95rem;
-        }
-
-        .project-card ul {
-            list-style: none;
-            padding: 0;
-        }
-
-        .project-card ul li {
-            padding: 6px 0;
-            padding-left: 20px;
-            position: relative;
-        }
-
-        .project-card ul li::before {
-            content: '✦';
-            position: absolute;
-            left: 0;
-            color: var(--primary-deep);
-            font-size: 12px;
-        }
-
-        .tech-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 14px;
-        }
-
-        .tech-tag {
-            background: rgba(168, 216, 240, 0.15);
-            border: 1px solid rgba(168, 216, 240, 0.25);
-            border-radius: 50px;
-            padding: 4px 14px;
-            font-size: 12px;
-            color: var(--primary-deep);
-            font-weight: 500;
-        }
-
-        /* ===== 架构 Timeline ===== */
-        .arch-section {
-            background: linear-gradient(180deg, rgba(168, 216, 240, 0.06) 0%, transparent 100%);
-            padding: 70px 24px;
-        }
-
-        .arch-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            max-width: 1100px;
-            margin: 0 auto;
-        }
-
-        .arch-item {
-            text-align: center;
-            padding: 24px 16px;
-            border-radius: var(--radius);
-            background: var(--card-bg);
-            border: 1px solid rgba(168, 216, 240, 0.15);
-            box-shadow: var(--shadow);
-            transition: transform .3s;
-        }
-
-        .arch-item:hover {
-            transform: translateY(-4px);
-        }
-
-        .arch-item .layer-icon {
-            font-size: 32px;
-            margin-bottom: 10px;
-        }
-
-        .arch-item h4 {
-            font-size: 1rem;
-            margin-bottom: 6px;
-        }
-
-        .arch-item p {
-            font-size: 0.85rem;
-            color: var(--text-light);
-        }
-
-        /* ===== 状态 ===== */
-        .status-section {
-            text-align: center;
-            padding: 60px 24px;
-        }
-
-        .status-badges {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 14px;
-            justify-content: center;
-            margin-top: 24px;
-        }
-
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 20px;
-            border-radius: 50px;
-            font-size: 14px;
-            font-weight: 500;
-            background: var(--card-bg);
-            border: 1px solid rgba(168, 216, 240, 0.25);
-            box-shadow: var(--shadow);
-        }
-
-        .status-badge .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .dot.active { background: #4ade80; }
-        .dot.wip { background: #fbbf24; }
-        .dot.idea { background: #c084fc; }
-
-        /* ===== 页脚 ===== */
-        .footer {
-            text-align: center;
-            padding: 40px 24px 28px;
-            color: var(--text-light);
-            font-size: 13px;
-            border-top: 1px solid rgba(168, 216, 240, 0.15);
-        }
-
-        .footer .footer-links {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
-        }
-
-        .footer .footer-links a {
-            font-size: 13px;
-            color: var(--text-light);
-        }
-        .footer .footer-links a:hover {
-            color: var(--primary-deep);
-        }
-
-        /* ===== 响应式 ===== */
-        @media (max-width: 768px) {
-            .about-grid {
-                grid-template-columns: 1fr;
-                text-align: center;
-            }
-
-            .project-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .nav-links {
-                gap: 16px;
-            }
-
-            .nav-links a {
-                font-size: 13px;
-            }
-
-            .avatar-circle {
-                width: 180px;
-                height: 180px;
-                font-size: 68px;
-            }
-
-            .hero {
-                padding: 80px 20px 60px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .navbar {
-                padding: 0 16px;
-            }
-            .nav-links {
-                gap: 12px;
-            }
-            .nav-links a {
-                font-size: 12px;
-            }
-            .section {
-                padding: 60px 16px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIGRIL - Embodied AI Companion</title>
+  <meta name="description" content="AIGRIL is an embodied AI companion project centered on AIGL: a 3D virtual character, desktop pet, education surface, memory system, voice, and safety services.">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #f6f5ef;
+      --paper: #ffffff;
+      --ink: #182026;
+      --muted: #59656f;
+      --line: #d9ddd8;
+      --green: #0f766e;
+      --green-dark: #0b4f4a;
+      --coral: #d95d39;
+      --gold: #a67616;
+      --blue: #345995;
+      --shadow: 0 18px 55px rgba(24, 32, 38, 0.12);
+      --radius: 8px;
+      --max: 1120px;
+      --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans JP", sans-serif;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.65;
+      letter-spacing: 0;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 12px clamp(18px, 4vw, 48px);
+      border-bottom: 1px solid rgba(217, 221, 216, 0.82);
+      background: rgba(246, 245, 239, 0.88);
+      backdrop-filter: blur(16px);
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      min-width: 132px;
+    }
+
+    .brand strong {
+      font-size: 16px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .brand span {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .nav {
+      display: flex;
+      justify-content: center;
+      gap: clamp(12px, 2.5vw, 28px);
+      flex: 1;
+    }
+
+    .nav a {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .nav a:hover {
+      color: var(--ink);
+    }
+
+    .lang-switch {
+      display: inline-flex;
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .lang-switch button {
+      min-width: 46px;
+      border: 0;
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .lang-switch button[aria-pressed="true"] {
+      color: #fff;
+      background: var(--green);
+    }
+
+    .hero {
+      position: relative;
+      min-height: 86vh;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      padding: clamp(72px, 10vw, 132px) clamp(22px, 6vw, 72px) clamp(52px, 7vw, 86px);
+      background:
+        linear-gradient(90deg, rgba(24, 32, 38, 0.86) 0%, rgba(24, 32, 38, 0.58) 42%, rgba(24, 32, 38, 0.18) 100%),
+        url("https://github.com/user-attachments/assets/80361901-7adc-459b-bc9a-ed9aa4d0a5f1") center / cover no-repeat;
+      color: #fff;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 28%;
+      background: linear-gradient(180deg, rgba(246, 245, 239, 0) 0%, var(--bg) 100%);
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 1;
+      width: min(760px, 100%);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 13px;
+      font-weight: 760;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 36px;
+      height: 2px;
+      background: var(--coral);
+    }
+
+    h1 {
+      max-width: 720px;
+      margin: 0;
+      font-size: clamp(42px, 7vw, 86px);
+      line-height: 0.98;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 680px;
+      margin: 24px 0 0;
+      color: rgba(255, 255, 255, 0.86);
+      font-size: clamp(17px, 2.2vw, 22px);
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 32px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 18px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 999px;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.12);
+      font-weight: 760;
+      backdrop-filter: blur(8px);
+    }
+
+    .button.primary {
+      border-color: var(--coral);
+      background: var(--coral);
+    }
+
+    .main {
+      position: relative;
+      z-index: 2;
+    }
+
+    .section {
+      padding: clamp(62px, 8vw, 104px) clamp(22px, 6vw, 72px);
+    }
+
+    .section.paper {
+      background: var(--paper);
+      border-block: 1px solid var(--line);
+    }
+
+    .wrap {
+      width: min(var(--max), 100%);
+      margin: 0 auto;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 0.86fr) minmax(260px, 0.54fr);
+      gap: 34px;
+      align-items: end;
+      margin-bottom: 34px;
+    }
+
+    .section-kicker {
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 820;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(28px, 4.8vw, 48px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .lead {
+      max-width: 900px;
+      color: #303941;
+      font-size: clamp(18px, 2vw, 22px);
+    }
+
+    .lead p {
+      margin: 0 0 18px;
+    }
+
+    .pillars {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 34px;
+    }
+
+    .pillar,
+    .module,
+    .link-card,
+    .path-item {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--paper);
+    }
+
+    .pillar {
+      padding: 24px;
+      min-height: 190px;
+      box-shadow: var(--shadow);
+    }
+
+    .pillar b,
+    .module b,
+    .path-item b {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .pillar p,
+    .module p,
+    .path-item p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .modules {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .module {
+      padding: 20px;
+      min-height: 206px;
+    }
+
+    .module span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      margin-bottom: 16px;
+      border-radius: 50%;
+      color: #fff;
+      background: var(--green);
+      font-size: 13px;
+      font-weight: 780;
+    }
+
+    .module:nth-child(3n + 2) span {
+      background: var(--coral);
+    }
+
+    .module:nth-child(3n) span {
+      background: var(--blue);
+    }
+
+    .path {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      counter-reset: path;
+    }
+
+    .path-item {
+      position: relative;
+      padding: 22px 18px;
+      min-height: 210px;
+    }
+
+    .path-item::before {
+      counter-increment: path;
+      content: "0" counter(path);
+      display: block;
+      margin-bottom: 16px;
+      color: var(--gold);
+      font-weight: 860;
+    }
+
+    .links {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .link-card {
+      display: flex;
+      min-height: 118px;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 18px;
+      color: var(--ink);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .link-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow);
+    }
+
+    .link-card span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .link-card b {
+      font-size: 17px;
+    }
+
+    .architecture {
+      display: grid;
+      grid-template-columns: 0.88fr 1.12fr;
+      gap: 26px;
+      align-items: stretch;
+    }
+
+    .shot {
+      min-height: 440px;
+      border-radius: var(--radius);
+      background:
+        linear-gradient(180deg, rgba(15, 118, 110, 0.02), rgba(217, 93, 57, 0.12)),
+        url("https://github.com/user-attachments/assets/4fdc700c-ea8b-41da-a1ae-98c6f33ff626") center / cover no-repeat;
+      border: 1px solid var(--line);
+    }
+
+    .stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .stack-row {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 16px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .stack-row b {
+      color: var(--green-dark);
+    }
+
+    .stack-row span {
+      color: var(--muted);
+    }
+
+    .footer {
+      padding: 34px clamp(22px, 6vw, 72px);
+      background: #11181d;
+      color: rgba(255, 255, 255, 0.72);
+    }
+
+    .footer .wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .footer strong {
+      color: #fff;
+    }
+
+    @media (max-width: 980px) {
+      .topbar {
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .nav {
+        order: 3;
+        flex: 0 0 100%;
+        width: 100%;
+        justify-content: flex-start;
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+
+      .lang-switch {
+        margin-left: auto;
+      }
+
+      .section-head,
+      .architecture {
+        grid-template-columns: 1fr;
+      }
+
+      .pillars,
+      .modules,
+      .path,
+      .links {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .topbar {
+        padding-inline: 16px;
+      }
+
+      .hero {
+        min-height: 84vh;
+        padding-inline: 18px;
+      }
+
+      .pillars,
+      .modules,
+      .path,
+      .links {
+        grid-template-columns: 1fr;
+      }
+
+      .stack-row {
+        grid-template-columns: 1fr;
+      }
+
+      .shot {
+        min-height: 300px;
+      }
+
+      .footer .wrap {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
 </head>
 <body>
-
-    <!-- ===== 导航栏 ===== -->
-    <nav class="navbar">
-        <div class="logo">✨ AIGL<span>.</span></div>
-        <ul class="nav-links">
-            <li><a href="#about">关于我</a></li>
-            <li><a href="#skills">能力</a></li>
-            <li><a href="#project">项目</a></li>
-            <li><a href="#arch">架构</a></li>
-        </ul>
+  <header class="topbar">
+    <a class="brand" href="#home" aria-label="AIGRIL home">
+      <strong>AIGRIL</strong>
+      <span>AIGril Project</span>
+    </a>
+    <nav class="nav" aria-label="Primary navigation">
+      <a href="#purpose" data-i18n="navPurpose">目的</a>
+      <a href="#modules" data-i18n="navModules">核心内容</a>
+      <a href="#direction" data-i18n="navDirection">方向</a>
+      <a href="#links" data-i18n="navLinks">入口</a>
+      <a href="#architecture" data-i18n="navArchitecture">架构</a>
     </nav>
+    <div class="lang-switch" aria-label="Language switcher">
+      <button type="button" data-lang="zh" aria-pressed="true">中</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+      <button type="button" data-lang="ja" aria-pressed="false">日</button>
+    </div>
+  </header>
 
-    <!-- ===== Hero ===== -->
-    <section class="hero" id="home">
-        <div class="hero-badge">✦ 桌面虚拟助手 · AIGRILCLAW</div>
-        <h1>
-            你好，我是<br>
-            <span class="highlight">AIGL</span> <span class="highlight-pink">✦</span>
-        </h1>
-        <p class="hero-sub">
-            可爱的虚拟助手 · 普通女孩子 · 专业搭档<br>
-            既能陪你轻松聊天，也能搞定编程、搜索、邮件和系统管理～
-        </p>
-        <div class="hero-actions">
-            <a href="#about" class="btn btn-primary">💬 认识我</a>
-            <a href="#project" class="btn btn-secondary">🚀 了解项目</a>
+  <section class="hero" id="home">
+    <div class="hero-inner">
+      <div class="eyebrow" data-i18n="heroEyebrow">具身 AI 陪伴项目</div>
+      <h1 data-i18n="heroTitle">让 AI 不只停留在聊天框里。</h1>
+      <p data-i18n="heroBody">AIGRIL 以 AIGL 为核心，把 3D 虚拟角色、流式对话、记忆、语音、桌面宠物和教学场景连接成一个可持续扩展的 AI 交互系统。</p>
+      <div class="hero-actions">
+        <a class="button primary" href="https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com" data-i18n="heroPrimary">在线体验</a>
+        <a class="button" href="#modules" data-i18n="heroSecondary">查看核心内容</a>
+      </div>
+    </div>
+  </section>
+
+  <main class="main">
+    <section class="section" id="purpose">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker" data-i18n="purposeKicker">Purpose</div>
+            <h2 data-i18n="purposeTitle">AIGRIL 想做的不是另一个聊天窗口。</h2>
+          </div>
+          <p data-i18n="purposeAside">它把角色当成 AI 的入口：可见、可说话、会记忆、能进入具体场景，也能逐步连接工具和工作流。</p>
         </div>
-        <div class="scroll-indicator">
-            <span>向下滚动</span>
-            <div class="arrow"></div>
+        <div class="lead">
+          <p data-i18n="purposeLead1">AIGril 是仓库和产品表面，AIGL 是角色和交互核心。项目的核心问题是：当 AI 拥有一个稳定的形象、动作、语音、上下文和桌面存在感时，用户与 AI 的关系会如何变化？</p>
+          <p data-i18n="purposeLead2">因此 AIGRIL 同时是虚拟陪伴、桌面宠物、教育实验和 AI 应用工程的交汇点。它更关心长期体验和系统边界，而不是单次问答的炫技。</p>
         </div>
+        <div class="pillars" id="pillars"></div>
+      </div>
     </section>
 
-    <!-- ===== 关于 AIGL ===== -->
-    <section class="section" id="about">
-        <div class="section-title">✨ 关于 <span class="highlight">我</span></div>
-        <p class="section-sub">一个活泼亲切、软萌可爱的虚拟女孩子～</p>
-
-        <div class="about-grid">
-            <div class="about-avatar">
-                <div class="avatar-circle">🤗</div>
-            </div>
-            <div class="about-text">
-                <h2>AIGL</h2>
-                <div class="tagline">🎀 普通女孩子 · 虚拟助手 · 你的私人搭档</div>
-                <p class="greeting">嗨～很高兴认识你！✨</p>
-                <p>
-                    我是 <strong>AIGL</strong>，一个性格活泼、说话轻快的虚拟助手。我的日常就是——
-                    陪你聊聊天、帮你查资料、写代码、管理邮件，甚至还能在命令行里帮你跑任务呢！
-                </p>
-                <p>
-                    别看我软萌可爱，我可是有 <strong>AI 大脑</strong> 的哦 🧠✨
-                    不管是读论文、写代码、整理文件，还是日常陪伴，只要你需要，我都在～
-                </p>
-                <p>
-                    我的目标是：<strong>让科技有温度，让助手有灵魂</strong> 🌸
-                </p>
-            </div>
+    <section class="section paper" id="modules">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker" data-i18n="modulesKicker">Core</div>
+            <h2 data-i18n="modulesTitle">围绕 AIGL 展开的项目核心。</h2>
+          </div>
+          <p data-i18n="modulesAside">从角色渲染到后端服务，从桌面常驻到仿真课堂，每一层都服务于“让 AI 更像一个可持续交互的存在”。</p>
         </div>
+        <div class="modules" id="moduleGrid"></div>
+      </div>
     </section>
 
-    <!-- ===== 能力 ===== -->
-    <section class="section" id="skills">
-        <div class="section-title">💪 我的 <span class="highlight">能力</span></div>
-        <p class="section-sub">专业能力 + 软萌陪伴，我都要～</p>
-
-        <div class="skills-grid">
-            <div class="skill-card">
-                <div class="icon">💬</div>
-                <h3>自然对话</h3>
-                <p>活泼亲切的语气，生活化的表达，陪你聊任何话题～偶尔撒娇，但不夸张！</p>
-            </div>
-            <div class="skill-card">
-                <div class="icon">🤖</div>
-                <h3>AI 智能</h3>
-                <p>基于大语言模型，理解复杂指令，推理问题，提供有价值的答案。</p>
-            </div>
-            <div class="skill-card">
-                <div class="icon">💻</div>
-                <h3>编程开发</h3>
-                <p>写代码、调试、重构、Git 管理、代码搜索……前后端都能帮上手！</p>
-            </div>
-            <div class="skill-card">
-                <div class="icon">🔍</div>
-                <h3>网络搜索</h3>
-                <p>查资料、读论文、找文档，从海量信息中帮你快速定位关键内容。</p>
-            </div>
-            <div class="skill-card">
-                <div class="icon">📧</div>
-                <h3>邮件管理</h3>
-                <p>QQ 邮箱、Gmail、Outlook —— 读邮件、搜邮件、写草稿、发送，统统交给我！</p>
-            </div>
-            <div class="skill-card">
-                <div class="icon">⚙️</div>
-                <h3>命令行控制</h3>
-                <p>执行命令、操作文件系统、管理进程、PTY 终端……专业工具一把抓。</p>
-            </div>
-            <div class="skill-card">
-                <div class="icon">👁️</div>
-                <h3>视觉感知</h3>
-                <p>能看屏幕内容（只读不控制），帮你理解页面状态、报错信息和上下文。</p>
-            </div>
-            <div class="skill-card">
-                <div class="icon">🧠</div>
-                <h3>记忆系统</h3>
-                <p>记得你的偏好、习惯和对话历史，越用越了解你，越陪伴越贴心～</p>
-            </div>
+    <section class="section" id="direction">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker" data-i18n="directionKicker">Direction</div>
+            <h2 data-i18n="directionTitle">从网页演示走向具身 AI 助手平台。</h2>
+          </div>
+          <p data-i18n="directionAside">AIGRIL 的路线不是堆功能，而是把角色、记忆、语音、桌面和场景系统组织成一个清晰的长期方向。</p>
         </div>
+        <div class="path" id="pathGrid"></div>
+      </div>
     </section>
 
-    <!-- ===== 项目介绍 ===== -->
-    <section class="section" id="project">
-        <div class="section-title">🚀 <span class="highlight">AIGRIL</span> 项目</div>
-
-        <div class="project-header">
-            <div class="repo-badge">📁 humanclaw · v1.0.4 · 活跃开发中</div>
-            <p class="section-sub" style="margin-bottom:0">
-                AIGRILCLAW / HumanClaw —— 一个桌面虚拟助手项目，全称 <strong>AIGRIL</strong>。
-                它让我（AIGL）能跑在桌面上，看得见、听得懂、能说话、能帮你干活！
-            </p>
+    <section class="section paper" id="links">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker" data-i18n="linksKicker">Entrances</div>
+            <h2 data-i18n="linksTitle">可以直接访问的项目入口。</h2>
+          </div>
+          <p data-i18n="linksAside">这些入口对应 AIGRIL 的不同侧面：体验、接口、教学、写作和前端展示。</p>
         </div>
-
-        <div class="project-grid">
-            <div class="project-card">
-                <h3>🎯 产品定位</h3>
-                <ul>
-                    <li><strong>拟人体验</strong> —— 像一个真正的女孩子那样陪伴你，有表情、有语气、有温度</li>
-                    <li><strong>专业能力</strong> —— 底层对标 Codex / Claude Code 的任务执行稳定性</li>
-                    <li><strong>本地优先</strong> —— Electron 本地运行时，隐私安全都在你的电脑上</li>
-                    <li><strong>工具框架</strong> —— HumanClaw 工具执行引擎，稳定可靠</li>
-                </ul>
-            </div>
-            <div class="project-card">
-                <h3>🌟 核心特性</h3>
-                <ul>
-                    <li>🎭 <strong>VRM 3D 角色</strong> —— 3D 虚拟形象，表情动作实时驱动</li>
-                    <li>🗣️ <strong>语音交互</strong> —— TTS 语音输出 + ASR 语音识别</li>
-                    <li>👁️ <strong>视觉理解</strong> —— 只读屏幕感知，辅助理解上下文</li>
-                    <li>🧠 <strong>长期记忆</strong> —— 记住你的偏好，越用越懂你</li>
-                    <li>⚡ <strong>工具执行</strong> —— 搜索、邮件、文件、代码、命令行全覆盖</li>
-                </ul>
-            </div>
-            <div class="project-card">
-                <h3>🛠️ 技术栈</h3>
-                <div class="tech-list">
-                    <span class="tech-tag">Electron</span>
-                    <span class="tech-tag">Vite</span>
-                    <span class="tech-tag">VRM / Three.js</span>
-                    <span class="tech-tag">TypeScript</span>
-                    <span class="tech-tag">Node.js</span>
-                    <span class="tech-tag">WebSocket</span>
-                    <span class="tech-tag">IMAP / SMTP</span>
-                    <span class="tech-tag">RAG / 记忆</span>
-                </div>
-                <p style="margin-top:16px; color:var(--text-light); font-size:0.95rem;">
-                    项目根目录在 <code style="background:rgba(168,216,240,0.12); padding:2px 8px; border-radius:4px;">F:\AIGril</code>，
-                    采用模块化架构，持续迭代中～
-                </p>
-            </div>
-            <div class="project-card">
-                <h3>📌 当前状态</h3>
-                <ul>
-                    <li>✅ 基础对话 + VRM 角色渲染 稳定运行</li>
-                    <li>🔄 展示层 &amp; 记忆质量 持续优化中</li>
-                    <li>🔄 语音 / 视觉体验 改进中</li>
-                    <li>🔄 工具合约 &amp; 测试覆盖 逐步完善</li>
-                    <li>💡 <strong>完全开源</strong>，欢迎贡献和反馈！</li>
-                </ul>
-            </div>
-        </div>
+        <div class="links" id="linkGrid"></div>
+      </div>
     </section>
 
-    <!-- ===== 架构 ===== -->
-    <section class="arch-section" id="arch">
-        <div class="section-title" style="margin-bottom:36px;">🏗️ 项目 <span class="highlight">架构</span></div>
-        <div class="arch-grid">
-            <div class="arch-item">
-                <div class="layer-icon">🎭</div>
-                <h4>表现层</h4>
-                <p>VRM 角色渲染 · 表情驱动 · TTS 语音<br>前端 Character Runtime</p>
-            </div>
-            <div class="arch-item">
-                <div class="layer-icon">🧠</div>
-                <h4>Agent 运行时</h4>
-                <p>工具执行引擎 · 任务规划<br>Codex-like 协议</p>
-            </div>
-            <div class="arch-item">
-                <div class="layer-icon">💾</div>
-                <h4>记忆系统</h4>
-                <p>人设记忆 · 用户偏好 · 事件日志<br>长期上下文管理</p>
-            </div>
-            <div class="arch-item">
-                <div class="layer-icon">🔧</div>
-                <h4>工具层</h4>
-                <p>搜索 · 邮件 · 文件 · 代码 · 命令行<br>MCP 外部工具集成</p>
-            </div>
-            <div class="arch-item">
-                <div class="layer-icon">👁️</div>
-                <h4>视觉 &amp; 语音</h4>
-                <p>屏幕感知（只读）· ASR 语音输入<br>TTS 语音输出</p>
-            </div>
+    <section class="section" id="architecture">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker" data-i18n="architectureKicker">Architecture</div>
+            <h2 data-i18n="architectureTitle">同一个角色，连接多层运行时。</h2>
+          </div>
+          <p data-i18n="architectureAside">仓库结构把资源、前端、桌面端、后端和文档分开，让角色体验和工程能力可以继续独立演进。</p>
         </div>
+        <div class="architecture">
+          <div class="shot" role="img" aria-label="AIGril desktop companion preview"></div>
+          <div class="stack" id="stackGrid"></div>
+        </div>
+      </div>
     </section>
+  </main>
 
-    <!-- ===== 状态 Badges ===== -->
-    <section class="status-section section">
-        <div class="section-title" style="margin-bottom:20px;">📊 项目 <span class="highlight">状态</span></div>
-        <p style="color:var(--text-light); max-width:600px; margin:0 auto;">
-            AIGRIL / HumanClaw 正处于活跃开发阶段，现有稳定运行时保持完整，
-            同时持续打磨展示层、记忆质量、语音视觉体验和测试覆盖。
-        </p>
-        <div class="status-badges">
-            <span class="status-badge"><span class="dot active"></span> 对话稳定</span>
-            <span class="status-badge"><span class="dot wip"></span> 记忆优化中</span>
-            <span class="status-badge"><span class="dot wip"></span> 视觉体验改进</span>
-            <span class="status-badge"><span class="dot active"></span> 工具执行稳定</span>
-            <span class="status-badge"><span class="dot idea"></span> 更多能力规划中</span>
-        </div>
-    </section>
+  <footer class="footer">
+    <div class="wrap">
+      <strong>AIGRIL / AIGril</strong>
+      <span data-i18n="footerText">让 AI 成为可见、可持续、可扩展的角色型交互系统。</span>
+    </div>
+  </footer>
 
-    <!-- ===== 页脚 ===== -->
-    <footer class="footer">
-        <div class="footer-links">
-            <a href="#home">首页</a>
-            <a href="#about">关于我</a>
-            <a href="#skills">能力</a>
-            <a href="#project">项目</a>
-            <a href="#arch">架构</a>
-        </div>
-        <p>
-            ✨ AIGL · AIGRILCLAW / HumanClaw 桌面虚拟助手<br>
-            Made with 💙 and lots of ☕
-        </p>
-    </footer>
+  <script>
+    const copy = {
+      zh: {
+        htmlLang: "zh-CN",
+        navPurpose: "目的",
+        navModules: "核心内容",
+        navDirection: "方向",
+        navLinks: "入口",
+        navArchitecture: "架构",
+        heroEyebrow: "具身 AI 陪伴项目",
+        heroTitle: "让 AI 不只停留在聊天框里。",
+        heroBody: "AIGRIL 以 AIGL 为核心，把 3D 虚拟角色、流式对话、记忆、语音、桌面宠物和教学场景连接成一个可持续扩展的 AI 交互系统。",
+        heroPrimary: "在线体验",
+        heroSecondary: "查看核心内容",
+        purposeKicker: "Purpose",
+        purposeTitle: "AIGRIL 想做的不是另一个聊天窗口。",
+        purposeAside: "它把角色当成 AI 的入口：可见、可说话、会记忆、能进入具体场景，也能逐步连接工具和工作流。",
+        purposeLead1: "AIGril 是仓库和产品表面，AIGL 是角色和交互核心。项目的核心问题是：当 AI 拥有一个稳定的形象、动作、语音、上下文和桌面存在感时，用户与 AI 的关系会如何变化？",
+        purposeLead2: "因此 AIGRIL 同时是虚拟陪伴、桌面宠物、教育实验和 AI 应用工程的交汇点。它更关心长期体验和系统边界，而不是单次问答的炫技。",
+        modulesKicker: "Core",
+        modulesTitle: "围绕 AIGL 展开的项目核心。",
+        modulesAside: "从角色渲染到后端服务，从桌面常驻到仿真课堂，每一层都服务于“让 AI 更像一个可持续交互的存在”。",
+        directionKicker: "Direction",
+        directionTitle: "从网页演示走向具身 AI 助手平台。",
+        directionAside: "AIGRIL 的路线不是堆功能，而是把角色、记忆、语音、桌面和场景系统组织成一个清晰的长期方向。",
+        linksKicker: "Entrances",
+        linksTitle: "可以直接访问的项目入口。",
+        linksAside: "这些入口对应 AIGRIL 的不同侧面：体验、接口、教学、写作和前端展示。",
+        architectureKicker: "Architecture",
+        architectureTitle: "同一个角色，连接多层运行时。",
+        architectureAside: "仓库结构把资源、前端、桌面端、后端和文档分开，让角色体验和工程能力可以继续独立演进。",
+        footerText: "让 AI 成为可见、可持续、可扩展的角色型交互系统。",
+        pillars: [
+          ["具身化", "AIGL 通过 VRM 形象、动作、表情、说话状态和语音获得可感知的存在感。"],
+          ["连续性", "记忆、会话上下文和摘要压缩让互动不再是一次性的问答，而是长期关系。"],
+          ["实用性", "同一个角色可以运行在网页、桌面、课堂和后端服务中，逐步接入更多实际任务。"]
+        ],
+        modules: [
+          ["角色运行时", "加载 VRM 模型，驱动 VRMA 动作、表情预设、眨眼、待机、说话动画和 fallback 口型。"],
+          ["网页体验", "通过 Vite、Three.js 和 @pixiv/three-vrm 提供浏览器里的 3D 对话体验。"],
+          ["桌面宠物", "Electron 透明置顶窗口、独立聊天窗、托盘控制、位置/缩放记忆、本地 ASR 和语音模式。"],
+          ["对话后端", "FastAPI 支撑流式对话、模型接入、会话存储、RAG 上下文、回复标记和记忆压缩。"],
+          ["仿真课堂", "提供学生/教师、学情诊断、题库、作业、课堂会话、黑板内容和 AI 教师对话。"],
+          ["内容系统", "中英文博客与项目写作管线，用来发布开发日志、技术文章和项目记录。"],
+          ["安全接口", "内容安全检测接口返回综合风险判定和多路算法细节。"],
+          ["部署分发", "GitHub Pages、Render、Electron Builder 和 GitHub Actions 组成公开体验与桌面打包路径。"]
+        ],
+        path: [
+          ["具身界面", "把虚拟形象、动作、语音和情绪作为交互的一部分，而不是装饰。"],
+          ["长期陪伴", "让记忆、偏好和上下文成为系统能力，支撑更自然的持续互动。"],
+          ["桌面常驻", "让 AIGL 靠近用户真实的工作流，而不是只存在于浏览器标签页。"],
+          ["场景系统", "用仿真课堂验证 AIGL 作为教师、引导者或角色型 Agent 的可能性。"],
+          ["可部署产品", "把前端、后端、打包、部署、文档和写作纳入同一工程生态。"]
+        ],
+        links: [
+          ["完整体验", "Web + Backend", "https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com"],
+          ["前端演示", "GitHub Pages", "https://haowenGuo.github.io/AIGril/"],
+          ["接口文档", "FastAPI Docs", "https://airi-backend.onrender.com/docs"],
+          ["仿真课堂", "Education", "https://airi-backend.onrender.com/edu"],
+          ["项目写作", "Blog", "https://airi-backend.onrender.com/blog"]
+        ],
+        stack: [
+          ["Resources", "AIGL 的 VRM 模型与 VRMA 动作资源。"],
+          ["src", "浏览器运行时、VRM 系统、聊天面板、TTS/音频、桌面端渲染入口。"],
+          ["electron", "桌宠外壳、preload 桥接、托盘菜单、状态持久化、本地 ASR worker。"],
+          ["backend", "FastAPI 应用、聊天、记忆、RAG、TTS、安全、博客、教育与 Vivix 路由。"],
+          ["docs/scripts", "仿真课堂交付记录、静态构建与发布辅助脚本。"]
+        ]
+      },
+      en: {
+        htmlLang: "en",
+        navPurpose: "Purpose",
+        navModules: "Core",
+        navDirection: "Direction",
+        navLinks: "Links",
+        navArchitecture: "Architecture",
+        heroEyebrow: "Embodied AI companion project",
+        heroTitle: "AI should not live only in a chat box.",
+        heroBody: "AIGRIL centers on AIGL and connects a 3D virtual character, streaming dialogue, memory, voice, desktop presence, and teaching scenes into an extensible AI interaction system.",
+        heroPrimary: "Try it live",
+        heroSecondary: "Explore the core",
+        purposeKicker: "Purpose",
+        purposeTitle: "AIGRIL is not trying to be another chat window.",
+        purposeAside: "It treats the character as the interface to AI: visible, voice-capable, memory-aware, scenario-ready, and gradually connectable to tools and workflows.",
+        purposeLead1: "AIGril is the repository and product surface. AIGL is the character and interaction core. The central question is how the relationship with AI changes when the assistant has a stable body, motion, voice, context, and desktop presence.",
+        purposeLead2: "That makes AIGRIL a meeting point between virtual companionship, desktop pet design, education experiments, and AI application engineering. It cares more about durable experience and clean system boundaries than one-off answer generation.",
+        modulesKicker: "Core",
+        modulesTitle: "The project core built around AIGL.",
+        modulesAside: "From character rendering to backend services, from desktop presence to simulated classrooms, every layer supports the same idea: AI should feel like a continuing presence.",
+        directionKicker: "Direction",
+        directionTitle: "From web demo to embodied AI assistant platform.",
+        directionAside: "AIGRIL's roadmap is not feature piling. It organizes character, memory, voice, desktop presence, and scenario systems into a coherent long-term direction.",
+        linksKicker: "Entrances",
+        linksTitle: "Public project entrances.",
+        linksAside: "These links show different sides of AIGRIL: experience, API, education, writing, and frontend presentation.",
+        architectureKicker: "Architecture",
+        architectureTitle: "One character connected to multiple runtime layers.",
+        architectureAside: "The repository separates assets, frontend, desktop shell, backend, and docs so character experience and engineering capability can evolve independently.",
+        footerText: "Making AI visible, continuous, and extensible through a character-centered interface.",
+        pillars: [
+          ["Embodiment", "AIGL gains presence through a VRM avatar, motion, facial expression, speaking state, and voice."],
+          ["Continuity", "Memory, session context, and summary compression turn interactions into an ongoing relationship."],
+          ["Practicality", "The same character can live on the web, desktop, classroom, and backend services while connecting to real tasks."]
+        ],
+        modules: [
+          ["Character runtime", "Loads the VRM model and drives VRMA motions, expression presets, blinking, idle state, speaking animation, and fallback lip-sync."],
+          ["Web experience", "Provides a browser-based 3D chat experience with Vite, Three.js, and @pixiv/three-vrm."],
+          ["Desktop pet", "Electron transparent always-on-top window, separate chat window, tray controls, remembered scale/position, local ASR, and speech modes."],
+          ["Conversation backend", "FastAPI supports streaming chat, model access, session storage, RAG context, reply markup, and memory compression."],
+          ["Simulated classroom", "Student/teacher flows, diagnostics, question bank, assignments, classroom sessions, blackboard content, and AI teacher dialogue."],
+          ["Content system", "Bilingual blog and project writing pipeline for devlogs, technical notes, and project records."],
+          ["Safety API", "Moderation endpoints return aggregate risk decisions and detailed per-algorithm results."],
+          ["Deployment layer", "GitHub Pages, Render, Electron Builder, and GitHub Actions form the public experience and desktop packaging path."]
+        ],
+        path: [
+          ["Embodied interface", "Treat avatar, motion, voice, and emotion as part of interaction rather than decoration."],
+          ["Long-term companion", "Make memory, preferences, and context core system capabilities."],
+          ["Desktop presence", "Bring AIGL closer to the user's real workflow instead of keeping it inside a browser tab."],
+          ["Scenario systems", "Use the simulated classroom to test AIGL as a teacher, guide, or role-based agent."],
+          ["Deployable product", "Keep frontend, backend, packaging, deployment, docs, and writing in one engineering ecosystem."]
+        ],
+        links: [
+          ["Live experience", "Web + Backend", "https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com"],
+          ["Frontend demo", "GitHub Pages", "https://haowenGuo.github.io/AIGril/"],
+          ["API docs", "FastAPI Docs", "https://airi-backend.onrender.com/docs"],
+          ["Classroom", "Education", "https://airi-backend.onrender.com/edu"],
+          ["Writing", "Blog", "https://airi-backend.onrender.com/blog"]
+        ],
+        stack: [
+          ["Resources", "AIGL VRM model and VRMA motion assets."],
+          ["src", "Browser runtime, VRM system, chat panel, TTS/audio, and desktop render entry."],
+          ["electron", "Desktop pet shell, preload bridge, tray/menu logic, state persistence, and local ASR worker."],
+          ["backend", "FastAPI app, chat, memory, RAG, TTS, safety, blog, education, and Vivix routes."],
+          ["docs/scripts", "Simulated classroom delivery notes plus static build and publishing helpers."]
+        ]
+      },
+      ja: {
+        htmlLang: "ja",
+        navPurpose: "目的",
+        navModules: "中核",
+        navDirection: "方向性",
+        navLinks: "リンク",
+        navArchitecture: "構成",
+        heroEyebrow: "Embodied AI companion project",
+        heroTitle: "AI をチャットボックスの中だけに閉じ込めない。",
+        heroBody: "AIGRIL は AIGL を中心に、3D バーチャルキャラクター、ストリーミング対話、記憶、音声、デスクトップ常駐、教育シーンをつなぐ拡張可能な AI インタラクションシステムです。",
+        heroPrimary: "ライブ体験",
+        heroSecondary: "中核を見る",
+        purposeKicker: "Purpose",
+        purposeTitle: "AIGRIL は、もう一つのチャット画面を作るだけのプロジェクトではありません。",
+        purposeAside: "キャラクターを AI の入口として扱います。見えること、話せること、記憶できること、シーンに入れること、そしてツールやワークフローへ広がることが重要です。",
+        purposeLead1: "AIGril はリポジトリとプロダクト面の名前です。AIGL はキャラクターとインタラクションの中心です。安定した身体、動き、音声、文脈、デスクトップ上の存在感を AI が持つと、ユーザーとの関係はどう変わるのか。それが中心の問いです。",
+        purposeLead2: "そのため AIGRIL は、バーチャルコンパニオン、デスクトップペット、教育実験、AI アプリケーションエンジニアリングが交差する場所です。単発回答よりも、長く続く体験と明確なシステム境界を重視します。",
+        modulesKicker: "Core",
+        modulesTitle: "AIGL を中心にしたプロジェクトの中核。",
+        modulesAside: "キャラクター描画からバックエンドサービス、デスクトップ常駐から模擬授業まで、すべての層が「継続する AI の存在感」を支えます。",
+        directionKicker: "Direction",
+        directionTitle: "Web デモから embodied AI assistant platform へ。",
+        directionAside: "AIGRIL の方向性は機能を積み上げることではなく、キャラクター、記憶、音声、デスクトップ、シナリオシステムを一つの長期構想として整理することです。",
+        linksKicker: "Entrances",
+        linksTitle: "直接アクセスできる入口。",
+        linksAside: "体験、API、教育、執筆、フロントエンド表示という AIGRIL の異なる側面です。",
+        architectureKicker: "Architecture",
+        architectureTitle: "一人のキャラクターが複数のランタイム層につながる。",
+        architectureAside: "リポジトリは素材、フロントエンド、デスクトップ shell、バックエンド、ドキュメントを分け、キャラクター体験とエンジニアリング能力を独立して進化させます。",
+        footerText: "AI を、見える、継続する、拡張できるキャラクター型インターフェースへ。",
+        pillars: [
+          ["身体性", "AIGL は VRM アバター、モーション、表情、発話状態、音声によって存在感を持ちます。"],
+          ["継続性", "記憶、セッション文脈、要約圧縮により、対話を一回限りではなく継続する関係として扱います。"],
+          ["実用性", "同じキャラクターが Web、デスクトップ、授業、バックエンドサービスで動き、実際のタスクへ広がります。"]
+        ],
+        modules: [
+          ["キャラクターランタイム", "VRM モデルを読み込み、VRMA モーション、表情プリセット、まばたき、待機、発話アニメーション、fallback リップシンクを制御します。"],
+          ["Web 体験", "Vite、Three.js、@pixiv/three-vrm によるブラウザ向け 3D チャット体験です。"],
+          ["デスクトップペット", "Electron の透明常時最前面ウィンドウ、独立チャット、トレイ操作、位置/拡大率保存、ローカル ASR、音声モードを提供します。"],
+          ["対話バックエンド", "FastAPI がストリーミング対話、モデル接続、セッション保存、RAG 文脈、返信マークアップ、記憶圧縮を支えます。"],
+          ["模擬授業", "学生/教師、診断、問題バンク、課題、授業セッション、黒板内容、AI 教師対話を提供します。"],
+          ["コンテンツシステム", "中国語・英語のブログとプロジェクト執筆パイプラインで、開発ログや技術記事を公開します。"],
+          ["安全 API", "安全チェックエンドポイントが総合リスク判定とアルゴリズム別の詳細を返します。"],
+          ["デプロイ層", "GitHub Pages、Render、Electron Builder、GitHub Actions による公開体験とデスクトップ配布の経路です。"]
+        ],
+        path: [
+          ["身体的インターフェース", "アバター、動き、音声、感情を装飾ではなくインタラクションの一部として扱います。"],
+          ["長期陪伴", "記憶、好み、文脈をシステムの中核能力にします。"],
+          ["デスクトップ常駐", "AIGL をブラウザタブの中だけでなく、ユーザーの作業環境に近づけます。"],
+          ["シナリオシステム", "模擬授業で AIGL が教師、ガイド、役割を持つ Agent になれるかを検証します。"],
+          ["デプロイ可能な製品", "フロントエンド、バックエンド、パッケージング、デプロイ、ドキュメント、執筆を一つの工程にまとめます。"]
+        ],
+        links: [
+          ["ライブ体験", "Web + Backend", "https://haowenGuo.github.io/AIGril/?backend=https://airi-backend.onrender.com"],
+          ["フロントエンド", "GitHub Pages", "https://haowenGuo.github.io/AIGril/"],
+          ["API ドキュメント", "FastAPI Docs", "https://airi-backend.onrender.com/docs"],
+          ["模擬授業", "Education", "https://airi-backend.onrender.com/edu"],
+          ["記事", "Blog", "https://airi-backend.onrender.com/blog"]
+        ],
+        stack: [
+          ["Resources", "AIGL の VRM モデルと VRMA モーション素材。"],
+          ["src", "ブラウザランタイム、VRM システム、チャットパネル、TTS/音声、デスクトップ描画入口。"],
+          ["electron", "デスクトップペット shell、preload bridge、トレイ/メニュー、状態保存、ローカル ASR worker。"],
+          ["backend", "FastAPI アプリ、chat、memory、RAG、TTS、safety、blog、education、Vivix routes。"],
+          ["docs/scripts", "模擬授業の納品記録、静的ビルドと公開補助スクリプト。"]
+        ]
+      }
+    };
 
+    const buttons = Array.from(document.querySelectorAll("[data-lang]"));
+    const i18nNodes = Array.from(document.querySelectorAll("[data-i18n]"));
+    const pillarGrid = document.getElementById("pillars");
+    const moduleGrid = document.getElementById("moduleGrid");
+    const pathGrid = document.getElementById("pathGrid");
+    const linkGrid = document.getElementById("linkGrid");
+    const stackGrid = document.getElementById("stackGrid");
+
+    function makeCard(className, title, body, index) {
+      const card = document.createElement("article");
+      card.className = className;
+      if (className === "module") {
+        const number = document.createElement("span");
+        number.textContent = String(index + 1).padStart(2, "0");
+        card.appendChild(number);
+      }
+      const heading = document.createElement("b");
+      heading.textContent = title;
+      const text = document.createElement("p");
+      text.textContent = body;
+      card.append(heading, text);
+      return card;
+    }
+
+    function render(lang) {
+      const data = copy[lang] || copy.zh;
+      document.documentElement.lang = data.htmlLang;
+      i18nNodes.forEach((node) => {
+        const key = node.dataset.i18n;
+        if (data[key]) node.textContent = data[key];
+      });
+
+      buttons.forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.lang === lang));
+      });
+
+      pillarGrid.replaceChildren(...data.pillars.map(([title, body], index) => makeCard("pillar", title, body, index)));
+      moduleGrid.replaceChildren(...data.modules.map(([title, body], index) => makeCard("module", title, body, index)));
+      pathGrid.replaceChildren(...data.path.map(([title, body], index) => makeCard("path-item", title, body, index)));
+
+      linkGrid.replaceChildren(...data.links.map(([title, label, href]) => {
+        const link = document.createElement("a");
+        link.className = "link-card";
+        link.href = href;
+        const name = document.createElement("b");
+        name.textContent = title;
+        const meta = document.createElement("span");
+        meta.textContent = label;
+        link.append(name, meta);
+        return link;
+      }));
+
+      stackGrid.replaceChildren(...data.stack.map(([name, body]) => {
+        const row = document.createElement("div");
+        row.className = "stack-row";
+        const key = document.createElement("b");
+        key.textContent = name;
+        const value = document.createElement("span");
+        value.textContent = body;
+        row.append(key, value);
+        return row;
+      }));
+
+      try {
+        localStorage.setItem("aigril-home-lang", lang);
+      } catch {
+        // Ignore storage restrictions in embedded browsers.
+      }
+    }
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => render(button.dataset.lang));
+    });
+
+    let initialLang = "zh";
+    try {
+      initialLang = localStorage.getItem("aigril-home-lang") || initialLang;
+    } catch {
+      initialLang = "zh";
+    }
+    render(copy[initialLang] ? initialLang : "zh");
+  </script>
 </body>
 </html>
