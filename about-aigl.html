@@ -487,6 +487,139 @@
             font-weight: 500;
         }
 
+        /* ===== Benchmark ===== */
+        .bench-section {
+            padding: 90px 24px;
+            max-width: 1140px;
+            margin: 0 auto;
+        }
+
+        .bench-panel {
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.94) 0%, rgba(245,250,255,0.88) 100%),
+                radial-gradient(circle at 18% 12%, rgba(168,216,240,0.32), transparent 38%),
+                radial-gradient(circle at 85% 22%, rgba(240,168,200,0.22), transparent 36%);
+            border: 1px solid rgba(168, 216, 240, 0.22);
+            border-radius: 24px;
+            box-shadow: 0 18px 52px rgba(115, 184, 229, 0.18);
+            padding: 30px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bench-panel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(115,184,229,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(115,184,229,0.05) 1px, transparent 1px);
+            background-size: 34px 34px;
+            mask-image: linear-gradient(180deg, rgba(0,0,0,0.35), transparent 78%);
+            pointer-events: none;
+        }
+
+        .bench-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 50px;
+            background: rgba(168, 216, 240, 0.16);
+            border: 1px solid rgba(168, 216, 240, 0.28);
+            color: var(--primary-deep);
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 18px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .bench-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .bench-card {
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(168, 216, 240, 0.20);
+            border-radius: 16px;
+            padding: 18px;
+            min-height: 148px;
+            box-shadow: 0 10px 28px rgba(168, 216, 240, 0.14);
+        }
+
+        .bench-card .label {
+            color: var(--text-light);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .bench-card .score {
+            font-size: 2.1rem;
+            line-height: 1;
+            font-weight: 800;
+            margin-bottom: 8px;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .bench-card .score.mid {
+            background: linear-gradient(135deg, #f0a8c8 0%, #73b8e5 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .bench-card .score.low {
+            background: linear-gradient(135deg, #9aa8b8 0%, #c8d3df 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .bench-card h3 {
+            font-size: 1rem;
+            margin-bottom: 6px;
+        }
+
+        .bench-card p {
+            color: var(--text-light);
+            font-size: 0.86rem;
+        }
+
+        .bench-chart-wrap {
+            background: rgba(255,255,255,0.62);
+            border: 1px solid rgba(168, 216, 240, 0.20);
+            border-radius: 18px;
+            padding: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .bench-svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .bench-note {
+            margin-top: 14px;
+            color: var(--text-light);
+            font-size: 0.88rem;
+            position: relative;
+            z-index: 1;
+        }
+
         /* ===== 架构 Timeline ===== */
         .arch-section {
             background: linear-gradient(180deg, rgba(168, 216, 240, 0.06) 0%, transparent 100%);
@@ -604,6 +737,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .bench-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
             .nav-links {
                 gap: 16px;
             }
@@ -636,6 +773,19 @@
             .section {
                 padding: 60px 16px;
             }
+
+            .bench-section {
+                padding: 60px 16px;
+            }
+
+            .bench-panel {
+                padding: 22px 16px;
+                border-radius: 18px;
+            }
+
+            .bench-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -648,6 +798,7 @@
             <li><a href="#about">关于我</a></li>
             <li><a href="#skills">能力</a></li>
             <li><a href="#project">项目</a></li>
+            <li><a href="#bench">评测</a></li>
             <li><a href="#arch">架构</a></li>
         </ul>
     </nav>
@@ -812,6 +963,137 @@
         </div>
     </section>
 
+    <!-- ===== Benchmark ===== -->
+    <section class="bench-section" id="bench">
+        <div class="section-title">📈 本地 <span class="highlight">Bench</span></div>
+        <p class="section-sub">把本地几轮评测结果整理成一张 IMGE-2 风格的评分图谱。</p>
+
+        <div class="bench-panel">
+            <div class="bench-kicker">IMGE-2 Visual Scorecard · Local Bench Runs</div>
+
+            <div class="bench-grid">
+                <div class="bench-card">
+                    <div class="label">Humanlike Smoke</div>
+                    <div class="score">91.86</div>
+                    <h3>拟人对话稳定性</h3>
+                    <p>10 例固定协议 smoke，9/10 通过，重点覆盖语气、记忆、低工具感和关系阶段贴合。</p>
+                </div>
+                <div class="bench-card">
+                    <div class="label">30d Longitudinal</div>
+                    <div class="score mid">78.46</div>
+                    <h3>长期陪伴与任务连续性</h3>
+                    <p>171 个多日对话/任务节点，平均加权分 78.46，暴露了研究阅读、GitHub 任务等短板。</p>
+                </div>
+                <div class="bench-card">
+                    <div class="label">AgentBench</div>
+                    <div class="score">88</div>
+                    <h3>Data Pipeline 执行</h3>
+                    <p>专家级数据清洗合并任务完成，Layer0/Layer2 满分，工具步数控制仍有优化空间。</p>
+                </div>
+                <div class="bench-card">
+                    <div class="label">SWE-bench Lite Smoke</div>
+                    <div class="score">100</div>
+                    <h3>工程任务证据链</h3>
+                    <p>10/10 smoke 样例通过，覆盖 astropy/django 任务的 issue、repo、target、test evidence。</p>
+                </div>
+                <div class="bench-card">
+                    <div class="label">OSWorld PPT Recovery</div>
+                    <div class="score low">0</div>
+                    <h3>桌面恢复硬场景</h3>
+                    <p>LibreOffice Impress 单例结果为 0，保留为真实短板：GUI 恢复链路仍需继续修复。</p>
+                </div>
+                <div class="bench-card">
+                    <div class="label">AIGL Speed Bench</div>
+                    <div class="score">100</div>
+                    <h3>任务链完成率</h3>
+                    <p>3/3 任务完成，平均约 195 秒/任务，用于观察模型等待、工具耗时和生成链路稳定性。</p>
+                </div>
+            </div>
+
+            <div class="bench-chart-wrap">
+                <svg class="bench-svg" viewBox="0 0 980 440" role="img" aria-labelledby="benchChartTitle benchChartDesc">
+                    <title id="benchChartTitle">AIGL 本地 Benchmark 评分图</title>
+                    <desc id="benchChartDesc">横向柱状图展示 Humanlike Smoke、30d Longitudinal、AgentBench、SWE-bench Lite Smoke、OSWorld PPT Recovery 和 AIGL Speed Bench 的本地分数。</desc>
+                    <defs>
+                        <linearGradient id="benchBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#a8d8f0"/>
+                            <stop offset="100%" stop-color="#73b8e5"/>
+                        </linearGradient>
+                        <linearGradient id="benchPink" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#f0a8c8"/>
+                            <stop offset="100%" stop-color="#73b8e5"/>
+                        </linearGradient>
+                        <linearGradient id="benchGrey" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#c8d3df"/>
+                            <stop offset="100%" stop-color="#9aa8b8"/>
+                        </linearGradient>
+                        <filter id="softShadow" x="-10%" y="-40%" width="120%" height="180%">
+                            <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#73b8e5" flood-opacity="0.18"/>
+                        </filter>
+                    </defs>
+
+                    <rect x="0" y="0" width="980" height="440" rx="24" fill="#ffffff" opacity="0.35"/>
+                    <g opacity="0.34" stroke="#a8d8f0" stroke-width="1">
+                        <line x1="250" y1="74" x2="250" y2="374"/>
+                        <line x1="410" y1="74" x2="410" y2="374"/>
+                        <line x1="570" y1="74" x2="570" y2="374"/>
+                        <line x1="730" y1="74" x2="730" y2="374"/>
+                        <line x1="890" y1="74" x2="890" y2="374"/>
+                    </g>
+
+                    <text x="34" y="42" font-size="24" font-weight="800" fill="#2c3e50">AIGL Local Bench Score Atlas</text>
+                    <text x="34" y="66" font-size="13" fill="#6b7b8d">Local runs · 2026-05-31 to 2026-06-07 · score normalized to 100</text>
+
+                    <g font-size="12" fill="#8aa0b3" text-anchor="middle">
+                        <text x="250" y="398">0</text>
+                        <text x="410" y="398">25</text>
+                        <text x="570" y="398">50</text>
+                        <text x="730" y="398">75</text>
+                        <text x="890" y="398">100</text>
+                    </g>
+
+                    <g font-size="15" fill="#2c3e50" font-weight="700">
+                        <text x="34" y="103">Humanlike Smoke</text>
+                        <text x="34" y="153">30d Longitudinal</text>
+                        <text x="34" y="203">AgentBench Pipeline</text>
+                        <text x="34" y="253">SWE-bench Lite Smoke</text>
+                        <text x="34" y="303">OSWorld PPT Recovery</text>
+                        <text x="34" y="353">AIGL Speed Bench</text>
+                    </g>
+
+                    <g filter="url(#softShadow)">
+                        <rect x="250" y="84" width="640" height="24" rx="12" fill="#eef6fc"/>
+                        <rect x="250" y="84" width="588" height="24" rx="12" fill="url(#benchBlue)"/>
+                        <rect x="250" y="134" width="640" height="24" rx="12" fill="#eef6fc"/>
+                        <rect x="250" y="134" width="502" height="24" rx="12" fill="url(#benchPink)"/>
+                        <rect x="250" y="184" width="640" height="24" rx="12" fill="#eef6fc"/>
+                        <rect x="250" y="184" width="563" height="24" rx="12" fill="url(#benchBlue)"/>
+                        <rect x="250" y="234" width="640" height="24" rx="12" fill="#eef6fc"/>
+                        <rect x="250" y="234" width="640" height="24" rx="12" fill="url(#benchBlue)"/>
+                        <rect x="250" y="284" width="640" height="24" rx="12" fill="#eef6fc"/>
+                        <circle cx="250" cy="296" r="8" fill="url(#benchGrey)"/>
+                        <rect x="250" y="334" width="640" height="24" rx="12" fill="#eef6fc"/>
+                        <rect x="250" y="334" width="640" height="24" rx="12" fill="url(#benchBlue)"/>
+                    </g>
+
+                    <g font-size="15" fill="#2c3e50" font-weight="800" text-anchor="end">
+                        <text x="942" y="103">91.86</text>
+                        <text x="942" y="153">78.46</text>
+                        <text x="942" y="203">88</text>
+                        <text x="942" y="253">100</text>
+                        <text x="942" y="303">0</text>
+                        <text x="942" y="353">100</text>
+                    </g>
+                </svg>
+            </div>
+
+            <p class="bench-note">
+                数据来自本地 <code>eval-results</code> 与 <code>logs</code> 中的 summary/report 文件；
+                这些是工程内测样本，用于展示当前能力画像，不等同于公开排行榜成绩。
+            </p>
+        </div>
+    </section>
+
     <!-- ===== 架构 ===== -->
     <section class="arch-section" id="arch">
         <div class="section-title" style="margin-bottom:36px;">🏗️ 项目 <span class="highlight">架构</span></div>
@@ -867,6 +1149,7 @@
             <a href="#about">关于我</a>
             <a href="#skills">能力</a>
             <a href="#project">项目</a>
+            <a href="#bench">评测</a>
             <a href="#arch">架构</a>
         </div>
         <p>
