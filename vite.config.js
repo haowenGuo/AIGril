@@ -14,6 +14,7 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 index: resolve(workspaceRoot, 'index.html'),
+                about: resolve(workspaceRoot, 'about-aigl.html'),
                 pet: resolve(workspaceRoot, 'pet.html'),
                 chat: resolve(workspaceRoot, 'chat.html')
             }
