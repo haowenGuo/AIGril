@@ -98,8 +98,8 @@ class Settings(BaseSettings):
     # ================= 产品账号 / 会员配置 =================
     APP_SESSION_COOKIE_NAME: str = "ailis_session"
     APP_SESSION_TTL_DAYS: int = 30
-    APP_SESSION_COOKIE_SECURE: bool = False
-    APP_SESSION_COOKIE_SAMESITE: str = "lax"
+    APP_SESSION_COOKIE_SECURE: bool = True
+    APP_SESSION_COOKIE_SAMESITE: str = "none"
     APP_SESSION_COOKIE_DOMAIN: str = ""
     APP_PASSWORD_PEPPER: str = ""
     APP_REQUIRE_MEMBERSHIP_FOR_AI_APIS: bool = True

@@ -94,7 +94,7 @@ services:
       - key: APP_SESSION_COOKIE_SECURE
         value: "true"
       - key: APP_SESSION_COOKIE_SAMESITE
-        value: lax
+        value: none
       - key: APP_SESSION_COOKIE_DOMAIN
         sync: false
       - key: APP_PASSWORD_PEPPER
