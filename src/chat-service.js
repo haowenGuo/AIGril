@@ -147,7 +147,7 @@ function buildDemoReply(latestUserMessage, isAutoChat) {
         return pickRandom([
             createDemoPayload({
                 text: '我刚刚晃着脚发了会儿呆，然后就想起你啦。要不要随便聊点轻松的事情呀？',
-                action: 'wave',
+                action: 'goodbye',
                 expression: 'relaxed',
                 autoChat: true
             }),
@@ -172,7 +172,7 @@ function buildDemoReply(latestUserMessage, isAutoChat) {
     if (/你好|hello|hi|嗨|哈喽/i.test(normalizedText)) {
         return createDemoPayload({
             text: '你好呀，我现在在 GitHub Pages 的体验模式里陪着你。后端接上以后，我就能真的带着记忆和本地语音能力和你聊天啦。',
-            action: 'wave',
+            action: 'goodbye',
             expression: 'happy'
         });
     }
@@ -215,7 +215,7 @@ function buildDemoReply(latestUserMessage, isAutoChat) {
         }),
         createDemoPayload({
             text: `你刚刚提到“${previewText}”，我先用体验模式陪你回一句。等真实后端接上之后，我就能记住上下文，还能直接用本地语音把整段回答说出来。`,
-            action: 'wave',
+            action: 'goodbye',
             expression: 'happy'
         })
     ]);
