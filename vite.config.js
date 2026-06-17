@@ -15,6 +15,7 @@ export default defineConfig({
             input: {
                 index: resolve(workspaceRoot, 'index.html'),
                 about: resolve(workspaceRoot, 'about-aigl.html'),
+                experience: resolve(workspaceRoot, 'Test/index.html'),
                 pet: resolve(workspaceRoot, 'pet.html'),
                 chat: resolve(workspaceRoot, 'chat.html')
             }
