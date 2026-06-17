@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.account import require_model_api_member, require_tts_api_member
 from backend.api.schemas import ChatRequest, ChatTextResponse, ChatTTSResponse, TTSAlignment
 from backend.core.database import get_db
 from backend.services.conversation_service import ConversationService
@@ -31,6 +32,7 @@ def _estimate_duration_seconds(alignment) -> float | None:
 @router.post("/chat/tts", response_model=ChatTTSResponse)
 async def chat_tts_endpoint(
     request: ChatRequest,
+    _member=Depends(require_tts_api_member),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -79,6 +81,7 @@ async def chat_tts_endpoint(
 @router.post("/chat/text", response_model=ChatTextResponse)
 async def chat_text_endpoint(
     request: ChatRequest,
+    _member=Depends(require_model_api_member),
     db: AsyncSession = Depends(get_db)
 ):
     """

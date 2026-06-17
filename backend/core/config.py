@@ -95,6 +95,31 @@ class Settings(BaseSettings):
     ELEVENLABS_SPEED: float = 1.0
     ELEVENLABS_USE_SPEAKER_BOOST: bool = True
 
+    # ================= 产品账号 / 会员配置 =================
+    APP_SESSION_COOKIE_NAME: str = "ailis_session"
+    APP_SESSION_TTL_DAYS: int = 30
+    APP_SESSION_COOKIE_SECURE: bool = False
+    APP_SESSION_COOKIE_SAMESITE: str = "lax"
+    APP_SESSION_COOKIE_DOMAIN: str = ""
+    APP_PASSWORD_PEPPER: str = ""
+    APP_REQUIRE_MEMBERSHIP_FOR_AI_APIS: bool = True
+    APP_ONE_TIME_MEMBERSHIP_DAYS: int = 30
+    APP_ADMIN_EMAILS: str = ""
+    APP_MONTHLY_MODEL_CALL_LIMIT: int = 300
+    APP_MONTHLY_TTS_CALL_LIMIT: int = 100
+
+    # ================= Stripe Billing / Checkout 配置 =================
+    # Secret key 只从环境变量或 backend/.env 读取，不要写进前端代码。
+    STRIPE_API_VERSION: str = "2026-05-27.dahlia"
+    STRIPE_PUBLISHABLE_KEY: str = ""
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_PAYMENT_PRICE_ID: str = "price_1TioFh1e4Szqb246TLhI0cua"
+    STRIPE_SUBSCRIPTION_PRICE_ID: str = "price_1TioFL1e4Szqb246F54U6Eg2"
+    STRIPE_RETURN_URL: str = ""
+    STRIPE_CUSTOMER_PORTAL_RETURN_URL: str = ""
+    STRIPE_AUTOMATIC_TAX_ENABLED: bool = False
+    STRIPE_WEBHOOK_SECRET: str = ""
+
     class Config:
         # 同时兼容两种启动方式：
         # 1. 在 backend 目录内启动：python main.py
@@ -120,6 +145,13 @@ class Settings(BaseSettings):
             for origin in raw_value.split(",")
             if origin.strip()
         ]
+
+    def get_app_admin_emails(self) -> set[str]:
+        return {
+            email.strip().lower()
+            for email in (self.APP_ADMIN_EMAILS or "").split(",")
+            if email.strip()
+        }
 
 
 @lru_cache()

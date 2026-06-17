@@ -3,6 +3,7 @@ from starlette.background import BackgroundTask
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.account import require_model_api_member
 from backend.api.schemas import ChatRequest
 from backend.core.database import AsyncSessionLocal, get_db
 from backend.services.llm_service import LLMService
@@ -16,18 +17,14 @@ router = APIRouter()
 @router.post("/chat")
 async def chat_endpoint(
         request: ChatRequest,
+        _member=Depends(require_model_api_member),
         db: AsyncSession = Depends(get_db)
 ):
     """
     安全流式版：流式输出完，再统一存数据库
     记忆压缩由后台计时器异步执行，完全不影响接口响应速度
     """
-    # 1. 初始化服务
-    llm_svc = LLMService()
-    memory_svc = MemoryService(db)
-    rag_svc = RAGService()
-
-    # 2. 参数校验
+    # 1. 参数校验
     if not request.messages and not request.is_auto_chat:
         raise HTTPException(status_code=400, detail="消息列表不能为空")
 
@@ -44,6 +41,11 @@ async def chat_endpoint(
 
     if request.is_auto_chat:
         latest_user_msg += "\n发呆。"
+
+    # 2. 初始化服务
+    llm_svc = LLMService()
+    memory_svc = MemoryService(db)
+    rag_svc = RAGService()
 
     # 4. 存储用户消息
     await memory_svc.add_message(session_id, "user", latest_user_msg)
