@@ -822,133 +822,31 @@ textarea {
 .simulation-classroom {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(260px, 0.34fr) minmax(0, 1fr);
   gap: 22px;
-  align-items: stretch;
   overflow: hidden;
   margin-bottom: 28px;
   padding: 24px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: #efe6cf;
+  background:
+    linear-gradient(135deg, rgba(20, 56, 39, 0.16), rgba(240, 184, 68, 0.2)),
+    #efe6cf;
   box-shadow: var(--shadow);
 }
 
 .classroom-ambient {
   position: absolute;
   inset: 0;
-  opacity: 0.18;
+  opacity: 0.2;
   pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.2), transparent),
+    url("https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1400&q=80") center / cover no-repeat;
 }
 
-.classroom-ambient img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.ai-teacher-podium,
-.avatar-teacher-stage,
 .knowledge-blackboard {
   position: relative;
   z-index: 1;
-}
-
-.avatar-teacher-stage {
-  align-self: start;
-  display: grid;
-  grid-template-rows: 380px auto;
-  min-height: 520px;
-  overflow: hidden;
-  border: 1px solid rgba(24, 33, 27, 0.12);
-  border-radius: var(--radius);
-  background: rgba(255, 250, 240, 0.95);
-  box-shadow: 0 22px 42px rgba(24, 33, 27, 0.14);
-}
-
-.avatar-teacher-viewport {
-  position: relative;
-  height: 380px;
-  min-height: 380px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(16, 37, 26, 0.08)),
-    linear-gradient(90deg, rgba(18, 165, 125, 0.08) 1px, transparent 1px),
-    linear-gradient(rgba(18, 165, 125, 0.08) 1px, transparent 1px);
-  background-size: auto, 24px 24px, 24px 24px;
-}
-
-.avatar-teacher-viewport canvas {
-  position: absolute;
-  inset: 0;
-  width: 100% !important;
-  height: 100% !important;
-}
-
-.avatar-loading-card {
-  position: absolute;
-  inset: 24px;
-  display: grid;
-  place-content: center;
-  gap: 8px;
-  padding: 18px;
-  border: 1px dashed rgba(24, 33, 27, 0.22);
-  border-radius: var(--radius);
-  background: rgba(255, 250, 240, 0.74);
-  text-align: center;
-}
-
-.avatar-teacher-viewport.is-loaded .avatar-loading-card {
-  display: none;
-}
-
-.avatar-teacher-console {
-  display: grid;
-  gap: 10px;
-  padding: 18px;
-  border-top: 1px solid rgba(24, 33, 27, 0.1);
-  background: rgba(255, 250, 240, 0.96);
-}
-
-.avatar-teacher-console h3,
-.avatar-teacher-console p {
-  margin: 0;
-}
-
-.avatar-teacher-actions,
-.ai-teacher-dialogue-form .button-row {
-  margin-top: 8px;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-}
-
-.ai-teacher-podium {
-  display: grid;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid rgba(24, 33, 27, 0.12);
-  border-radius: var(--radius);
-  background: rgba(255, 250, 240, 0.94);
-}
-
-.ai-teacher-podium img {
-  width: 100%;
-  height: 220px;
-  object-fit: cover;
-  border-radius: var(--radius);
-}
-
-.ai-teacher-podium h3,
-.ai-teacher-podium p {
-  margin: 0;
-}
-
-.knowledge-blackboard {
   min-height: 520px;
   padding: 34px;
   border: 14px solid #7b532c;
@@ -972,6 +870,7 @@ textarea {
 .knowledge-blackboard h2 {
   max-width: 1200px;
   margin: 0;
+  color: #f8f4df;
   font-size: clamp(30px, 4vw, 52px);
   line-height: 1.12;
 }
@@ -988,155 +887,13 @@ textarea {
   line-height: 1.75;
 }
 
-.blackboard-source {
-  margin: 12px 0 0;
-  color: rgba(248, 244, 223, 0.7) !important;
-  font-size: 14px;
-}
-
-.blackboard-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 22px;
-  margin-top: 26px;
-}
-
-.blackboard-grid strong {
-  color: #f0b844;
-}
-
-.blackboard-grid ul {
-  margin: 10px 0 0;
-  padding-left: 20px;
-}
-
 .classroom-board-only {
   width: 100%;
 }
 
-.smart-blackboard {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-.blackboard-topline,
-.blackboard-header-row,
-.blackboard-question-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.blackboard-topline {
-  align-items: center;
-}
-
-.blackboard-topline .chalk-mark {
-  margin-bottom: 0;
-}
-
-.blackboard-mode,
-.blackboard-mini-source,
-.blackboard-section-label {
-  color: #f0b844;
-  font-size: 0.86rem;
-  font-weight: 900;
-  letter-spacing: 0;
-}
-
-.blackboard-score-card {
-  min-width: 132px;
-  padding: 14px;
-  border: 1px solid rgba(248, 244, 223, 0.24);
-  border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.08);
-  text-align: center;
-}
-
-.blackboard-score-card strong,
-.blackboard-score-card span,
-.blackboard-score-card em {
-  display: block;
-}
-
-.blackboard-score-card strong {
-  color: #f8f4df;
-  font-size: 1.7rem;
-}
-
-.blackboard-score-card span {
-  margin-top: 4px;
-  color: rgba(248, 244, 223, 0.72);
-  font-size: 0.84rem;
-}
-
-.blackboard-score-card em {
-  margin-top: 8px;
-  color: #f0d777;
-  font-style: normal;
-  font-weight: 900;
-}
-
-.blackboard-state-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr);
-  gap: 16px;
-}
-
-.blackboard-state-grid.lower-grid {
-  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
-}
-
-.chalk-panel {
-  min-height: 112px;
-  padding: 16px 18px;
-  border: 1px solid rgba(248, 244, 223, 0.18);
-  border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.chalk-panel > span {
-  display: inline-block;
-  margin-bottom: 10px;
-  color: #f0b844;
-  font-size: 0.86rem;
-  font-weight: 900;
-}
-
-.chalk-panel h3,
-.chalk-panel p,
-.chalk-panel ul {
-  margin: 0;
-}
-
-.chalk-panel ul {
-  display: grid;
-  gap: 8px;
-  padding-left: 18px;
-}
-
-.chalk-panel small {
-  display: block;
-  margin-top: 10px;
-  color: rgba(248, 244, 223, 0.72);
-  line-height: 1.6;
-}
-
-.feedback-panel.is-warning {
-  border-color: rgba(240, 184, 68, 0.54);
-  background: rgba(240, 184, 68, 0.12);
-}
-
-.feedback-panel.is-success {
-  border-color: rgba(44, 195, 135, 0.54);
-  background: rgba(44, 195, 135, 0.12);
-}
-
 .blackboard-question-form,
 .blackboard-empty {
-  margin-top: 0;
+  margin-top: 34px;
 }
 
 .blackboard-question {
@@ -1166,11 +923,6 @@ textarea {
   background: rgba(255, 255, 255, 0.06);
   color: rgba(248, 244, 223, 0.94);
   line-height: 1.55;
-}
-
-.blackboard-choice.is-selected {
-  border-color: rgba(240, 184, 68, 0.72);
-  background: rgba(240, 184, 68, 0.14);
 }
 
 .blackboard-choice input {
@@ -1204,85 +956,31 @@ textarea {
   color: rgba(248, 244, 223, 0.82) !important;
 }
 
-.ai-teacher-reply {
-  margin-top: 18px;
-  padding: 18px;
-  border: 1px solid rgba(18, 165, 125, 0.22);
-  border-radius: var(--radius);
-  background: rgba(18, 165, 125, 0.08);
-}
-
-.ai-teacher-reply p {
-  margin: 12px 0 0;
-  line-height: 1.7;
-}
-
-@media (max-width: 980px) {
-  .subject-breakdown {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .simulation-classroom {
-    grid-template-columns: 1fr;
-  }
-
-  .avatar-teacher-stage {
-    grid-template-columns: minmax(220px, 0.45fr) minmax(0, 0.55fr);
-    grid-template-rows: 1fr;
-    min-height: 320px;
-  }
-
-  .avatar-teacher-viewport {
-    height: 320px;
-    min-height: 320px;
-  }
-
-  .ai-teacher-podium {
-    grid-template-columns: 180px minmax(0, 1fr);
-    align-items: center;
-  }
-
-  .ai-teacher-podium img {
-    height: 180px;
-  }
-}
-
 @media (max-width: 720px) {
-  .subject-breakdown {
-    grid-template-columns: 1fr;
-  }
-
   .simulation-classroom {
     padding: 16px;
   }
 
-  .avatar-teacher-stage {
-    grid-template-columns: 1fr;
-    grid-template-rows: 340px auto;
-  }
-
-  .avatar-teacher-viewport {
-    height: 340px;
-    min-height: 340px;
-  }
-
-  .ai-teacher-podium,
-  .blackboard-grid,
-  .blackboard-state-grid,
-  .blackboard-state-grid.lower-grid,
   .blackboard-choice-list {
     grid-template-columns: 1fr;
-  }
-
-  .blackboard-header-row,
-  .blackboard-question-head {
-    flex-direction: column;
   }
 
   .knowledge-blackboard {
     min-height: auto;
     padding: 24px;
     border-width: 10px;
+  }
+}
+
+@media (max-width: 980px) {
+  .subject-breakdown {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .subject-breakdown {
+    grid-template-columns: 1fr;
   }
 }
 

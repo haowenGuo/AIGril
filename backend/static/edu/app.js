@@ -6,7 +6,6 @@ const state = {
     teacherStudents: [],
     teacherClassrooms: null,
     questionBank: null,
-    classroomTeacherReply: null,
     currentPage: 'login',
 };
 
@@ -738,209 +737,51 @@ function renderStudentDashboard() {
     });
 }
 
-function buildFallbackBlackboardState(activeSession, currentQuestion, currentChoices) {
-    const attemptedCount = Number(activeSession?.attemptedCount || 0);
-    const correctCount = Number(activeSession?.correctCount || 0);
-    const accuracy = attemptedCount ? Math.round((correctCount / attemptedCount) * 100) : 0;
-    return {
-        title: '基于EMBER-Agent安全增强的仿真课堂',
-        mode: 'AI 黑板课堂中枢',
-        phase: activeSession?.status === 'active' ? '课堂作答' : activeSession ? '课后复盘' : '待开课',
-        status: activeSession?.status || 'pending',
-        attendance: activeSession?.attendanceState || 'pending',
-        knowledgePoint: {
-            title: [activeSession?.subject, activeSession?.topic || currentQuestion?.category || currentQuestion?.level].filter(Boolean).join(' · ') || '课堂知识点',
-            subject: activeSession?.subject || currentQuestion?.subject || '综合',
-            topic: activeSession?.topic || '',
-            category: currentQuestion?.category || '',
-            level: currentQuestion?.level || '',
-            focusSummary: activeSession?.focusSummary || '',
-            anchors: [
-                activeSession?.focusSummary ? `学情锚点：${activeSession.focusSummary}` : '',
-                currentQuestion?.dataset ? `题库来源：${currentQuestion.dataset}` : '',
-                currentQuestion?.level ? `难度标签：${currentQuestion.level}` : '',
-            ].filter(Boolean),
-        },
-        question: currentQuestion,
-        answerOptions: currentChoices.map((choice, index) => ({
-            label: String.fromCharCode(65 + index),
-            text: choice,
-            index,
-        })),
-        studentAnswer: { hasAnswer: false },
-        feedback: { text: '', isCorrect: false, isWrong: false, type: '' },
-        mistakeDiagnosis: null,
-        nextBoard: currentQuestion ? '学生先独立选择，AI 教师根据答案更新错因和板书。' : '开启课堂后，黑板会同步生成知识点、题目和选项。',
-        metrics: { attemptedCount, correctCount, accuracy },
-        timeline: activeSession?.transcript?.slice(-6) || [],
-    };
-}
-
-function buildBlackboardSummary(boardState) {
-    const knowledge = boardState?.knowledgePoint || {};
-    const options = boardState?.answerOptions || [];
-    return [
-        knowledge.focusSummary ? `学情聚焦：${knowledge.focusSummary}` : '',
-        knowledge.title ? `当前知识点：${knowledge.title}` : '',
-        boardState?.question?.stem ? `当前题目：${boardState.question.stem}` : '',
-        options.length ? `答案选项：${options.map((choice) => `${choice.label}. ${choice.text}`).join('；')}` : '',
-        boardState?.studentAnswer?.hasAnswer ? `学生回答：${boardState.studentAnswer.selectedChoiceLabel || ''} ${boardState.studentAnswer.selectedChoiceText || boardState.studentAnswer.freeText || ''}` : '',
-        boardState?.mistakeDiagnosis?.reason ? `错因：${boardState.mistakeDiagnosis.reason}` : '',
-        boardState?.nextBoard ? `下一步板书：${boardState.nextBoard}` : '',
-    ].filter(Boolean).join('\n');
-}
-
-function renderSmartBlackboard(boardState, activeSession) {
-    const question = boardState?.question || null;
-    const answerOptions = boardState?.answerOptions || [];
-    const knowledge = boardState?.knowledgePoint || {};
-    const studentAnswer = boardState?.studentAnswer || {};
-    const feedback = boardState?.feedback || {};
-    const mistake = boardState?.mistakeDiagnosis || null;
-    const metrics = boardState?.metrics || {};
-
-    return `
-        <article class="knowledge-blackboard classroom-board-only smart-blackboard">
-            <div class="blackboard-topline">
-                <span class="chalk-mark"></span>
-                <span class="blackboard-mode">${escapeHtml(boardState?.mode || 'AI 黑板课堂中枢')}</span>
-            </div>
-            <div class="blackboard-header-row">
-                <div>
-                    <h2>${escapeHtml(boardState?.title || '基于EMBER-Agent安全增强的仿真课堂')}</h2>
-                    <p class="blackboard-source">课堂阶段：${escapeHtml(boardState?.phase || '待开课')} · 签到：${escapeHtml(boardState?.attendance === 'reported' ? '已报到' : '待报到')}</p>
-                </div>
-                <div class="blackboard-score-card">
-                    <strong>${escapeHtml(metrics.correctCount || 0)} / ${escapeHtml(metrics.attemptedCount || 0)}</strong>
-                    <span>正确 / 作答</span>
-                    <em>${escapeHtml(metrics.accuracy || 0)}%</em>
-                </div>
-            </div>
-            <div class="blackboard-state-grid">
-                <section class="chalk-panel knowledge-panel">
-                    <span>当前知识点</span>
-                    <h3>${escapeHtml(knowledge.title || '课堂知识点')}</h3>
-                    <ul>
-                        ${(knowledge.anchors || []).length ? knowledge.anchors.map((item) => `<li>${escapeHtml(item)}</li>`).join('') : '<li>开课后将根据题库与学情生成知识点锚点。</li>'}
-                    </ul>
-                </section>
-                <section class="chalk-panel next-board-panel">
-                    <span>下一步板书</span>
-                    <p>${escapeHtml(boardState?.nextBoard || '等待课堂动作。')}</p>
-                </section>
-            </div>
-            ${question ? `
-                <form class="blackboard-question-form" data-form="classroom-respond">
-                    <input type="hidden" name="sessionId" value="${escapeHtml(activeSession?.id || '')}" />
-                    <input type="hidden" name="freeText" value="" />
-                    <div class="blackboard-question-head">
-                        <div>
-                            <span class="blackboard-section-label">课堂问题</span>
-                            <h3>${escapeHtml(question.subject || activeSession?.subject || '综合')} · ${escapeHtml(question.level || question.category || '真题互动')}</h3>
-                        </div>
-                        <span class="blackboard-mini-source">${escapeHtml(question.dataset || '题库')}</span>
-                    </div>
-                    <p class="blackboard-question">${escapeHtml(question.stem || '')}</p>
-                    <div class="blackboard-choice-list smart-choice-list">
-                        ${answerOptions.map((choice) => `
-                            <label class="blackboard-choice ${Number(studentAnswer.selectedChoiceIndex) === Number(choice.index) ? 'is-selected' : ''}">
-                                <input type="radio" name="selectedChoiceIndex" value="${escapeHtml(choice.index)}" ${Number(studentAnswer.selectedChoiceIndex) === Number(choice.index) ? 'checked' : ''} />
-                                <span><strong>${escapeHtml(choice.label)}.</strong> ${escapeHtml(choice.text)}</span>
-                            </label>
-                        `).join('')}
-                    </div>
-                    <button type="submit" class="blackboard-submit">提交答案并更新黑板</button>
-                </form>
-            ` : `
-                <div class="blackboard-empty">
-                    <h3>尚未生成课堂问题</h3>
-                    <p>请先点击下方“开始仿真课堂”，题目、选项、学生回答、错因和下一步板书会同步更新到这块木框黑板。</p>
-                </div>
-            `}
-            <div class="blackboard-state-grid lower-grid">
-                <section class="chalk-panel student-answer-panel">
-                    <span>学生回答</span>
-                    ${studentAnswer.hasAnswer ? `
-                        <p>${escapeHtml(studentAnswer.selectedChoiceLabel || '补充')} ${escapeHtml(studentAnswer.selectedChoiceText || studentAnswer.freeText || '')}</p>
-                    ` : '<p>等待学生提交当前题。</p>'}
-                </section>
-                <section class="chalk-panel feedback-panel ${feedback.isWrong ? 'is-warning' : feedback.isCorrect ? 'is-success' : ''}">
-                    <span>${feedback.isWrong ? '错因诊断' : feedback.isCorrect ? '即时反馈' : 'AI 教师提示'}</span>
-                    <p>${escapeHtml(mistake?.reason || feedback.text || '提交答案后，AI 教师会把反馈、错因和下一步板书同步写到黑板。')}</p>
-                    ${mistake ? `<small>${escapeHtml(mistake.repairAction || '')}</small>` : ''}
-                </section>
-            </div>
-        </article>
-    `;
-}
-
 function renderStudentClassroom() {
     const overview = state.student || {};
     const diagnostics = overview.learning?.diagnostics || [];
     const classroomSessions = overview.classrooms?.recent || [];
     const activeSession = overview.classrooms?.activeSession || classroomSessions[0] || null;
-    const currentQuestion = activeSession?.status === 'active' ? activeSession.currentQuestion : null;
-    const currentChoices = currentQuestion?.choices || [];
-    const boardState = activeSession?.blackboardState || buildFallbackBlackboardState(activeSession, currentQuestion, currentChoices);
-    const blackboardTitle = boardState.title || '基于EMBER-Agent安全增强的仿真课堂';
-    const blackboardSummary = buildBlackboardSummary(boardState);
-    const latestTeacherLine = (activeSession?.transcript || [])
-        .filter((entry) => entry.role === 'teacher')
-        .slice(-1)[0]?.text;
-    const avatarTeacherScript = boardState.teacherPrompt || latestTeacherLine
-        || (currentQuestion
-            ? `同学，请看黑板。本题是：${currentQuestion.stem || ''}。先独立判断，再选择答案。`
-            : '同学们好，我是 EMBER AI 教师。请先开启仿真课堂，题目会显示在黑板上，我会站在黑板旁边带你一步步分析。');
+    const activeQuestion = activeSession?.status === 'active' ? activeSession.currentQuestion : null;
+    const blackboard = `
+        <section class="simulation-classroom">
+            <div class="classroom-ambient" aria-hidden="true"></div>
+            <article class="knowledge-blackboard classroom-board-only">
+                <span class="chalk-mark"></span>
+                <h2>基于EMBER-Agent安全增强的仿真课堂</h2>
+                ${activeQuestion ? `
+                    <form class="blackboard-question-form" data-form="classroom-respond">
+                        <input type="hidden" name="sessionId" value="${escapeHtml(activeSession.id)}" />
+                        <input type="hidden" name="freeText" value="" />
+                        <h3>课堂问题</h3>
+                        <p class="blackboard-question">${escapeHtml(activeQuestion.stem || '')}</p>
+                        <div class="blackboard-choice-list">
+                            ${(activeQuestion.choices || []).map((choice, index) => `
+                                <label class="blackboard-choice">
+                                    <input type="radio" name="selectedChoiceIndex" value="${index}" />
+                                    <span><strong>${String.fromCharCode(65 + index)}.</strong> ${escapeHtml(choice)}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                        <button type="submit" class="blackboard-submit">提交答案</button>
+                    </form>
+                ` : `
+                    <div class="blackboard-empty">
+                        <h3>尚未生成课堂问题</h3>
+                        <p>请先点击下方“开始仿真课堂”，题目和答案选项会显示在这块木框黑板上。</p>
+                    </div>
+                `}
+            </article>
+        </section>
+    `;
 
     return renderHeroPage({
         heroImage: heroImages.dashboard,
         eyebrow: '仿真课堂',
-        heading: 'AI 教师站在黑板旁边进行仿真授课',
-        subheading: 'VRM 虚拟教师会读取课堂题目、播放语音讲解，并通过对话系统回答追问。',
+        heading: '按学情、真题和课堂追问组织一节可连续互动的仿真课',
+        subheading: '系统会先做点名，再用真实题目讲解、追问、判答和留存课堂记录。',
         content: `
-            <section class="simulation-classroom">
-                <div class="classroom-ambient">
-                    <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1400&q=80" alt="真实教室场景" />
-                </div>
-                <aside class="avatar-teacher-stage" aria-label="AI 教师人物模型">
-                    <div class="avatar-teacher-viewport" data-avatar-teacher>
-                        <div class="avatar-loading-card">
-                            <strong>AI 教师载入中</strong>
-                            <span>正在读取 VRM 人物模型和课堂动作</span>
-                        </div>
-                    </div>
-                    <div class="avatar-teacher-console">
-                        <span class="eyebrow">AI 教师</span>
-                        <h3>EMBER AI 教师</h3>
-                        <p data-avatar-status>AI 教师正在准备模型</p>
-                        <p class="visually-hidden" data-teacher-script>${escapeHtml(avatarTeacherScript)}</p>
-                        <div class="button-row avatar-teacher-actions">
-                            <button type="button" class="primary-button inline-button" data-action="voice-play">播放AI教师讲解</button>
-                            <button type="button" class="ghost-button" data-action="voice-stop">停止语音</button>
-                        </div>
-                        <form class="stack-form ai-teacher-dialogue-form" data-form="ai-teacher-dialogue">
-                            <input type="hidden" name="sessionId" value="${activeSession?.id ? escapeHtml(activeSession.id) : ''}" />
-                            <input type="hidden" name="knowledgeTitle" value="${escapeHtml(blackboardTitle)}" />
-                            <input type="hidden" name="blackboardSummary" value="${escapeHtml(blackboardSummary)}" />
-                            <label>
-                                <span>向 AI 教师追问</span>
-                                <textarea name="message" rows="3" placeholder="例如：老师，为什么这个选项不对？"></textarea>
-                            </label>
-                            <div class="button-row">
-                                <button type="submit" class="primary-button inline-button">发送追问</button>
-                                <button type="button" class="ghost-button" data-action="preset-ai-question">填入示例问题</button>
-                            </div>
-                        </form>
-                        ${state.classroomTeacherReply ? `
-                            <div class="ai-teacher-reply">
-                                <strong>AI 教师回答</strong>
-                                <p>${escapeHtml(state.classroomTeacherReply.content || state.classroomTeacherReply.speechText || '')}</p>
-                            </div>
-                        ` : ''}
-                    </div>
-                </aside>
-                ${renderSmartBlackboard(boardState, activeSession)}
-            </section>
+            ${blackboard}
             <section class="hero-band">
                 <div>
                     <span class="eyebrow">当前课堂状态</span>
@@ -1405,11 +1246,9 @@ function renderTeacherClassroom() {
                                 <h4>${escapeHtml(session.studentName || '')} · ${escapeHtml(session.subject)}</h4>
                                 <p>${escapeHtml(session.topic || '默认仿真带练')}</p>
                                 <ul class="tiny-list">
-                                    <li>黑板阶段：${escapeHtml(session.blackboardState?.phase || '待同步')}</li>
                                     <li>作答次数：${escapeHtml(session.attemptedCount)}</li>
                                     <li>答对题数：${escapeHtml(session.correctCount)}</li>
                                     <li>课堂焦点：${escapeHtml(session.focusSummary || '')}</li>
-                                    <li>下一步：${escapeHtml(session.blackboardState?.nextBoard || '等待课堂动作')}</li>
                                 </ul>
                             </article>
                         `).join('')}
@@ -1557,7 +1396,6 @@ function renderAuthView() {
 function render() {
     updateBodyClass();
     app.innerHTML = state.me?.user ? renderAppView() : renderAuthView();
-    window.dispatchEvent(new CustomEvent('simclass:rendered'));
 }
 
 async function submitAuthForm(formName, payload) {
@@ -1634,30 +1472,6 @@ async function handleSubmit(event) {
                 },
             });
             await loadStudentData();
-        } else if (formName === 'ai-teacher-dialogue') {
-            const message = String(payload.message || '').trim();
-            if (!message) {
-                throw new Error('请先输入要问 AI 教师的问题。');
-            }
-            const activeSession = state.student?.classrooms?.activeSession || state.student?.classrooms?.recent?.[0] || null;
-            const history = (activeSession?.transcript || []).slice(-8).map((entry) => ({
-                role: entry.role === 'student' ? 'student' : 'teacher',
-                content: entry.text || '',
-            }));
-            const reply = await api('/api/edu/student/classroom-teacher/dialogue', {
-                method: 'POST',
-                body: {
-                    ...payload,
-                    sessionId: payload.sessionId ? Number(payload.sessionId) : null,
-                    message,
-                    history,
-                },
-            });
-            state.classroomTeacherReply = reply;
-            if (reply.session) {
-                await loadStudentData();
-            }
-            speakText(reply.speechText || reply.content || '');
         } else if (formName === 'question-search') {
             state.questionBank = await api(`/api/edu/teacher/question-bank?subject=${encodeURIComponent(payload.subject || '')}&query=${encodeURIComponent(payload.query || '')}&limit=${encodeURIComponent(payload.limit || 12)}`);
         } else if (formName === 'assignment-create') {
@@ -1682,33 +1496,6 @@ async function handleSubmit(event) {
     } catch (error) {
         showToast(error.message || '操作失败', true);
     }
-}
-
-function speakText(text) {
-    const cleanText = String(text || '').replace(/\s+/g, ' ').trim();
-    if (!cleanText) {
-        return;
-    }
-    if (!('speechSynthesis' in window)) {
-        showToast('当前浏览器不支持语音播放。', true);
-        return;
-    }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = 'zh-CN';
-    utterance.rate = 0.92;
-    utterance.pitch = 1.02;
-    utterance.onstart = () => window.dispatchEvent(new CustomEvent('simclass:teacher-speaking-start'));
-    utterance.onend = () => window.dispatchEvent(new CustomEvent('simclass:teacher-speaking-end'));
-    utterance.onerror = () => window.dispatchEvent(new CustomEvent('simclass:teacher-speaking-end'));
-    window.speechSynthesis.speak(utterance);
-}
-
-function stopSpeech() {
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-    }
-    window.dispatchEvent(new CustomEvent('simclass:teacher-speaking-end'));
 }
 
 async function handleClick(event) {
@@ -1752,27 +1539,6 @@ async function handleClick(event) {
             await loadStudentData();
             render();
             showToast('课堂已结束。');
-            return;
-        }
-
-        if (action === 'voice-play') {
-            const script = document.querySelector('[data-teacher-script]')?.textContent || '';
-            speakText(script);
-            return;
-        }
-
-        if (action === 'voice-stop') {
-            stopSpeech();
-            showToast('已停止语音播放。');
-            return;
-        }
-
-        if (action === 'preset-ai-question') {
-            const input = document.querySelector('[data-form="ai-teacher-dialogue"] textarea[name="message"]');
-            if (input) {
-                input.value = '老师，为什么移项的时候符号会变化？能不能用一个生活例子讲一下？';
-                input.focus();
-            }
             return;
         }
 

@@ -81,7 +81,7 @@ console.log(reel.status, reel.outputUrl);`,o={prompt:`Midnight campaign film for
           <span class="pill pill-orange">Turbo mode</span>
         </div>
         <p class="panel-note">
-          This panel is wired for Doubao Seedance through the AIGril backend proxy. Local development can still use <code>.env.local</code>.
+          This panel is wired for Doubao Seedance through the AILIS backend proxy. Local development can still use <code>.env.local</code>.
         </p>
 
         <label class="field-label" for="turbo-model">Model / Endpoint ID</label>
@@ -116,7 +116,7 @@ console.log(reel.status, reel.outputUrl);`,o={prompt:`Midnight campaign film for
           ${o.status===`submitting`?`Submitting...`:o.status===`polling`?`Generating...`:`Generate with Seedance`}
         </button>
 
-        <div class="turbo-feedback ${o.error?`is-error`:``}>
+        <div class="turbo-feedback ${o.error?`is-error`:``}">
           ${o.error?b(o.error):o.taskId?`Task ID: ${b(o.taskId)}`:`Ready to submit a Seedance task.`}
         </div>
       </article>

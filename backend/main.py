@@ -8,13 +8,10 @@ import uvicorn
 
 from backend.core.config import get_settings
 from backend.core.database import AsyncSessionLocal, init_db
-from backend.api.account import router as account_router
-from backend.api.admin import router as admin_router
 from backend.api.chat import router as chat_router
 from backend.api.tts import router as tts_router
 from backend.api.blog import router as blog_router
 from backend.api.edu import router as edu_router
-from backend.api.stripe_checkout import router as stripe_router
 from backend.api.vivix import router as vivix_router
 from backend.AISafety import router as ai_safety_router
 from backend.models import db_models, edu_models  # noqa: F401
@@ -81,9 +78,6 @@ app.add_middleware(
 # ---------------- 注册路由（只保留一次） ----------------
 app.include_router(chat_router, prefix="/api", tags=["对话"])
 app.include_router(tts_router, prefix="/api", tags=["语音"])
-app.include_router(account_router, prefix="/api", tags=["账号与会员"])
-app.include_router(admin_router, prefix="/api", tags=["后台管理"])
-app.include_router(stripe_router, prefix="/api", tags=["支付"])
 app.include_router(ai_safety_router, prefix="/api", tags=["安全"])
 app.include_router(blog_router, tags=["博客"])
 app.include_router(edu_router, tags=["教学"])
@@ -94,7 +88,7 @@ app.include_router(vivix_router, tags=["Vivix"])
 @app.get("/")
 async def root():
     return {
-        "message": "AIGril Backend is running",
+        "message": "AILIS Backend is running",
         "docs": "/docs",
         "blog": "/blog",
         "edu": "/edu",

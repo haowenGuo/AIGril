@@ -8,7 +8,7 @@ const RECORDING_MIME_TYPES = [
 ];
 
 function isDesktopRuntime() {
-    return window.aigrilDesktop?.platform === 'electron';
+    return window.ailisDesktop?.platform === 'electron';
 }
 
 function getRecordingMimeType() {
@@ -23,6 +23,20 @@ function getRecordingMimeType() {
     }
 
     return '';
+}
+
+function nowMs() {
+    return typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
+}
+
+function normalizeRecorderTimesliceMs(value) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+        return 200;
+    }
+    return Math.round(Math.min(Math.max(numericValue, 50), 1000));
 }
 
 function clampSample(sample) {
@@ -122,7 +136,7 @@ function encodePcmAsWav(samples, sampleRate) {
 export function createDesktopSpeechRecognitionService() {
     const supportsRecognition = Boolean(
         isDesktopRuntime() &&
-        window.aigrilDesktop?.transcribeAudio &&
+        window.ailisDesktop?.transcribeAudio &&
         navigator.mediaDevices?.getUserMedia &&
         typeof MediaRecorder !== 'undefined' &&
         typeof AudioContext !== 'undefined'
@@ -130,7 +144,7 @@ export function createDesktopSpeechRecognitionService() {
 
     return {
         supportsRecognition,
-        async createRecorder({ preferredDeviceId = '' } = {}) {
+        async createRecorder({ preferredDeviceId = '', timesliceMs = 200 } = {}) {
             if (!supportsRecognition) {
                 throw new Error('当前桌面环境不支持本地语音识别');
             }
@@ -169,6 +183,7 @@ export function createDesktopSpeechRecognitionService() {
             const recorder = mimeType
                 ? new MediaRecorder(stream, { mimeType })
                 : new MediaRecorder(stream);
+            const recorderTimesliceMs = normalizeRecorderTimesliceMs(timesliceMs);
             const audioContext = new AudioContext();
             if (audioContext.state === 'suspended') {
                 try {
@@ -186,6 +201,7 @@ export function createDesktopSpeechRecognitionService() {
                 ? new Float32Array(analyser.fftSize)
                 : null;
             const byteTimeDomainData = floatTimeDomainData ? null : new Uint8Array(analyser.fftSize);
+            const frequencyData = new Uint8Array(analyser.frequencyBinCount);
 
             let finalizeMode = 'stop';
             let isFinalized = false;
@@ -230,6 +246,61 @@ export function createDesktopSpeechRecognitionService() {
                 return measuredLevel;
             };
 
+            const sampleVoiceActivity = () => {
+                const level = sampleLevel();
+                analyser.getByteFrequencyData(frequencyData);
+
+                let totalEnergy = 0;
+                let voiceEnergy = 0;
+                let coreVoiceEnergy = 0;
+                let highEnergy = 0;
+                const nyquist = audioContext.sampleRate / 2;
+
+                for (let index = 1; index < frequencyData.length; index += 1) {
+                    const frequency = index * nyquist / frequencyData.length;
+                    const normalized = frequencyData[index] / 255;
+                    const energy = normalized * normalized;
+                    totalEnergy += energy;
+
+                    if (frequency >= 85 && frequency <= 3600) {
+                        voiceEnergy += energy;
+                    }
+                    if (frequency >= 160 && frequency <= 1400) {
+                        coreVoiceEnergy += energy;
+                    }
+                    if (frequency >= 4200) {
+                        highEnergy += energy;
+                    }
+                }
+
+                const voiceRatio = totalEnergy > 0 ? voiceEnergy / totalEnergy : 0;
+                const coreVoiceRatio = totalEnergy > 0 ? coreVoiceEnergy / totalEnergy : 0;
+                const highRatio = totalEnergy > 0 ? highEnergy / totalEnergy : 0;
+                const levelScore = Math.min(1, level / 0.065);
+                const voiceScore = Math.max(
+                    0,
+                    Math.min(
+                        1,
+                        levelScore * 0.35 +
+                            voiceRatio * 0.45 +
+                            coreVoiceRatio * 0.35 -
+                            highRatio * 0.35
+                    )
+                );
+
+                return {
+                    level,
+                    voiceScore,
+                    voiceLike: level >= CONFIG.ASR_MIN_INPUT_LEVEL &&
+                        voiceScore >= CONFIG.ASR_CONTINUOUS_VOICE_SCORE &&
+                        voiceRatio >= 0.36 &&
+                        highRatio <= 0.42,
+                    voiceRatio,
+                    coreVoiceRatio,
+                    highRatio
+                };
+            };
+
             const cleanup = () => {
                 stream.getTracks().forEach((track) => track.stop());
                 mediaSource.disconnect();
@@ -260,7 +331,7 @@ export function createDesktopSpeechRecognitionService() {
                 });
             });
 
-            recorder.start(200);
+            recorder.start(recorderTimesliceMs);
 
             async function finalize(mode) {
                 if (isFinalized) {
@@ -289,6 +360,9 @@ export function createDesktopSpeechRecognitionService() {
                 getLevel() {
                     return sampleLevel();
                 },
+                getVoiceActivity() {
+                    return sampleVoiceActivity();
+                },
                 getPeakLevel() {
                     return peakLevel;
                 },
@@ -300,15 +374,33 @@ export function createDesktopSpeechRecognitionService() {
                 }
             };
         },
-        async transcribeAudioBlob(audioBlob) {
+        async transcribeAudioBlob(audioBlob, options = {}) {
             if (!(audioBlob instanceof Blob) || !audioBlob.size) {
                 throw new Error('录音内容为空');
             }
 
+            const startedAt = nowMs();
             const pcmSamples = await decodeAudioBlobToMonoPcm(audioBlob, CONFIG.ASR_SAMPLE_RATE);
+            const decodedAt = nowMs();
             const wavBlob = encodePcmAsWav(pcmSamples, CONFIG.ASR_SAMPLE_RATE);
             const wavBytes = new Uint8Array(await wavBlob.arrayBuffer());
-            return window.aigrilDesktop.transcribeAudio(wavBytes);
+            const encodedAt = nowMs();
+            const preset = String(options?.preset || 'balanced').trim().toLowerCase() || 'balanced';
+            const result = await window.ailisDesktop.transcribeAudio({
+                audioBytes: wavBytes,
+                preset
+            });
+            const finishedAt = nowMs();
+            return {
+                ...(result || {}),
+                preset: result?.preset || preset,
+                client_timing: {
+                    decode_seconds: Number(((decodedAt - startedAt) / 1000).toFixed(3)),
+                    encode_seconds: Number(((encodedAt - decodedAt) / 1000).toFixed(3)),
+                    ipc_seconds: Number(((finishedAt - encodedAt) / 1000).toFixed(3)),
+                    total_seconds: Number(((finishedAt - startedAt) / 1000).toFixed(3))
+                }
+            };
         }
     };
 }

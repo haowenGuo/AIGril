@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AIGRIL 体验</title>
-    <meta name="description" content="AIGRIL 在线体验页，打开即可与 3D 虚拟助手互动。">
+    <title>AILIS 体验</title>
+    <meta name="description" content="AILIS 在线体验页，打开即可与 3D 虚拟助手互动。">
     <style>
         * {
             box-sizing: border-box;
@@ -400,19 +400,19 @@
 <body>
     <div class="app-shell">
         <header class="topbar">
-            <a class="brand" href="./" aria-label="AIGRIL 体验首页">
-                <span>AIGRIL</span>
+            <a class="brand" href="./" aria-label="AILIS 体验首页">
+                <span>AILIS</span>
                 <small>在线体验</small>
             </a>
             <nav class="nav-actions" aria-label="主要入口">
-                <a class="nav-link" href="../about-aigl.html">主页介绍</a>
-                <a class="nav-link" href="../about-aigl.html#membership">会员中心</a>
-                <a class="nav-button" href="../about-aigl.html#membership">登录 / 开通</a>
+                <a class="nav-link" href="../about-ailis.html">主页介绍</a>
+                <a class="nav-link" href="../about-ailis.html#membership">会员中心</a>
+                <a class="nav-button" href="../about-ailis.html#membership">登录 / 开通</a>
             </nav>
         </header>
 
         <main class="experience">
-            <section class="avatar-stage" aria-label="AIGRIL 3D 体验">
+            <section class="avatar-stage" aria-label="AILIS 3D 体验">
                 <div class="stage-header" aria-live="polite">
                     <span id="stage-dot" class="status-dot"></span>
                     <span id="stage-status">加载 3D 体验中</span>
@@ -420,15 +420,15 @@
                 <iframe
                     id="pet-frame"
                     class="pet-frame"
-                    title="AIGRIL 3D 桌宠"
+                    title="AILIS 3D 桌宠"
                     allow="autoplay"
                     src="../pet.html?demo=1&amp;speechMode=local"
                 ></iframe>
             </section>
 
-            <section class="chat-panel" aria-label="AIGRIL 聊天体验">
+            <section class="chat-panel" aria-label="AILIS 聊天体验">
                 <header class="panel-header">
-                    <h1 class="panel-title">AIGRIL 体验</h1>
+                    <h1 class="panel-title">AILIS 体验</h1>
                     <p id="panel-subtitle" class="panel-subtitle">公开网页演示模式，账号和会员入口在主页介绍页。</p>
                 </header>
 
@@ -444,7 +444,7 @@
                         <button class="quick-button" type="button" data-prompt="陪我放松一下">放松</button>
                     </div>
                     <div class="input-row">
-                        <textarea id="chat-input" class="chat-input" placeholder="和 AIGRIL 说点什么"></textarea>
+                        <textarea id="chat-input" class="chat-input" placeholder="和 AILIS 说点什么"></textarea>
                         <button id="send-button" class="send-button" type="submit" disabled>发送</button>
                     </div>
                 </form>
@@ -575,7 +575,7 @@
                 if (payload.type === 'state' && typeof payload.isBusy === 'boolean') {
                     state.isBusy = payload.isBusy;
                     panelSubtitle.textContent = state.isBusy
-                        ? 'AIGRIL 正在回应。'
+                        ? 'AILIS 正在回应。'
                         : '公开网页演示模式，账号和会员入口在主页介绍页。';
                     updateComposer();
                 }
@@ -608,7 +608,7 @@
                 setStatus('加载 3D 体验中', false);
                 updateComposer();
 
-                petWindow.addEventListener('aigril-chat-ui-event', (event) => {
+                petWindow.addEventListener('ailis-chat-ui-event', (event) => {
                     handlePetEvent(event.detail || {});
                 });
                 petWindow.addEventListener('modelLoaded', () => {

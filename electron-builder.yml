@@ -1,20 +1,34 @@
-appId: com.aigril.desktop
-productName: AIGril
+appId: com.ailis.desktop
+productName: AILIS
 artifactName: ${productName}-${version}-${arch}.${ext}
+icon: build/icon.png
 directories:
-  output: release
+  output: F:/AILIS/Build/AILIS
 files:
   - dist/**/*
   - electron/**/*
+  - scripts/mcp-ailis-research-server.cjs
+  - scripts/ailis-crawl4ai-worker.py
   - package.json
+extraResources:
+  - from: Resources/speech-models
+    to: speech-models
+  - from: build-cache/openclaw-runtime
+    to: openclaw-runtime
+  - from: build-cache/openclaw-vendor
+    to: openclaw-vendor
+  - from: build-cache/ailis-web-runtime
+    to: ailis-web-runtime
 extraMetadata:
   main: electron/main.cjs
 asar: true
 asarUnpack:
   - electron/**/*.py
+  - scripts/**/*.py
 npmRebuild: false
 win:
-  executableName: AIGril
+  icon: build/icon.ico
+  executableName: AILIS
   signAndEditExecutable: false
   target:
     - target: nsis
@@ -27,22 +41,10 @@ nsis:
   artifactName: ${productName}-Setup-${version}-win-${arch}.${ext}
 portable:
   artifactName: ${productName}-Portable-${version}-win-${arch}.${ext}
-mac:
-  category: public.app-category.utilities
-  darkModeSupport: true
-  artifactName: ${productName}-${version}-mac-${arch}.${ext}
-  target:
-    - target: dmg
-      arch:
-        - x64
-        - arm64
-    - target: zip
-      arch:
-        - x64
-        - arm64
 linux:
+  icon: build/icon.png
+  executableName: ailis
   category: Utility
-  artifactName: ${productName}-${version}-linux-${arch}.${ext}
   target:
     - target: AppImage
       arch:
@@ -53,3 +55,7 @@ linux:
     - target: tar.gz
       arch:
         - x64
+appImage:
+  artifactName: ${productName}-${version}-linux-${arch}.${ext}
+deb:
+  artifactName: ${productName}-${version}-linux-${arch}.${ext}

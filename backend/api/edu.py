@@ -9,7 +9,6 @@ from backend.api.edu_schemas import (
     AssignmentCreateRequest,
     ClassroomRespondRequest,
     ClassroomStartRequest,
-    ClassroomTeacherDialogueRequest,
     DiagnosticUpsertRequest,
     LoginRequest,
     StudentRegisterRequest,
@@ -18,7 +17,6 @@ from backend.api.edu_schemas import (
 from backend.core.config import get_settings
 from backend.core.database import get_db
 from backend.models.edu_models import EduUser
-from backend.services.edu_ai_teacher_service import generate_ai_teacher_reply
 from backend.services.edu_platform_service import (
     EduPlatformService,
     compute_diagnostic_result,
@@ -63,42 +61,6 @@ def _set_session_cookie(response: Response, token: str) -> None:
 
 def _clear_session_cookie(response: Response) -> None:
     response.delete_cookie(settings.EDU_SESSION_COOKIE_NAME, path="/")
-
-
-def _build_agent_blackboard_summary(
-    payload_summary: str,
-    session_payload: dict | None,
-) -> str:
-    parts: list[str] = []
-    if session_payload:
-        if session_payload.get("focusSummary"):
-            parts.append(f"学情聚焦：{session_payload['focusSummary']}")
-
-        question = session_payload.get("currentQuestion") or {}
-        if question.get("stem"):
-            parts.append(f"当前题目：{question['stem']}")
-
-        choices = question.get("choices") or []
-        if choices:
-            choice_text = "；".join(
-                f"{chr(65 + index)}. {choice}" for index, choice in enumerate(choices)
-            )
-            parts.append(f"答案选项：{choice_text}")
-
-        answer_text = question.get("answerText")
-        answer_index = question.get("answerIndex")
-        if answer_text and answer_index is not None:
-            try:
-                answer_number = int(answer_index)
-                label = chr(65 + answer_number) if 0 <= answer_number < 26 else str(answer_index)
-            except (TypeError, ValueError):
-                label = str(answer_index)
-            parts.append(f"教师参考答案：{label}. {answer_text}。未完成作答前先引导，不要直接报答案。")
-
-    if payload_summary:
-        parts.append(f"页面补充摘要：{payload_summary}")
-
-    return "\n".join(parts) or "课堂围绕知识库板书、真实题目和学生追问展开。"
 
 
 async def get_platform_service(db: AsyncSession = Depends(get_db)) -> EduPlatformService:
@@ -161,7 +123,6 @@ async def edu_status(service: EduPlatformService = Depends(get_platform_service)
                     "/api/edu/student/diagnostics",
                     "/api/edu/student/practice-assignments",
                     "/api/edu/student/classroom-sessions",
-                    "/api/edu/student/classroom-teacher/dialogue",
                 ],
                 "teacher": [
                     "/api/edu/teacher/overview",
@@ -451,62 +412,6 @@ async def respond_classroom(
     )
     saved = await service.update_classroom_session(session.id, updated)
     return _json_ok(serialize_classroom_session(saved))
-
-
-@router.post("/api/edu/student/classroom-teacher/dialogue")
-async def classroom_teacher_dialogue(
-    payload: ClassroomTeacherDialogueRequest,
-    student: EduUser = Depends(require_student),
-    service: EduPlatformService = Depends(get_platform_service),
-):
-    session = None
-    session_payload = None
-    if payload.sessionId:
-        session = await service.get_classroom_session_by_id(payload.sessionId)
-        if not session or session.student_user_id != student.id:
-            raise HTTPException(status_code=404, detail="课堂不存在或无权限访问。")
-        session_payload = serialize_classroom_session(session)
-
-    blackboard_summary = _build_agent_blackboard_summary(payload.blackboardSummary, session_payload)
-    reply = await generate_ai_teacher_reply(
-        student_name=student.full_name,
-        message=payload.message,
-        knowledge_title=payload.knowledgeTitle,
-        blackboard_summary=blackboard_summary,
-        history=payload.history,
-    )
-
-    if session and session_payload:
-        now = datetime.now(timezone.utc).isoformat()
-        transcript = list(session_payload.get("transcript") or [])
-        transcript.extend(
-            [
-                {
-                    "role": "student",
-                    "text": payload.message,
-                    "createdAt": now,
-                    "type": "ai-teacher-question",
-                },
-                {
-                    "role": "teacher",
-                    "text": reply["content"],
-                    "createdAt": now,
-                    "type": "ai-teacher-reply",
-                    "safetyLabel": reply.get("safetyLabel"),
-                    "provider": reply.get("provider"),
-                },
-            ]
-        )
-        saved = await service.update_classroom_session(
-            session.id,
-            {
-                **session_payload,
-                "transcript": transcript,
-            },
-        )
-        reply["session"] = serialize_classroom_session(saved) if saved else None
-
-    return _json_ok(reply, {"message": "AI 教师已完成讲解。"})
 
 
 @router.post("/api/edu/student/classroom-sessions/{session_id}/complete")

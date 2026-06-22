@@ -3,9 +3,27 @@ import { TTSAudioPlayer } from './tts-audio-player.js';
 import { ChatTTSSystem } from './chat-tts-system.js';
 import { createChatService } from './chat-service.js';
 import { createSpeechProvider } from './speech-provider.js';
+import { CONFIG, applyDesktopPreferencesToConfig } from './config.js';
+import { installAvatarDialogueBubble } from './avatar-dialogue-bubble.js';
+import { installPetMouseHitTest } from './pet-mouse-hit-test.js';
+
+const PET_RENDER_AVATAR_REFERENCE_HEIGHT = 560;
+const PET_RENDER_WINDOW_FRAME_HEIGHT = 960;
+const PET_WINDOW_CAMERA_DISTANCE_RATIO = PET_RENDER_WINDOW_FRAME_HEIGHT / PET_RENDER_AVATAR_REFERENCE_HEIGHT;
+
+function applyPetWindowFrameCameraCompensation() {
+    const compensatedDistance = CONFIG.CAMERA_POSITION.z * PET_WINDOW_CAMERA_DISTANCE_RATIO;
+    CONFIG.CAMERA_POSITION.set(
+        CONFIG.CAMERA_POSITION.x,
+        CONFIG.CAMERA_POSITION.y,
+        Number(compensatedDistance.toFixed(3))
+    );
+    CONFIG.CAMERA_MIN_DISTANCE = Number(Math.max(0.55, compensatedDistance - 0.35).toFixed(2));
+    CONFIG.CAMERA_MAX_DISTANCE = Number(Math.min(3.2, compensatedDistance + 0.6).toFixed(2));
+}
 
 function emitDesktopChatEvent(payload) {
-    window.aigrilDesktop?.emitChatEvent?.(payload);
+    window.ailisDesktop?.emitChatEvent?.(payload);
 }
 
 function installPetInteractions(rootElement) {
@@ -24,11 +42,10 @@ function installPetInteractions(rootElement) {
             pointerId: event.pointerId,
             startX: event.screenX,
             startY: event.screenY,
-            lastX: event.screenX,
-            lastY: event.screenY,
             moved: false
         };
 
+        window.ailisDesktop?.beginDragPetWindow?.();
         rootElement.setPointerCapture?.(event.pointerId);
     });
 
@@ -37,8 +54,6 @@ function installPetInteractions(rootElement) {
             return;
         }
 
-        const deltaX = event.screenX - dragState.lastX;
-        const deltaY = event.screenY - dragState.lastY;
         const totalDistance = Math.abs(event.screenX - dragState.startX) +
             Math.abs(event.screenY - dragState.startY);
 
@@ -46,11 +61,8 @@ function installPetInteractions(rootElement) {
             dragState.moved = true;
         }
 
-        dragState.lastX = event.screenX;
-        dragState.lastY = event.screenY;
-
-        if (dragState.moved && (deltaX !== 0 || deltaY !== 0)) {
-            window.aigrilDesktop?.dragPetWindow?.(deltaX, deltaY);
+        if (dragState.moved) {
+            window.ailisDesktop?.dragPetWindow?.();
         }
     });
 
@@ -61,43 +73,78 @@ function installPetInteractions(rootElement) {
 
         const wasClick = !dragState.moved;
         resetDragState();
+        window.ailisDesktop?.endDragPetWindow?.();
 
         if (wasClick) {
-            await window.aigrilDesktop?.showChatWindow?.();
+            await window.ailisDesktop?.showChatWindow?.();
         }
     });
 
-    rootElement.addEventListener('pointercancel', resetDragState);
+    rootElement.addEventListener('pointercancel', () => {
+        resetDragState();
+        window.ailisDesktop?.endDragPetWindow?.();
+    });
     rootElement.addEventListener('contextmenu', async (event) => {
         event.preventDefault();
         resetDragState();
-        await window.aigrilDesktop?.showControlMenu?.();
+        await window.ailisDesktop?.showControlMenu?.();
     });
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
     const petShellEl = document.getElementById('pet-shell');
+    const canvasContainerEl = document.getElementById('canvas-container');
+    const initialPreferences = window.ailisDesktop?.preferences || {};
+    applyDesktopPreferencesToConfig(initialPreferences);
+    applyPetWindowFrameCameraCompensation();
     const vrmSystem = new VRMModelSystem();
+    installAvatarDialogueBubble({
+        rootElement: petShellEl,
+        variant: 'pet',
+        avatarBoundsProvider: () => vrmSystem.getAvatarHitTestBounds?.()
+    });
     const audioPlayer = new TTSAudioPlayer(vrmSystem);
-    const chatService = createChatService();
+    let chatService = createChatService(initialPreferences);
     const buildSpeechProvider = (speechMode = null) => createSpeechProvider({
         enableTTS: true,
         speechMode
     });
-    let speechProvider = buildSpeechProvider(window.aigrilDesktop?.preferences?.speechMode);
+    let speechProvider = buildSpeechProvider(initialPreferences.speechMode);
     const chatSystem = new ChatTTSSystem(vrmSystem, audioPlayer, chatService, {
-        speechProvider
+        speechProvider,
+        chunkedTtsEnabled: initialPreferences.chunkedTtsEnabled
+    });
+    const mouseHitTest = installPetMouseHitTest({
+        rootElement: petShellEl,
+        canvasElement: canvasContainerEl,
+        avatarBoundsProvider: () => vrmSystem.getAvatarHitTestBounds?.(),
+        preferences: initialPreferences
+    });
+    const removePetCursorPointListener = window.ailisDesktop?.onPetCursorPoint?.((payload = {}) => {
+        mouseHitTest?.handleCursorPoint?.(payload);
     });
 
-    window.addEventListener('aigril-chat-ui-event', (event) => {
+    window.addEventListener('ailis-chat-ui-event', (event) => {
         emitDesktopChatEvent(event.detail);
     });
 
-    window.aigrilDesktop?.onChatMessageRequest?.(({ content = '' } = {}) => {
-        void chatSystem.sendExternalMessage(content);
+    window.ailisDesktop?.onChatMessageRequest?.((payload = {}) => {
+        void chatSystem.sendExternalMessage(payload.content || '', {
+            attachments: payload.attachments || [],
+            source: payload.source || ''
+        });
     });
 
-    window.aigrilDesktop?.onChatStateSyncRequest?.(() => {
+    window.ailisDesktop?.onChatControlRequest?.((payload = {}) => {
+        if (payload.type === 'clear-conversation') {
+            chatSystem.clearConversation();
+        }
+        if (payload.type === 'interrupt-conversation') {
+            void chatSystem.interruptCurrentTurn();
+        }
+    });
+
+    window.ailisDesktop?.onChatStateSyncRequest?.(() => {
         emitDesktopChatEvent({
             type: 'snapshot',
             messages: chatSystem.getTranscriptSnapshot(),
@@ -105,10 +152,21 @@ window.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    window.aigrilDesktop?.onPreferencesUpdated?.(({ preferences = {} } = {}) => {
+    window.ailisDesktop?.onPreferencesUpdated?.(({ preferences = {} } = {}) => {
+        applyDesktopPreferencesToConfig(preferences);
+        applyPetWindowFrameCameraCompensation();
         speechProvider?.dispose?.();
         speechProvider = buildSpeechProvider(preferences.speechMode);
         chatSystem.setSpeechProvider(speechProvider);
+        const nextChatService = createChatService(preferences);
+        if (nextChatService.conversationMode !== chatService.conversationMode) {
+            chatService = nextChatService;
+            chatSystem.setChatService(chatService);
+            window.chatService = chatService;
+        }
+        chatSystem.applyRuntimePreferences(preferences);
+        vrmSystem.applyPreferences();
+        mouseHitTest?.updatePreferences(preferences);
         window.speechProvider = speechProvider;
     });
 
@@ -141,6 +199,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     window.speechProvider = speechProvider;
 
     window.addEventListener('beforeunload', () => {
+        removePetCursorPointListener?.();
+        mouseHitTest?.dispose?.();
         speechProvider?.dispose?.();
     });
 });

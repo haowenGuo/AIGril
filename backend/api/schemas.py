@@ -24,6 +24,19 @@ class TTSAlignment(BaseModel):
     character_end_times_seconds: List[float] = Field(default_factory=list)
 
 
+class TTSSynthesizeRequest(BaseModel):
+    text: str = Field(..., description="需要直接送入 ElevenLabs 合成的净化文本")
+
+
+class TTSSynthesizeResponse(BaseModel):
+    audio_base64: str = Field(..., description="Base64 编码音频数据")
+    audio_format: str = Field(..., description="音频格式，例如 mp3_44100_128")
+    mime_type: str = Field(..., description="音频 MIME 类型")
+    alignment: Optional[TTSAlignment] = Field(default=None, description="原始文本字符级时间戳")
+    normalized_alignment: Optional[TTSAlignment] = Field(default=None, description="规范化文本字符级时间戳")
+    duration_hint_seconds: Optional[float] = Field(default=None, description="根据时间戳估算的音频时长")
+
+
 class ChatTTSResponse(BaseModel):
     session_id: str = Field(..., description="当前对话会话ID")
     raw_text: str = Field(..., description="LLM原始输出，仍包含动作/表情标签")

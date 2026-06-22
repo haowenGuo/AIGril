@@ -1,10 +1,3 @@
-databases:
-  - name: aigril-db
-    databaseName: aigril
-    user: aigril
-    plan: starter
-    region: singapore
-
 services:
   - type: web
     name: airi-backend
@@ -16,7 +9,6 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
-    # deploy-trigger: vivix-static-assets-20260430
     buildFilter:
       paths:
         - backend/**
@@ -28,13 +20,11 @@ services:
       - key: DEBUG
         value: "False"
       - key: CORS_ALLOW_ORIGINS
-        sync: false
+        value: http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,https://haowenguo.github.io
       - key: DATA_DIR
         value: /opt/render/project/src/backend/data
       - key: DATABASE_URL
-        fromDatabase:
-          name: aigril-db
-          property: connectionString
+        value: sqlite+aiosqlite:////opt/render/project/src/backend/data/app.db
       - key: CHROMA_PERSIST_DIR
         value: /opt/render/project/src/backend/data/chroma
       - key: EDU_SESSION_COOKIE_NAME
@@ -63,12 +53,6 @@ services:
         value: test
       - key: EDU_QUESTION_BANK_CACHE_TTL_SECONDS
         value: "900"
-      - key: EDU_DEEPSEEK_API_BASE
-        value: https://api.deepseek.com/v1
-      - key: EDU_DEEPSEEK_API_KEY
-        sync: false
-      - key: EDU_DEEPSEEK_MODEL
-        value: deepseek-chat
       - key: LLM_API_BASE
         value: https://ark.cn-beijing.volces.com/api/v3
       - key: LLM_API_KEY
@@ -87,46 +71,6 @@ services:
         value: mp3_44100_128
       - key: ELEVENLABS_TIMEOUT_SECONDS
         value: "60"
-      - key: APP_SESSION_COOKIE_NAME
-        value: aigril_session
-      - key: APP_SESSION_TTL_DAYS
-        value: "30"
-      - key: APP_SESSION_COOKIE_SECURE
-        value: "true"
-      - key: APP_SESSION_COOKIE_SAMESITE
-        value: none
-      - key: APP_SESSION_COOKIE_DOMAIN
-        sync: false
-      - key: APP_PASSWORD_PEPPER
-        generateValue: true
-      - key: APP_REQUIRE_MEMBERSHIP_FOR_AI_APIS
-        value: "true"
-      - key: APP_ONE_TIME_MEMBERSHIP_DAYS
-        value: "30"
-      - key: APP_ADMIN_EMAILS
-        sync: false
-      - key: APP_MONTHLY_MODEL_CALL_LIMIT
-        value: "300"
-      - key: APP_MONTHLY_TTS_CALL_LIMIT
-        value: "100"
-      - key: STRIPE_API_VERSION
-        value: 2026-05-27.dahlia
-      - key: STRIPE_PUBLISHABLE_KEY
-        sync: false
-      - key: STRIPE_SECRET_KEY
-        sync: false
-      - key: STRIPE_PAYMENT_PRICE_ID
-        sync: false
-      - key: STRIPE_SUBSCRIPTION_PRICE_ID
-        sync: false
-      - key: STRIPE_RETURN_URL
-        sync: false
-      - key: STRIPE_CUSTOMER_PORTAL_RETURN_URL
-        sync: false
-      - key: STRIPE_AUTOMATIC_TAX_ENABLED
-        value: "false"
-      - key: STRIPE_WEBHOOK_SECRET
-        sync: false
     disk:
       name: backend-data
       mountPath: /opt/render/project/src/backend/data

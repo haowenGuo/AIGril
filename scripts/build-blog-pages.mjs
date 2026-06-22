@@ -9,7 +9,9 @@ const distRoot = resolve(projectRoot, 'dist');
 const blogRoot = resolve(projectRoot, 'backend', 'blog_content');
 const sitePath = resolve(blogRoot, 'site.json');
 const postsPath = resolve(blogRoot, 'posts.json');
-const basePath = normalizeBasePath(process.env.AIGRIL_BLOG_BASE_PATH || '/AIGril');
+const basePath = normalizeBasePath(
+    process.env.AILIS_BLOG_BASE_PATH || process.env.AIGRIL_BLOG_BASE_PATH || '/AIGril'
+);
 
 if (!existsSync(sitePath) || !existsSync(postsPath)) {
     console.warn('[blog] skipped: backend/blog_content/site.json or posts.json is missing');

@@ -7,22 +7,10 @@ from backend.core.config import get_settings
 settings = get_settings()
 Path(settings.DATA_DIR).mkdir(parents=True, exist_ok=True)
 
-
-def normalize_database_url(database_url: str) -> str:
-    """Render Postgres exposes a sync URL; async SQLAlchemy needs asyncpg."""
-    if database_url.startswith("postgres://"):
-        return database_url.replace("postgres://", "postgresql+asyncpg://", 1)
-    if database_url.startswith("postgresql://"):
-        return database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    return database_url
-
-
-database_url = normalize_database_url(settings.DATABASE_URL)
-
 # 1. 创建异步引擎 (必须显式导入 create_async_engine)
 engine = create_async_engine(
-    database_url,
-    connect_args={"check_same_thread": False} if "sqlite" in database_url else {},
+    settings.DATABASE_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {},
     echo=settings.DEBUG
 )
 
