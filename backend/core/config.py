@@ -91,6 +91,41 @@ class Settings(BaseSettings):
     ELEVENLABS_SPEED: float = 1.0
     ELEVENLABS_USE_SPEAKER_BOOST: bool = True
 
+    # ================= 产品账号 / 会员配置 =================
+    APP_SESSION_COOKIE_NAME: str = "ailis_session"
+    APP_SESSION_TTL_DAYS: int = 30
+    APP_SESSION_COOKIE_SECURE: bool = True
+    APP_SESSION_COOKIE_SAMESITE: str = "none"
+    APP_SESSION_COOKIE_DOMAIN: str = ""
+    APP_PASSWORD_PEPPER: str = ""
+    APP_REQUIRE_MEMBERSHIP_FOR_AI_APIS: bool = True
+    APP_ONE_TIME_MEMBERSHIP_DAYS: int = 30
+    APP_ADMIN_EMAILS: str = ""
+    APP_MONTHLY_MODEL_CALL_LIMIT: int = 300
+    APP_MONTHLY_TTS_CALL_LIMIT: int = 100
+
+    # ================= Stripe Billing / Checkout 配置 =================
+    # Secret key 只从环境变量或 backend/.env 读取，不要写进前端代码。
+    STRIPE_API_VERSION: str = "2026-02-25.clover"
+    STRIPE_PUBLISHABLE_KEY: str = ""
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_PAYMENT_PRICE_ID: str = ""
+    STRIPE_SUBSCRIPTION_PRICE_ID: str = ""
+    STRIPE_RETURN_URL: str = ""
+    STRIPE_CUSTOMER_PORTAL_RETURN_URL: str = ""
+    STRIPE_AUTOMATIC_TAX_ENABLED: bool = False
+    STRIPE_WEBHOOK_SECRET: str = ""
+
+    # ================= AILIS 商业运行时 / 官方流式网关 =================
+    AILIS_STARTER_LLM_CREDITS: int = 20
+    AILIS_STARTER_TTS_CREDITS: int = 5
+    AILIS_GATEWAY_LLM_RESERVE_CREDITS: int = 1
+    AILIS_GATEWAY_LLM_CHARS_PER_CREDIT: int = 3000
+    AILIS_GATEWAY_TIMEOUT_SECONDS: int = 120
+    AILIS_OFFICIAL_LLM_API_BASE: str = ""
+    AILIS_OFFICIAL_LLM_API_KEY: str = ""
+    AILIS_OFFICIAL_LLM_MODEL: str = ""
+
     class Config:
         # 同时兼容两种启动方式：
         # 1. 在 backend 目录内启动：python main.py
@@ -116,6 +151,13 @@ class Settings(BaseSettings):
             for origin in raw_value.split(",")
             if origin.strip()
         ]
+
+    def get_app_admin_emails(self) -> set[str]:
+        return {
+            email.strip().lower()
+            for email in (self.APP_ADMIN_EMAILS or "").split(",")
+            if email.strip()
+        }
 
 
 @lru_cache()
