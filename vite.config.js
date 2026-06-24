@@ -23,7 +23,6 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 agentLab: resolve(workspaceRoot, 'agent-lab.html'),
-                aboutAilis: resolve(workspaceRoot, 'about-ailis.html'),
                 control: resolve(workspaceRoot, 'control.html'),
                 index: resolve(workspaceRoot, 'index.html'),
                 pet: resolve(workspaceRoot, 'pet.html'),
